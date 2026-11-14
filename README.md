@@ -1,5 +1,8 @@
 # island-dots
 
+> [!WARNING]
+> **This is HEAVILY vibecoded, and it's my personal setup.** I built it for me, my machine and how I like things. You're welcome to use it, fork it or take bits of it, but expect hardcoded paths, my own preferences baked in, rough edges, and features that only got tested on my own setup. Issues and PRs are fine, but I'm not maintaining this for anyone else, so no promises.
+
 **Island** is a macOS-style desktop shell for Wayland, built on [Quickshell](https://quickshell.org): menu bar, dock, desktop widgets, Spotlight, Launchpad, Control Centre, notifications, System Settings, a lock screen and a matching SDDM login theme. Everything except the login screen runs as a single Quickshell process.
 
 It runs on **Hyprland, niri, Sway/SwayFX/Scroll and MangoWC**. Any other compositor with layer-shell, foreign-toplevel and ext-session-lock (labwc, Wayfire, river, …) gets everything except the window-management menu items.
