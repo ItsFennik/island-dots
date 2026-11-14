@@ -1,0 +1,7 @@
+{
+  "name": "Everforest", "dark": true,
+  "bg": "#2d353b", "bg_alt": "#232a2e", "surface": "#343f44", "overlay": "#475258",
+  "fg": "#d3c6aa", "fg_dim": "#9da9a0", "fg_faint": "#7a8478",
+  "accent": "#a7c080", "accent_fg": "#2d353b",
+  "red": "#e67e80", "green": "#a7c080", "yellow": "#dbbc7f", "blue": "#7fbbb3", "magenta": "#d699b6", "cyan": "#83c092"
+}

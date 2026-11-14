@@ -1,0 +1,19 @@
+{
+  "name": "Wallpaper (matugen)",
+  "dark": true,
+  "bg": "#111318",
+  "bg_alt": "#0c0e13",
+  "surface": "#282a2f",
+  "overlay": "#44474f",
+  "fg": "#e2e2e9",
+  "fg_dim": "#c4c6d0",
+  "fg_faint": "#8e9099",
+  "accent": "#adc6ff",
+  "accent_fg": "#102f60",
+  "red": "#ffb4ab",
+  "green": "#debcdf",
+  "yellow": "#bfc6dc",
+  "blue": "#adc6ff",
+  "magenta": "#445e91",
+  "cyan": "#bfc6dc"
+}

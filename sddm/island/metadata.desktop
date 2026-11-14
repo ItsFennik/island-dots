@@ -1,0 +1,10 @@
+[SddmGreeterTheme]
+Name=Island
+Description=macOS-style login: big clock over your wallpaper, user and password at the bottom. Matches the Island lock screen.
+Author=ItsFennik
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+Screenshot=preview.png
+QtVersion=6
+X-SDDM-Theme-InterfaceVersion=2

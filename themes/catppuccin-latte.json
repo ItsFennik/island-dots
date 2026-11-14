@@ -1,0 +1,7 @@
+{
+  "name": "Catppuccin Latte", "dark": false,
+  "bg": "#eff1f5", "bg_alt": "#e6e9ef", "surface": "#ccd0da", "overlay": "#bcc0cc",
+  "fg": "#4c4f69", "fg_dim": "#6c6f85", "fg_faint": "#9ca0b0",
+  "accent": "#8839ef", "accent_fg": "#eff1f5",
+  "red": "#d20f39", "green": "#40a02b", "yellow": "#df8e1d", "blue": "#1e66f5", "magenta": "#ea76cb", "cyan": "#179299"
+}
