@@ -31,6 +31,7 @@ import qs.overlays
 //   qs -c island ipc call widgets <toggle|show|hide>
 //   qs -c island ipc call dock <toggle|autohide>
 //   qs -c island ipc call lock <lock|preview|status>
+//   qs -c island ipc call screenshot <toolbar|region|window|screen|all>
 // Popout contents only exist while open, so the idle cost is the bar itself.
 ShellRoot {
     id: root
@@ -56,6 +57,23 @@ ShellRoot {
         function onLaunchpadChanged() { if (!Popouts.launchpad) reclaim.restart(); }
     }
     Timer { id: reclaim; interval: 500; onTriggered: gc() }
+
+    // Screenshots: toolbar (⇧⌘S) and the floating thumbnail, each only alive while shown.
+    LazyLoader { active: Screenshot.toolbar; ScreenshotBar { screen: Quickshell.screens.find(s => s.name === Screenshot.toolbarScreen) ?? Quickshell.screens[0] } }
+    LazyLoader { active: Screenshot.shot !== ""; ScreenshotThumb { screen: Quickshell.screens.find(s => s.name === Screenshot.thumbScreen) ?? Quickshell.screens[0] } }
+    Connections {
+        target: Screenshot
+        function onToolbarChanged() { if (!Screenshot.toolbar) reclaim.restart(); }
+        function onShotChanged() { if (Screenshot.shot === "") reclaim.restart(); }
+    }
+    IpcHandler {
+        target: "screenshot"
+        function toolbar(): void { Screenshot.toggleToolbar(); }
+        function region(): void { Screenshot.capture("region"); }
+        function window(): void { Screenshot.capture("window"); }
+        function screen(): void { Screenshot.capture("screen"); }
+        function all(): void { Screenshot.capture("all"); }
+    }
 
     IpcHandler {
         target: "launchpad"
@@ -99,6 +117,8 @@ ShellRoot {
         function media(): void { Popouts.toggle("media"); }
         function clipboard(): void { Popouts.toggle("clipboard"); }
         function power(): void { Popouts.toggle("power"); }
+        function sound(): void { Popouts.toggle("sound"); }
+        function network(): void { Popouts.toggle("network"); }
         function close(): void { Popouts.close(); }
     }
 

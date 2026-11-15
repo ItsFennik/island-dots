@@ -36,7 +36,7 @@ Scope {
     readonly property var pages: [
         { id: "wifi", section: 0, text: "Wi-Fi", glyph: "", tint: "#0a84ff", custom: "WifiPage", keywords: "wireless network wlan ssid password join" },
         { id: "bluetooth", section: 0, text: "Bluetooth", glyph: "", tint: "#0a84ff", custom: "BluetoothPage", keywords: "devices pair headphones mouse keyboard" },
-        { id: "network", section: 0, text: "Network", glyph: "", tint: "#0a84ff", custom: "NetworkPage", keywords: "ethernet wired lan ip address internet" },
+        { id: "network", section: 0, text: "Network", glyph: "", tint: "#0a84ff", custom: "NetworkPage", keywords: "ethernet wired lan ip address internet vpn wireguard openvpn tunnel" },
 
         { id: "notifications", section: 1, text: "Notifications", glyph: "", tint: "#ff3b30",
           about: "Banners slide in at the top right of the screen. Click the clock in the menu bar to open Notification Centre.",
@@ -119,10 +119,13 @@ Scope {
                 { key: "blurPasses", type: "slider", label: "Passes", from: 1, to: 4, when: "blur" } ] },
             { title: "Animations", rows: [
                 { key: "animations", type: "switch", label: "Animate windows and workspaces" },
+                { key: "animCurve", type: "choice", label: "Feel", sub: "How motion eases in and out", options: [["smooth", "Smooth"], ["spring", "Springy"], ["classic", "Classic"]], when: "animations" },
                 { key: "animSpeed", type: "slider", label: "Speed", from: 0.5, to: 10, step: 0.5, decimals: 1, minText: "Fast", maxText: "Slow", when: "animations" },
                 { key: "windowAnim", type: "choice", label: "Windows", options: [["popin", "Pop In"], ["slide", "Slide"], ["gnomed", "Genie"]], when: "animations" },
                 { key: "workspaceAnim", type: "choice", label: "Workspaces", options: [["slide", "Slide"], ["slidevert", "Vertical"], ["fade", "Fade"], ["slidefade", "Slide & Fade"]], when: "animations" } ] } ] },
-        { id: "displays", section: 2, text: "Displays", glyph: "", tint: "#0a84ff", custom: "DisplaysPage", keywords: "monitor resolution refresh rate scale screen" },
+        { id: "defaultapps", section: 2, text: "Default Apps", glyph: "\uf00a", tint: "#5856d6", custom: "DefaultAppsPage",
+          keywords: "default browser web mail email file manager folder text editor image viewer video player music pdf archive open with xdg mime handler" },
+        { id: "displays", section: 2, text: "Displays", glyph: "", tint: "#0a84ff", custom: "DisplaysPage", keywords: "monitor resolution refresh rate hz scale rotation rotate screen vrr adaptive sync" },
         { id: "wallpaper", section: 2, text: "Wallpaper", glyph: "", tint: "#32ade6",
           about: "Pick a picture or a video from your wallpaper folders. Super+W opens the picker.",
           keywords: "background picture folder transition video live animated mpvpaper wallhaven download api key",
@@ -154,6 +157,17 @@ Scope {
                 { key: "repeatRate", type: "slider", label: "Key repeat rate", from: 10, to: 80, suffix: "/s", minText: "Slow", maxText: "Fast" },
                 { key: "repeatDelay", type: "slider", label: "Delay until repeat", from: 150, to: 1000, step: 25, suffix: " ms", minText: "Short", maxText: "Long" },
                 { key: "numlock", type: "switch", label: "Turn on Num Lock at login" } ] } ] },
+        { id: "screenshots", section: 3, text: "Screenshots", glyph: "\uf030", tint: "#636366",
+          about: "Print captures a selection, ⌥Print a window, ⇧Print the whole screen. ⇧⌘S opens the screenshot toolbar.",
+          keywords: "screenshot screen capture print grim slurp snip region window clipboard thumbnail",
+          groups: [
+            { title: "", rows: [
+                { type: "button", label: "Screenshot toolbar", sub: "Screen, window or selection, with a timer", text: "Open…", f: () => Screenshot.openToolbar() },
+                { key: "screenshotDest", type: "list", label: "Save to", options: [["~/Pictures/Screenshots", "Screenshots folder"], ["~/Pictures", "Pictures"], ["~/Desktop", "Desktop"], ["clipboard", "Clipboard only"]] },
+                { key: "screenshotCopy", type: "switch", label: "Also copy to the clipboard" },
+                { key: "screenshotThumb", type: "switch", label: "Show floating thumbnail", sub: "Click it to open the screenshot" },
+                { key: "screenshotPointer", type: "switch", label: "Show the mouse pointer" },
+                { key: "screenshotSound", type: "switch", label: "Play sound" } ] } ] },
         { id: "mouse", section: 3, text: "Mouse", glyph: "", tint: "#8e8e93",
           keywords: "pointer tracking speed sensitivity acceleration scroll natural focus follows",
           groups: [
@@ -244,17 +258,33 @@ Scope {
                     x: 16; y: 16
                     spacing: 8
                     HoverHandler { id: lightsHover }
+                    // Symbols are drawn as strokes (not font glyphs, which sit off-centre and
+                    // vary by font): close ×, minimise −, zoom +.
                     Repeater {
-                        model: [["#ff5f57", "×", () => root.open = false], ["#febc2e", "−", () => root.open = false],
-                                ["#28c840", "+", () => Compositor.zoom()]]
+                        model: [["#ff5f57", "close", () => root.open = false], ["#febc2e", "min", () => root.open = false],
+                                ["#28c840", "zoom", () => Compositor.zoom()]]
                         MouseArea {
+                            id: light
                             required property var modelData
                             width: 12; height: 12
                             onClicked: modelData[2]()
-                            Rectangle { anchors.fill: parent; radius: 6; color: parent.modelData[0]
-                                border { width: 1; color: Qt.darker(parent.modelData[0], 1.15) } }
-                            Text { anchors.centerIn: parent; anchors.verticalCenterOffset: -0.5; visible: lightsHover.hovered
-                                text: parent.modelData[1]; color: Qt.rgba(0, 0, 0, 0.6); font { family: Theme.font; pixelSize: 10; weight: Font.Bold } }
+                            Rectangle { anchors.fill: parent; radius: width / 2; antialiasing: true; color: light.modelData[0]
+                                border { width: 0.5; color: Qt.darker(light.modelData[0], 1.25) } }
+                            Item {
+                                anchors.fill: parent
+                                visible: lightsHover.hovered
+                                Repeater {
+                                    model: light.modelData[1] === "close" ? [45, -45] : light.modelData[1] === "min" ? [0] : [0, 90]
+                                    Rectangle {
+                                        required property var modelData
+                                        x: (12 - width) / 2; y: (12 - height) / 2
+                                        width: light.modelData[1] === "close" ? 7 : 6.5; height: 1.3
+                                        radius: 0.65; antialiasing: true
+                                        rotation: modelData
+                                        color: Qt.rgba(0, 0, 0, 0.55)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -418,6 +448,7 @@ Scope {
 
                         Loader {
                             width: parent.width
+                            height: item ? item.implicitHeight : 0     // an unloaded Loader keeps its old height otherwise
                             active: !!root.current.custom && !root.current.customAfter
                             source: active ? Qt.resolvedUrl("pages/" + root.current.custom + ".qml") : ""
                         }
@@ -450,6 +481,7 @@ Scope {
 
                         Loader {
                             width: parent.width
+                            height: item ? item.implicitHeight : 0     // an unloaded Loader keeps its old height otherwise
                             active: !!root.current.custom && !!root.current.customAfter
                             source: active ? Qt.resolvedUrl("pages/" + root.current.custom + ".qml") : ""
                         }
@@ -467,6 +499,17 @@ Scope {
                         }
                     }
                 }
+            }
+
+            // macOS window edge: a hairline just inside the corners Hyprland rounds (rule
+            // island-settings in hypr/looks.lua, rounding 12).
+            Rectangle {
+                anchors.fill: parent
+                z: 100
+                radius: 12
+                antialiasing: true
+                color: "transparent"
+                border { width: 1; color: Theme.dark ? Qt.rgba(1, 1, 1, 0.13) : Qt.rgba(0, 0, 0, 0.12) }
             }
         }
     }

@@ -21,5 +21,12 @@ Singleton {
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.isSink && !n.isStream && n.audio)
     function setDefault(n) { Pipewire.preferredDefaultAudioSink = n; }
 
-    PwObjectTracker { objects: [root.sink] }
+    // Default input (microphone)
+    readonly property PwNode source: Pipewire.defaultAudioSource
+    readonly property real micVolume: source?.audio?.volume ?? 0
+    readonly property bool micMuted: source?.audio?.muted ?? false
+    function setMic(v) { if (source?.audio) { source.audio.muted = false; source.audio.volume = Math.max(0, Math.min(1.5, v)); } }
+    function toggleMic() { if (source?.audio) source.audio.muted = !source.audio.muted; }
+
+    PwObjectTracker { objects: [root.sink, root.source] }
 }

@@ -21,9 +21,29 @@ put() { local f="$1" new; new="$(cat)"; [ -f "$f" ] && [ "$new" = "$(<"$f")" ] &
 # ── Hyprland ──────────────────────────────────────────────────────────
 anim=""
 if [ "$s_animations" = true ]; then
-  anim="hl.animation({ leaf = \"global\", enabled = true, speed = $s_animSpeed, bezier = \"default\" })
-hl.animation({ leaf = \"windows\", enabled = true, style = \"$s_windowAnim\", speed = $s_animSpeed, bezier = \"default\" })
-hl.animation({ leaf = \"workspaces\", enabled = true, style = \"$s_workspaceAnim\", speed = $s_animSpeed, bezier = \"default\" })"
+  # speed is in deciseconds; each leaf runs a multiple of the base so moves feel unhurried
+  # and closes stay quick. Smooth = ease-out (fast start, long soft landing), like macOS.
+  t() { awk -v s="$s_animSpeed" -v k="$1" 'BEGIN { printf "%.2f", s * k }'; }
+  wstyle="$s_windowAnim"; [ "$wstyle" = popin ] && wstyle="popin 85%"
+  case "${s_animCurve:-smooth}" in
+    spring)  move="spring = \"islandSpring\""; out="bezier = \"islandOut\"" ;;
+    classic) move="bezier = \"default\"";     out="bezier = \"default\"" ;;
+    *)       move="bezier = \"islandOut\"";   out="bezier = \"islandOut\"" ;;
+  esac
+  anim="hl.curve(\"islandOut\", { type = \"bezier\", points = { {0.16, 1}, {0.3, 1} } })
+hl.curve(\"islandFade\", { type = \"bezier\", points = { {0.4, 0}, {0.2, 1} } })
+hl.curve(\"islandClose\", { type = \"bezier\", points = { {0.4, 0}, {1, 1} } })
+hl.curve(\"islandSpring\", { type = \"spring\", mass = 1, stiffness = 210, damping = 26 })
+hl.animation({ leaf = \"global\", enabled = true, speed = $(t 1), $out })
+hl.animation({ leaf = \"border\", enabled = true, speed = $(t 1.8), $out })
+hl.animation({ leaf = \"windows\", enabled = true, speed = $(t 2.1), $move, style = \"$wstyle\" })
+hl.animation({ leaf = \"windowsIn\", enabled = true, speed = $(t 1.95), $move, style = \"$wstyle\" })
+hl.animation({ leaf = \"windowsOut\", enabled = true, speed = $(t 0.8), bezier = \"islandClose\", style = \"$wstyle\" })
+hl.animation({ leaf = \"windowsMove\", enabled = true, speed = $(t 2.1), $move })
+hl.animation({ leaf = \"fade\", enabled = true, speed = $(t 1.3), bezier = \"islandFade\" })
+hl.animation({ leaf = \"fadeOut\", enabled = true, speed = $(t 0.8), bezier = \"islandClose\" })
+hl.animation({ leaf = \"layers\", enabled = true, speed = $(t 1.6), $out })
+hl.animation({ leaf = \"workspaces\", enabled = true, speed = $(t 2.3), $move, style = \"$s_workspaceAnim\" })"
 else
   anim="hl.animation({ leaf = \"global\", enabled = false, speed = 1, bezier = \"default\" })"
 fi

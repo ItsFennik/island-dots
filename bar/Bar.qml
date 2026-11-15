@@ -29,7 +29,7 @@ PanelWindow {
     readonly property bool mine: Popouts.current !== "" && Popouts.screen === screen.name
     property string shown: ""
     property bool expanded: false
-    readonly property var menus: ["system", "app", "go", "window", "help", "tray"]
+    readonly property var menus: ["system", "app", "go", "window", "help", "tray", "sound", "network"]
     readonly property bool isMenu: menus.includes(shown)
 
     // Where the open popout hangs from (window x), and which edge it lines up with.
@@ -37,8 +37,8 @@ PanelWindow {
     property real anchorR: width - 8
     property string align: "right"
     property bool anchored: false           // set by a click; IPC opens fall back to defaults
-    readonly property var defaultAlign: ({ system: "left", app: "left", go: "left", window: "left", help: "left", notifs: "right", controls: "right", media: "right", weather: "right",
-                                           tray: "right", power: "center", clipboard: "center", wallpapers: "center", wallhaven: "center", themes: "center" })
+    readonly property var defaultAlign: ({ system: "left", app: "left", go: "left", window: "left", help: "left", notifs: "right", controls: "right", sound: "right", network: "right", media: "right", weather: "right",
+                                           tray: "right", power: "right", clipboard: "center", wallpapers: "center", wallhaven: "center", themes: "center" })
 
     function openFrom(name, item, how) {
         const p = item.mapToItem(null, 0, 0);
@@ -51,12 +51,11 @@ PanelWindow {
         if (mine) {
             if (!anchored) { align = defaultAlign[Popouts.current] ?? "center"; anchorL = 8; anchorR = width - 8; }
             anchored = false;
-            collapse.stop(); shown = Popouts.current; expanded = true;
-        } else if (expanded) { expanded = false; collapse.restart(); }
+            shown = Popouts.current; expanded = true;
+        } else if (expanded) { expanded = false; shown = ""; reclaim.restart(); }
     }
     onMineChanged: sync()
     Connections { target: Popouts; function onCurrentChanged() { win.sync(); } }
-    Timer { id: collapse; interval: win.anim + 40; onTriggered: if (!win.expanded) { win.shown = ""; reclaim.restart(); } }
     Timer { id: reclaim; interval: 500; onTriggered: gc() }
 
     // ── Banners ───────────────────────────────────────────────────────
@@ -68,18 +67,20 @@ PanelWindow {
     // ── Surface ───────────────────────────────────────────────────────
     anchors { top: true; left: true; right: true }
     exclusiveZone: barH
-    implicitHeight: catchAll ? screen.height : barH + (shown !== "" ? Math.round(screen.height * 0.8) : toastShown ? 200 : 0)
+    // Menus live in their own surface (below), so opening/closing one never resizes the bar —
+    // a layer-surface resize shows a half-drawn frame, which was the flicker.
+    implicitHeight: catchAll ? screen.height : barH + (toastShown ? 200 : 0)
     color: "transparent"
-    mask: Region { item: bar; Region { item: panel } Region { item: banner } Region { item: win.catchAll ? catcher : null } }
+    mask: Region { item: bar; Region { item: banner } Region { item: win.catchAll ? catcher : null } }
 
     WlrLayershell.namespace: "island-bar"
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: expanded ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     property bool grabArmed: false
     onExpandedChanged: { grabArmed = false; if (expanded) arm.restart(); }
     Timer { id: arm; interval: 60; onTriggered: win.grabArmed = win.expanded }
-    HyprlandFocusGrab { windows: [win]; active: Compositor.focusGrab && win.grabArmed; onCleared: Popouts.close() }
+    HyprlandFocusGrab { windows: menuLoader.item ? [win, menuLoader.item] : [win]; active: Compositor.focusGrab && win.grabArmed; onCleared: Popouts.close() }
     // Without focus grabs (anything but Hyprland): while a popout is open, every bar covers its
     // screen with a transparent catcher, so a click anywhere else closes it.
     readonly property bool catchAll: !Compositor.focusGrab && Popouts.current !== ""
@@ -108,14 +109,14 @@ PanelWindow {
         Rectangle {
             anchors { fill: parent; topMargin: 3; bottomMargin: 3 }
             radius: 5
-            color: it.active ? Theme.control : "transparent"
+            color: it.active ? Qt.alpha(Theme.text, Theme.dark ? 0.2 : 0.14) : "transparent"
         }
         Text {
             id: label
             anchors.centerIn: parent
             text: it.text
             color: Theme.text
-            font { family: it.glyph ? win.glyphs : win.family; pixelSize: it.glyph ? win.fontPx + 1 : win.fontPx; weight: it.bold ? Font.Bold : Font.Medium }
+            font { family: it.glyph ? win.glyphs : win.family; pixelSize: it.glyph ? win.fontPx + 1 : win.fontPx; weight: it.bold ? Font.Bold : Font.Normal }
         }
     }
 
@@ -223,14 +224,16 @@ PanelWindow {
                 id: vol
                 glyph: true
                 text: Audio.glyph
-                onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : win.openFrom("controls", vol, "right")
+                active: win.shown === "sound" && win.expanded
+                onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : win.openFrom("sound", vol, "right")
                 WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
             }
             Item_ {
                 id: wifi
                 glyph: true
                 text: Net.glyph
-                onClicked: win.openFrom("controls", wifi, "right")
+                active: win.shown === "network" && win.expanded
+                onClicked: win.openFrom("network", wifi, "right")
             }
             Item_ {
                 glyph: true
@@ -249,7 +252,7 @@ PanelWindow {
                     Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.glyph(Weather.code, Weather.isDay); color: Theme.text
                         font { family: win.glyphs; pixelSize: win.fontPx + 1 } }
                     Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.temp + "°"; color: Theme.text
-                        font { family: win.family; pixelSize: win.fontPx; weight: Font.Medium } }
+                        font { family: win.family; pixelSize: win.fontPx; weight: Font.Normal } }
                 }
                 active: win.shown === "weather" && win.expanded
                 onClicked: e => e.button === Qt.MiddleButton ? Weather.refresh() : win.openFrom("weather", wx, "right")
@@ -270,6 +273,14 @@ PanelWindow {
                 onClicked: win.openFrom("notifs", clockItem, "right")
                 SystemClock { id: clockSrc; precision: (win.s.clockSeconds ?? false) ? SystemClock.Seconds : SystemClock.Minutes }
             }
+            Item_ {
+                id: powerItem
+                glyph: true
+                text: "\uf011"
+                active: win.shown === "power" && win.expanded
+                onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : win.openFrom("power", powerItem, "right")
+                WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
+            }
         }
     }
 
@@ -287,50 +298,91 @@ PanelWindow {
     Component { id: cMedia; Media {} }
     Component { id: cWeather; Forecast {} }
     Component { id: cTray; TrayMenu {} }
+    Component { id: cSound; SoundMenu {} }
+    Component { id: cNetwork; NetworkMenu {} }
 
-    Rectangle {
-        id: panel
-        readonly property Item content: pop.item
-        readonly property bool bare: content?.bare ?? false          // content draws its own tiles
-        readonly property int pad: bare ? 0 : win.isMenu ? 5 : 14
-        readonly property int pw: content ? content.implicitWidth + pad * 2 : 0
-        readonly property bool open: win.expanded && !!content
+    // The dropdown: a separate layer surface that only exists while a menu is open, at a fixed
+    // size so switching menus doesn't resize it either. Hyprland fades it in/out on the GPU
+    // (layer rule island-menu in hypr/island.lua), so Qt draws no fade frames.
+    LazyLoader {
+        id: menuLoader
+        active: win.shown !== ""
+        PanelWindow {
+            id: menuWin
+            screen: win.screen
+            anchors { top: true; left: true; right: true }
+            exclusionMode: ExclusionMode.Ignore
+            implicitHeight: win.barH + Math.round(win.screen.height * 0.8)
+            color: "transparent"
+            mask: Region { item: panel }
+            WlrLayershell.namespace: "island-menu"
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
-        x: win.align === "left" ? Math.max(6, Math.min(win.width - pw - 6, win.anchorL - 2))
-         : win.align === "right" ? Math.max(6, Math.min(win.width - pw - 6, win.anchorR - pw + 2))
-         : (win.width - pw) / 2
-        y: win.barH + (bare ? 8 : 4)
-        width: open ? pw : 0
-        height: open && content ? content.implicitHeight + pad * 2 : 0
-        radius: win.isMenu ? 9 : 16
-        color: bare ? "transparent" : Qt.alpha(Theme.bg, 0.92)
-        border { width: bare ? 0 : 1; color: Qt.alpha(Theme.text, 0.12) }
-        opacity: open ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: win.anim } }
-
-        // Pointer leaving a popout that has been entered closes it (not menus you're reading).
-        HoverHandler {
-            property bool entered: false
-            onHoveredChanged: {
-                if (hovered) { entered = true; leave.stop(); }
-                else if (entered && win.expanded && !win.isMenu && (panel.content?.closeOnLeave ?? false)) leave.restart();
+            // macOS menus float on a soft shadow (drawn under the panel; faint enough that
+            // Hyprland's blur, ignore_alpha 0.3, leaves it alone).
+            Repeater {
+                model: panel.open && !panel.bare ? [[14, 0.035], [8, 0.05], [3, 0.08]] : []
+                Rectangle {
+                    required property var modelData
+                    x: panel.x - modelData[0]; y: panel.y - modelData[0] + 4
+                    width: panel.width + modelData[0] * 2; height: panel.height + modelData[0] * 2
+                    radius: panel.radius + modelData[0]
+                    color: Qt.rgba(0, 0, 0, modelData[1])
+                }
             }
-        }
-        Timer { id: leave; interval: 400; onTriggered: Popouts.close() }
-        Connections { target: win; function onExpandedChanged() { leave.stop(); } }
+            Rectangle {
+                id: panel
+                readonly property Item content: pop.item
+                readonly property bool bare: content?.bare ?? false          // content draws its own tiles
+                readonly property int pad: bare ? 0 : content?.pad ?? (win.isMenu ? 5 : 14)
+                readonly property int pw: content ? content.implicitWidth + pad * 2 : 0
+                readonly property bool open: win.expanded && !!content
 
-        Loader {
-            id: pop
-            readonly property var map: ({ system: cSystem, app: cApp, go: cGo, window: cWindow, help: cHelp, controls: cControls, clipboard: cClipboard, power: cPower,
-                                          wallpapers: cPicker, wallhaven: cPicker, themes: cPicker, notifs: cNotifs, media: cMedia, weather: cWeather, tray: cTray })
-            active: win.shown !== ""
-            sourceComponent: map[win.shown] ?? null
-            focus: true
-            x: panel.pad; y: panel.pad
-            width: item ? item.implicitWidth : 0
-            onLoaded: item.forceActiveFocus()
-            onSourceComponentChanged: if (item) item.forceActiveFocus()
-            Keys.onEscapePressed: Popouts.close()
+                x: win.align === "left" ? Math.max(6, Math.min(menuWin.width - pw - 6, win.anchorL - 2))
+                 : win.align === "right" ? Math.max(6, Math.min(menuWin.width - pw - 6, win.anchorR - pw + 2))
+                 : (menuWin.width - pw) / 2
+                y: win.barH + (bare ? 8 : win.isMenu ? 1 : 4)
+                width: open ? pw : 0
+                height: open && content ? content.implicitHeight + pad * 2 : 0
+                radius: win.isMenu ? 10 : 20
+                // Menus: thin translucent "vibrancy" over Hyprland's blur, a dark outer edge and a
+                // light inner edge, like AppKit. Popouts stay more opaque.
+                color: bare ? "transparent" : Theme.menuBg
+                border { width: bare ? 0 : 1; color: Theme.menuEdge }
+                Rectangle {
+                    visible: !panel.bare
+                    anchors { fill: parent; margins: 1 }
+                    radius: parent.radius - 1
+                    color: "transparent"
+                    border { width: 1; color: Theme.menuInner }
+                }
+
+                // Pointer leaving a popout that has been entered closes it (not menus you're reading).
+                HoverHandler {
+                    property bool entered: false
+                    onHoveredChanged: {
+                        if (hovered) { entered = true; leave.stop(); }
+                        else if (entered && win.expanded && !win.isMenu && (panel.content?.closeOnLeave ?? false)) leave.restart();
+                    }
+                }
+                Timer { id: leave; interval: 400; onTriggered: Popouts.close() }
+                Connections { target: win; function onExpandedChanged() { leave.stop(); } }
+
+                Loader {
+                    id: pop
+                    readonly property var map: ({ system: cSystem, app: cApp, go: cGo, window: cWindow, help: cHelp, controls: cControls, clipboard: cClipboard, power: cPower,
+                                                  wallpapers: cPicker, wallhaven: cPicker, themes: cPicker, notifs: cNotifs, media: cMedia, weather: cWeather, tray: cTray, sound: cSound, network: cNetwork })
+                    active: win.shown !== ""
+                    sourceComponent: map[win.shown] ?? null
+                    focus: true
+                    x: panel.pad; y: panel.pad
+                    width: item ? item.implicitWidth : 0
+                    onLoaded: item.forceActiveFocus()
+                    onSourceComponentChanged: if (item) item.forceActiveFocus()
+                    Keys.onEscapePressed: Popouts.close()
+                }
+            }
         }
     }
 

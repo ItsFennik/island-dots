@@ -1,0 +1,7 @@
+{
+  "name": "macOS Dark", "dark": true,
+  "bg": "#1e1e1e", "bg_alt": "#2a2a2c", "surface": "#2c2c2e", "overlay": "#3a3a3c",
+  "fg": "#f5f5f7", "fg_dim": "#98989d", "fg_faint": "#5f5f63",
+  "accent": "#0a84ff", "accent_fg": "#ffffff",
+  "red": "#ff453a", "green": "#32d74b", "yellow": "#ffd60a", "blue": "#0a84ff", "magenta": "#bf5af2", "cyan": "#64d2ff"
+}

@@ -28,11 +28,13 @@ PanelWindow {
     visible: (s.widgets ?? true) && (all || primary) && (wClock || wWeather || wCalendar || wMusic || wSystem)
 
     anchors { top: corner.startsWith("top"); bottom: corner.startsWith("bottom"); left: !onRight; right: onRight }
-    margins { top: margin; bottom: margin; left: margin; right: margin }
+    // the surface reaches `shadow` px past the cards so their shadows aren't cut off
+    readonly property int shadow: 14
+    margins { top: Math.max(0, margin - shadow); bottom: Math.max(0, margin - shadow); left: Math.max(0, margin - shadow); right: Math.max(0, margin - shadow) }
     exclusionMode: ExclusionMode.Normal      // stay clear of the bar
     exclusiveZone: 0
-    implicitWidth: stack.implicitWidth
-    implicitHeight: stack.implicitHeight
+    implicitWidth: stack.implicitWidth + shadow * 2
+    implicitHeight: stack.implicitHeight + shadow * 2
     color: "transparent"
 
     WlrLayershell.namespace: "island-widgets"
@@ -41,6 +43,7 @@ PanelWindow {
 
     Column {
         id: stack
+        x: win.shadow; y: win.shadow
         spacing: 14
 
         // Small pair; whichever is alone takes the full width.

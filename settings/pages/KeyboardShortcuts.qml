@@ -11,7 +11,8 @@ Group {
         model: [
             ["Spotlight", "⌘D"], ["Launchpad", "⌘A"], ["Notification Centre", "⌘C"], ["Control Centre · Music", "⌘M"],
             ["System Settings", "⌘I"], ["Clipboard history", "⌘V"], ["Wallpaper", "⌘W"], ["Random wallpaper", "⇧⌘W"],
-            ["Themes", "⌥⌘W"], ["Power", "⌘Esc"], ["Terminal", "⌘T"], ["Files", "⌘E"], ["Browser", "⌘B"],
+            ["Themes", "⌥⌘W"], ["Power", "⌘Esc"], ["Screenshot of a selection", "Print"], ["Screenshot of a window", "⌥Print"],
+            ["Screenshot of the screen", "⇧Print"], ["Screenshot toolbar", "⇧⌘S"], ["Terminal", "⌘T"], ["Files", "⌘E"], ["Browser", "⌘B"],
             ["Close window", "⌘Q"], ["Full screen", "⌘F"], ["Float window", "⇧⌘T"], ["Pin window", "⌘P"],
             ["Go to desktop 1–9", "⌘1 – ⌘9"], ["Move window to desktop", "⇧⌘1 – ⇧⌘9"],
             ["Scratch desktop", "⌘Space"], ["Send window to scratch", "⇧⌘Space"],

@@ -102,18 +102,31 @@ Card {
 
         Column {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            spacing: 6
+            spacing: 2
             visible: !!root.p
 
-            // Progress
-            Rectangle {
+            // Progress, with elapsed / remaining like macOS
+            Column {
                 visible: (root.p?.positionSupported ?? false) && (root.p?.length ?? 0) > 0
-                width: parent.width; height: 4; radius: 2
-                color: Theme.control
+                width: parent.width
+                spacing: 3
                 Rectangle {
-                    width: parent.width * Math.max(0, Math.min(1, (root.p?.position ?? 0) / Math.max(1, root.p?.length ?? 1)))
-                    height: parent.height; radius: 2
-                    color: Theme.text
+                    width: parent.width; height: 4; radius: 2
+                    antialiasing: true
+                    color: Qt.alpha(Theme.text, 0.18)
+                    Rectangle {
+                        width: parent.width * Math.max(0, Math.min(1, (root.p?.position ?? 0) / Math.max(1, root.p?.length ?? 1)))
+                        height: parent.height; radius: 2
+                        antialiasing: true
+                        color: Qt.alpha(Theme.text, 0.85)
+                    }
+                }
+                Item {
+                    width: parent.width; height: 12
+                    Text { text: Media.fmt(root.p?.position ?? 0); color: Theme.textDim
+                        font { family: root.font; pixelSize: 9; weight: Font.DemiBold } }
+                    Text { anchors.right: parent.right; text: "-" + Media.fmt(Math.max(0, (root.p?.length ?? 0) - (root.p?.position ?? 0))); color: Theme.textDim
+                        font { family: root.font; pixelSize: 9; weight: Font.DemiBold } }
                 }
             }
 
@@ -133,12 +146,12 @@ Card {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: modelData.f()
-                        Rectangle { anchors.fill: parent; radius: 16; color: parent.containsMouse ? Theme.hover : "transparent" }
+                        Rectangle { anchors.fill: parent; radius: 16; antialiasing: true; color: parent.containsMouse ? Qt.alpha(Theme.text, 0.1) : "transparent" }
                         Text {
                             anchors.centerIn: parent
                             text: modelData.g
-                            color: parent.enabled ? Theme.text : Theme.textFaint
-                            font { family: root.iconFont; pixelSize: modelData.big ? 20 : 15 }
+                            color: parent.enabled ? Theme.text : Qt.alpha(Theme.text, 0.3)
+                            font { family: root.iconFont; pixelSize: modelData.big ? 22 : 16 }
                         }
                     }
                 }

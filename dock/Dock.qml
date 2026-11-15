@@ -44,7 +44,11 @@ PanelWindow {
 
     // ── Items ─────────────────────────────────────────────────────────
     readonly property var pinned: DockPins.ids
-    readonly property var toplevels: ToplevelManager.toplevels.values
+    // Windows parked on special:browser (the warm hidden LibreWolf, see hypr/startup.lua)
+    // don't count as running.
+    readonly property var parked: Hyprland.toplevels.values
+        .filter(h => h.workspace?.name === "special:browser" && h.wayland).map(h => h.wayland)
+    readonly property var toplevels: ToplevelManager.toplevels.values.filter(t => !parked.includes(t))
 
     function entryFor(appId) { return DesktopEntries.heuristicLookup(appId) ?? null; }
     function keyFor(t) { const e = entryFor(t.appId); return e ? e.id : (t.appId || "?"); }

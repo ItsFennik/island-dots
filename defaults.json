@@ -12,6 +12,7 @@
   "blurPasses": 1,
   "animations": true,
   "animSpeed": 2,
+  "animCurve": "smooth",
   "windowAnim": "popin",
   "workspaceAnim": "slide",
   "followMouse": 1,
@@ -89,5 +90,10 @@
     "net.lutris.Lutris",
     "com.moonlight_stream.Moonlight"
   ],
-  "accentColor": ""
+  "accentColor": "",
+  "screenshotDest": "~/Pictures/Screenshots",
+  "screenshotCopy": true,
+  "screenshotThumb": true,
+  "screenshotPointer": false,
+  "screenshotSound": true
 }

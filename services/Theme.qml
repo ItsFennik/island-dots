@@ -38,10 +38,19 @@ Singleton {
     readonly property color buttonBorder: dark ? "transparent" : Qt.alpha(pal.fg, 0.14)
     readonly property color focusRing: Qt.alpha(pal.accent, 0.45)
     readonly property color selection: Qt.alpha(pal.accent, 0.9)
+    // Menu material: AppKit's look whatever the theme (graphite / frosted glass over Hyprland's
+    // blur, system-blue selection unless an accent colour is picked in Appearance).
+    readonly property color menuBg: dark ? Qt.rgba(0.165, 0.165, 0.175, 0.80) : Qt.rgba(0.955, 0.955, 0.955, 0.82)
+    readonly property color menuEdge: dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.14)
+    readonly property color menuInner: dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.6)
+    readonly property color menuText: dark ? Qt.rgba(1, 1, 1, 0.88) : Qt.rgba(0, 0, 0, 0.86)
+    readonly property color menuSel: accentOverride || (dark ? "#0a84ff" : "#007aff")
+    readonly property color menuOnSel: accentOverride === "#ffd60a" ? "#1c1c1e" : "#ffffff"
 
     // Light/dark twins for Control Center's Dark Mode toggle ("" when a theme has none).
     readonly property var twins: ({ "catppuccin-mocha": "catppuccin-latte", "catppuccin-macchiato": "catppuccin-latte",
-                                    "catppuccin-latte": "catppuccin-mocha", "monochrome": "monochrome-light", "monochrome-light": "monochrome" })
+                                    "catppuccin-latte": "catppuccin-mocha", "monochrome": "monochrome-light", "monochrome-light": "monochrome",
+                                    "macos": "macos-light", "macos-light": "macos" })
     function counterpart(id) { return id === "matugen" ? "matugen" : (twins[id] ?? ""); }
     function toggleDark() {
         if (current === "matugen") { Config.commit("matugenMode", dark ? "light" : "dark"); return; }

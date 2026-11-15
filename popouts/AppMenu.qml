@@ -28,7 +28,8 @@ Item {
             { text: "Open Launchpad", shortcut: "⌘A", f: () => Popouts.openOverlay("launchpad") },
             { text: "Spotlight Search", shortcut: "⌘D", f: () => Popouts.openOverlay("spotlight") },
             { sep: true },
-            { text: "Change Wallpaper…", shortcut: "⌘W", f: () => Popouts.open("wallpapers") }
+            { text: "Change Wallpaper…", shortcut: "⌘W", f: () => Popouts.open("wallpapers") },
+            { text: "Take Screenshot…", shortcut: "⇧⌘S", f: () => Screenshot.openToolbar() }
         ]
     }
 }
