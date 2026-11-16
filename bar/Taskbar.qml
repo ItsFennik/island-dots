@@ -55,11 +55,16 @@ Item {
             width: root.tile; height: root.tile
             active: root.isOpen("system")
             onClicked: root.bar.openFrom("system", logo, "left")
+            // Nerd Font logos sit off-centre in their text box, so centre the glyph's ink instead.
+            TextMetrics { id: logoInk; font: logoText.font; text: logoText.text }
             Text {
-                anchors.centerIn: parent
+                id: logoText
+                readonly property rect ink: logoInk.tightBoundingRect
+                x: Math.round((parent.width - ink.width) / 2 - ink.x)
+                y: Math.round((parent.height - ink.height) / 2 - ink.y - baselineOffset)
                 text: osInfo.glyph
                 color: Theme.text
-                font { family: root.glyphs; pixelSize: Math.round(root.tile * 0.62); hintingPreference: Font.PreferNoHinting }
+                font { family: root.glyphs; pixelSize: Math.round(root.tile * 0.6); hintingPreference: Font.PreferNoHinting }
             }
         }
 
