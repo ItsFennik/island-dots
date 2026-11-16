@@ -69,6 +69,49 @@ Column {
             }
             Gradient { id: multi; GradientStop { position: 0; color: "#ff453a" } GradientStop { position: 0.5; color: "#30d158" } GradientStop { position: 1; color: "#0a84ff" } }
         }
+        SettingRow {
+            title: "Icon style"
+            subtitle: "App icons in the Dock, Launchpad and Spotlight"
+            Segmented {
+                options: [{ value: "default", text: "Default" }, { value: "clear", text: "Clear" }, { value: "tinted", text: "Tinted" }]
+                value: Config.values.iconStyle ?? "default"
+                onPicked: v => Config.set("iconStyle", v)
+            }
+        }
+        SettingRow {
+            visible: (Config.values.iconStyle ?? "default") === "tinted"
+            title: "Icon tint"
+            subtitle: (root.accents.find(a => a[0] === (Config.values.iconTint ?? "")) ?? [0, "Custom"])[1].replace("Multicolour", "Accent colour")
+            Row {
+                spacing: 8
+                Repeater {
+                    model: root.accents
+                    MouseArea {
+                        id: tdot
+                        required property var modelData
+                        readonly property bool on: (Config.values.iconTint ?? "") === modelData[0]
+                        width: 18; height: 18
+                        onClicked: Config.set("iconTint", modelData[0])
+                        Rectangle {
+                            anchors.fill: parent; radius: 9
+                            color: tdot.modelData[0] || Theme.accent
+                            border { width: 1; color: Qt.rgba(0, 0, 0, 0.15) }
+                        }
+                        Rectangle { visible: tdot.on; anchors.centerIn: parent; width: 6; height: 6; radius: 3; color: "white" }
+                    }
+                }
+            }
+        }
+    }
+
+    Group {
+        title: "Layout"
+        footer: "Bottom bar: one floating bar with your apps, now playing, status and the clock, in place of the menu bar and Dock. Desktop icons: Trash, mounted drives and (optionally) your Dock apps; double-click to open, right-click a USB drive to eject."
+        Setting { spec: ({ key: "layout", type: "choice", label: "Layout", options: [["menubar", "Menu bar + Dock"], ["taskbar", "Bottom bar"]] }) }
+        Setting { spec: ({ key: "taskbarHeight", type: "slider", label: "Bottom bar height", from: 44, to: 72, suffix: " px" }); visible: (Config.values.layout ?? "menubar") === "taskbar" }
+        Setting { spec: ({ key: "desktopIcons", type: "switch", label: "Desktop icons", sub: "Trash and mounted drives" }) }
+        Setting { spec: ({ key: "desktopIconsApps", type: "switch", label: "Show Dock apps on the desktop" }); visible: Config.values.desktopIcons === true }
+        Setting { spec: ({ key: "desktopIconSize", type: "slider", label: "Desktop icon size", from: 40, to: 96, suffix: " px" }); visible: Config.values.desktopIcons === true }
     }
 
     Group {

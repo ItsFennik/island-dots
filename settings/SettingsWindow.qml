@@ -430,12 +430,11 @@ Scope {
                             radius: 10
                             color: Theme.dark ? Qt.alpha(Theme.text, 0.045) : Qt.alpha(Theme.text, 0.03)
                             border { width: 1; color: Qt.alpha(Theme.text, 0.07) }
-                            Rectangle {
+                            Badge {
                                 id: hero
                                 x: 16; anchors.verticalCenter: parent.verticalCenter
-                                width: 52; height: 52; radius: 12
-                                gradient: Gradient { GradientStop { position: 0; color: Qt.lighter(root.current.tint, 1.15) } GradientStop { position: 1; color: root.current.tint } }
-                                Text { anchors.centerIn: parent; text: root.current.glyph; color: "white"; font { family: Theme.mono; pixelSize: 26 } }
+                                width: 52; height: 52; radius: 12; glyphSize: 26
+                                tint: root.current.tint; topColor: Qt.lighter(root.current.tint, 1.15); glyph: root.current.glyph
                             }
                             Column {
                                 anchors { left: hero.right; leftMargin: 14; right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }

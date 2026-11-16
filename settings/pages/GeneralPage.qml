@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.services
 import qs.components
+import ".."
 import qs.settings
 
 // General pane: About this computer (read once when opened), then Transfer or Reset.
@@ -41,11 +42,10 @@ Column {
         width: parent.width
         spacing: 6
         topPadding: 6
-        Rectangle {
+        Badge {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 96; height: 96; radius: 22
-            gradient: Gradient { GradientStop { position: 0; color: "#5ac8fa" } GradientStop { position: 1; color: "#0a84ff" } }
-            Text { anchors.centerIn: parent; text: root.logo; color: "white"; font { family: Theme.mono; pixelSize: 52 } }
+            width: 96; height: 96; radius: 22; glyphSize: 52
+            tint: "#0a84ff"; topColor: "#5ac8fa"; glyph: root.logo
         }
         Text { anchors.horizontalCenter: parent.horizontalCenter; topPadding: 6; text: root.info.host ?? ""; color: Theme.text
             font { family: Theme.font; pixelSize: 22; weight: Font.Bold } }

@@ -25,7 +25,7 @@ PanelWindow {
     readonly property int shelfH: base + pad * 2
     readonly property string iconTheme: "application-x-executable"
 
-    readonly property bool wanted: (s.dock ?? true) && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData)
+    readonly property bool wanted: (s.dock ?? true) && (s.layout ?? "menubar") !== "taskbar" && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData)
     visible: wanted
 
     // Memory: the surface is only as wide as the fully magnified dock (plus room for the menu),
@@ -228,7 +228,7 @@ PanelWindow {
                     visible: !cell.divider
                     width: cell.size; height: cell.size
                     y: parent.height - height - bounce.offset
-                    source: cell.divider ? "" : Quickshell.iconPath(cell.modelData.icon ?? "", win.iconTheme)
+                    source: cell.divider ? "" : AppIcons.source(cell.modelData.icon, win.iconTheme)
                     sourceSize { width: Math.ceil(win.base * win.mag); height: Math.ceil(win.base * win.mag) }   // decoded once at max size
                     smooth: true; mipmap: true
                     asynchronous: true

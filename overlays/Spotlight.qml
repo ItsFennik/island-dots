@@ -192,7 +192,7 @@ PanelWindow {
                             anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                             width: row.topHit ? 40 : 28; height: width
                             sourceSize { width: 40 * Screen.devicePixelRatio; height: 40 * Screen.devicePixelRatio }
-                            source: Quickshell.iconPath(rowCol.modelData.icon ?? "", "application-x-executable")
+                            source: AppIcons.source(rowCol.modelData.icon)
                             asynchronous: true
                         }
                         Column {

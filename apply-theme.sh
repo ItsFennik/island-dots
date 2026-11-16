@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply an Island theme everywhere: GTK 3/4, Hyprland / niri / Sway borders, Foot.
+# Apply an Island theme everywhere: GTK 3/4, Qt 5/6 (Kvantum), Hyprland / niri / Sway borders, Foot.
 # (The bar picks the theme up itself from the state file.)
 #
 #   apply-theme.sh <id>        id = file name in themes/ without .json (e.g. catppuccin-mocha)
@@ -210,6 +210,12 @@ $(shades purple "$magenta")
 [class*="messageContent"] { color: var(--text-3) !important; }
 ::selection { background: color-mix(in srgb, $accent 35%, transparent); color: $fg; }
 EOF
+fi
+
+# ── Qt 5 / 6 (Kvantum "Island" theme, recoloured from KvArc) ──────────
+# Apps pick it up via QT_STYLE_OVERRIDE=kvantum (hypr/island.lua); new windows only.
+if [ -d /usr/share/Kvantum ] && command -v python3 >/dev/null; then
+  python3 "$HERE/scripts/kvantum-theme.py" "$file" "$CFG/Kvantum/Island" || true
 fi
 
 # ── GTK 3 / 4 ─────────────────────────────────────────────────────────

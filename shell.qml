@@ -47,6 +47,12 @@ ShellRoot {
         Widgets {}
     }
 
+    // App icons on the desktop (Appearance → Layout); nothing is created while it's off.
+    Variants {
+        model: (Config.saved.desktopIcons ?? false) ? Quickshell.screens : []
+        DesktopIcons {}
+    }
+
     // Spotlight and Launchpad: created on open, destroyed (and collected) on close.
     readonly property var overlayScreen: Quickshell.screens.find(s => s.name === Popouts.overlayScreen) ?? Quickshell.screens[0]
     LazyLoader { active: Popouts.spotlight; Spotlight { screen: root.overlayScreen } }

@@ -19,7 +19,11 @@ PanelWindow {
     screen: modelData
 
     readonly property var s: Config.saved
-    readonly property int barH: s.barHeight ?? 30
+    // layout "taskbar": one floating bar along the bottom (bar/Taskbar.qml) instead of the menu bar + Dock.
+    readonly property bool taskbar: (s.layout ?? "menubar") === "taskbar"
+    readonly property int tbGap: 8
+    readonly property int tbH: s.taskbarHeight ?? 54
+    readonly property int barH: taskbar ? tbH + tbGap : (s.barHeight ?? 30)
     readonly property string family: s.widgetFont || "Adwaita Sans"
     readonly property string glyphs: "JetBrainsMono Nerd Font"
     readonly property int fontPx: s.barFontSize ?? 13
@@ -65,7 +69,7 @@ PanelWindow {
     Timer { id: toastHold; interval: win.anim + 40; onTriggered: if (!win.toast) win.toastShown = null }
 
     // ── Surface ───────────────────────────────────────────────────────
-    anchors { top: true; left: true; right: true }
+    anchors { top: !win.taskbar; bottom: win.taskbar; left: true; right: true }
     exclusiveZone: barH
     // Menus live in their own surface (below), so opening/closing one never resizes the bar —
     // a layer-surface resize shows a half-drawn frame, which was the flicker.
@@ -123,11 +127,22 @@ PanelWindow {
     // ── The bar ───────────────────────────────────────────────────────
     Rectangle {
         id: bar
-        width: parent.width
-        height: win.barH
+        x: win.taskbar ? win.tbGap : 0
+        y: win.taskbar ? win.height - win.tbGap - win.tbH : 0
+        width: parent.width - x * 2
+        height: win.taskbar ? win.tbH : win.barH
+        radius: win.taskbar ? 18 : 0
         color: Qt.alpha(Theme.bg, win.s.barOpacity ?? 0.55)
+        border { width: win.taskbar ? 1 : 0; color: Qt.alpha(Theme.text, 0.12) }
+
+        Loader {
+            anchors.fill: parent
+            active: win.taskbar
+            sourceComponent: Taskbar { bar: win }
+        }
 
         Row {
+            visible: !win.taskbar
             anchors { left: parent.left; leftMargin: 8 }
             height: parent.height
 
@@ -182,6 +197,7 @@ PanelWindow {
         }
 
         Row {
+            visible: !win.taskbar
             anchors { right: parent.right; rightMargin: 8 }
             height: parent.height
             spacing: 0
@@ -310,7 +326,7 @@ PanelWindow {
         PanelWindow {
             id: menuWin
             screen: win.screen
-            anchors { top: true; left: true; right: true }
+            anchors { top: !win.taskbar; bottom: win.taskbar; left: true; right: true }
             exclusionMode: ExclusionMode.Ignore
             implicitHeight: win.barH + Math.round(win.screen.height * 0.8)
             color: "transparent"
@@ -342,7 +358,8 @@ PanelWindow {
                 x: win.align === "left" ? Math.max(6, Math.min(menuWin.width - pw - 6, win.anchorL - 2))
                  : win.align === "right" ? Math.max(6, Math.min(menuWin.width - pw - 6, win.anchorR - pw + 2))
                  : (menuWin.width - pw) / 2
-                y: win.barH + (bare ? 8 : win.isMenu ? 1 : 4)
+                y: win.taskbar ? menuWin.height - win.barH - height - (bare ? 8 : 6)
+                              : win.barH + (bare ? 8 : win.isMenu ? 1 : 4)
                 width: open ? pw : 0
                 height: open && content ? content.implicitHeight + pad * 2 : 0
                 radius: win.isMenu ? 10 : 20
@@ -391,7 +408,7 @@ PanelWindow {
         id: banner
         readonly property bool on: win.toast !== null
         x: win.width - width - 10
-        y: win.barH + 8
+        y: win.taskbar ? win.height - win.barH - 8 - height : win.barH + 8
         width: win.toastShown ? 360 : 0
         height: win.toastShown && toastCard ? toastCard.implicitHeight + 20 : 0
         radius: 16

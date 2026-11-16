@@ -15,15 +15,11 @@ MouseArea {
         radius: 6
         color: root.current ? Theme.accent : "transparent"
     }
-    Rectangle {
+    Badge {
         id: badge
         anchors { left: parent.left; leftMargin: 7; verticalCenter: parent.verticalCenter }
-        width: 20; height: 20; radius: 5
-        gradient: Gradient {
-            GradientStop { position: 0; color: Qt.lighter(root.tint, 1.12) }
-            GradientStop { position: 1; color: root.tint }
-        }
-        Text { anchors.centerIn: parent; text: root.glyph; color: "white"; font { family: Theme.mono; pixelSize: 11 } }
+        width: 20; height: 20
+        tint: root.tint; glyph: root.glyph
     }
     Text {
         anchors { left: badge.right; leftMargin: 8; right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }

@@ -156,7 +156,7 @@ PanelWindow {
                                 y: 12
                                 width: win.icon; height: win.icon
                                 sourceSize { width: win.icon * Screen.devicePixelRatio; height: win.icon * Screen.devicePixelRatio }
-                                source: Quickshell.iconPath(cell.modelData.icon ?? "", "application-x-executable")
+                                source: AppIcons.source(cell.modelData.icon)
                                 asynchronous: true
                                 scale: cell.pressed ? 0.9 : 1
                                 Behavior on scale { NumberAnimation { duration: 90 } }
