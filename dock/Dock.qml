@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs.services
+import qs.components
 
 // The dock: a frosted shelf at the bottom with pinned apps, running apps, a divider and the
 // trash. Icons magnify under the pointer, running apps get a dot, launching bounces the icon,
@@ -25,18 +26,20 @@ PanelWindow {
     readonly property int shelfH: base + pad * 2
     readonly property string iconTheme: "application-x-executable"
 
-    readonly property bool wanted: (s.dock ?? true) && (s.layout ?? "menubar") !== "taskbar" && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData)
+    readonly property bool wanted: (s.dock ?? true) && (s.shellLayout ?? "menubar") !== "taskbar" && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData)
     visible: wanted
 
     // Memory: the surface is only as wide as the fully magnified dock (plus room for the menu),
     // not the whole screen, and it's fixed so magnifying never reallocates the buffer.
     anchors.bottom: true
-    implicitWidth: catchAll ? modelData.width : Math.min(modelData.width, Math.max(360, Math.ceil(baseTotal + base * (mag - 1) * 2.2 + pad * 2 + 120)))
+    implicitWidth: Math.min(modelData.width, Math.max(360, Math.ceil(baseTotal + base * (mag - 1) * 2.2 + pad * 2 + 120)))
     exclusionMode: ExclusionMode.Normal
     exclusiveZone: autohide ? 0 : shelfH + edge
-    implicitHeight: catchAll ? modelData.height : Math.ceil(base * mag) + pad + edge + 56 + (menu.open ? menu.height + 12 : 0)
+    // Where resizes smear (Compositor.smoothResize false) the menu room is kept permanently.
+    readonly property int menuRoom: Compositor.smoothResize ? (menu.open ? menu.height + 12 : 0) : 420
+    implicitHeight: Math.ceil(base * mag) + pad + edge + 56 + menuRoom
     color: "transparent"
-    mask: Region { item: hit; Region { item: win.catchAll ? catcher : null } }
+    mask: Region { item: hit }
 
     WlrLayershell.namespace: "island-dock"
     WlrLayershell.layer: WlrLayer.Top
@@ -54,6 +57,7 @@ PanelWindow {
     function keyFor(t) { const e = entryFor(t.appId); return e ? e.id : (t.appId || "?"); }
 
     readonly property var items: {
+        void DesktopEntries.applications.values; // rebuild (fresh entry objects) after a rescan
         const groups = {};
         for (const t of toplevels) {
             const k = keyFor(t);
@@ -88,7 +92,7 @@ PanelWindow {
             launch(it);
         }
     }
-    function launch(it) { if (!it.entry) return; Apps.launch(it.entry); bouncing = it.id; bounceStop.restart(); }
+    function launch(it) { if (!it.entry) return; Apps.launch(it.entry, it.id); bouncing = it.id; bounceStop.restart(); }
     function setPinned(id, on) { on ? DockPins.pin(id) : DockPins.unpin(id); }
 
     property string bouncing: ""
@@ -171,14 +175,15 @@ PanelWindow {
     Rectangle {
         id: shelf
         property real slide: win.revealed ? 0 : win.shelfH + win.edge + 4
-        anchors.horizontalCenter: parent.horizontalCenter
+        x: Math.round((win.width - width) / 2)             // whole pixels: the software renderer blurs half-pixel icons
         y: win.height - win.edge - height + slide
         Behavior on slide { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         width: row.width + win.pad * 2
         height: win.shelfH
         radius: Math.round(win.base * 0.36)
-        color: Qt.alpha(Theme.bg, win.s.dockOpacity ?? 0.45)
-        border { width: 1; color: Qt.alpha(Theme.text, 0.14) }
+        color: Qt.alpha(Theme.bg, Theme.glass(win.s.dockOpacity ?? 0.45))
+        border { width: 1; color: Theme.glassRim }
+        GlassSheen { radius: parent.radius }
     }
 
     Row {
@@ -223,16 +228,35 @@ PanelWindow {
                     color: Qt.alpha(Theme.text, 0.22)
                 }
 
-                Image {
+                // Two decodes: one at exactly the resting size (drawn 1:1, crisp), one at the
+                // magnified size used only while the icon is grown. The software renderer has no
+                // mipmaps, so shrinking the big decode down to rest size came out jagged.
+                Item {
                     id: icon
                     visible: !cell.divider
                     width: cell.size; height: cell.size
-                    y: parent.height - height - bounce.offset
-                    source: cell.divider ? "" : AppIcons.source(cell.modelData.icon, win.iconTheme)
-                    sourceSize { width: Math.ceil(win.base * win.mag); height: Math.ceil(win.base * win.mag) }   // decoded once at max size
-                    smooth: true; mipmap: true
-                    asynchronous: true
+                    y: Math.round(parent.height - height - bounce.offset)
                     opacity: area.pressed ? 0.6 : 1
+                    readonly property url src: cell.divider ? "" : AppIcons.source(cell.modelData.icon, win.iconTheme)
+                    readonly property bool grown: cell.size > win.base + 0.5
+
+                    Image {
+                        anchors.fill: parent
+                        visible: !icon.grown || big.status !== Image.Ready
+                        source: icon.src
+                        sourceSize { width: win.base; height: win.base }
+                        smooth: true
+                        asynchronous: true
+                    }
+                    Image {
+                        id: big
+                        anchors.fill: parent
+                        visible: icon.grown && status === Image.Ready
+                        source: win.mag > 1 ? icon.src : ""
+                        sourceSize { width: Math.ceil(win.base * win.mag); height: Math.ceil(win.base * win.mag) }
+                        smooth: true
+                        asynchronous: true
+                    }
 
                     QtObject {
                         id: bounce
@@ -403,14 +427,28 @@ PanelWindow {
     Connections { target: menu; function onOpenChanged() { win.grabArmed = false; if (menu.open) arm.restart(); } }
     Timer { id: arm; interval: 80; onTriggered: win.grabArmed = menu.open }
     HyprlandFocusGrab { windows: [win]; active: Compositor.focusGrab && win.grabArmed; onCleared: menu.close() }
-    // Elsewhere: the dock covers the screen with a transparent catcher while the menu is open.
+    // Elsewhere: a separate full-screen transparent surface catches clicks while the menu is
+    // open (everywhere except the dock's own surface), so the dock itself never resizes.
     readonly property bool catchAll: !Compositor.focusGrab && menu.open
-    MouseArea {
-        id: catcher
-        anchors.fill: parent
-        z: -1
-        visible: win.catchAll
-        acceptedButtons: Qt.AllButtons
-        onPressed: menu.close()
+    LazyLoader {
+        active: win.catchAll
+        PanelWindow {
+            screen: win.modelData
+            anchors { top: true; bottom: true; left: true; right: true }
+            exclusionMode: ExclusionMode.Ignore
+            color: "transparent"
+            WlrLayershell.namespace: "island-dock-catcher"
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            mask: Region {
+                item: dockCatcher
+                Region {
+                    intersection: Intersection.Subtract
+                    x: (win.modelData.width - win.width) / 2; y: win.modelData.height - win.height
+                    width: win.width; height: win.height
+                }
+            }
+            MouseArea { id: dockCatcher; anchors.fill: parent; acceptedButtons: Qt.AllButtons; onPressed: menu.close() }
+        }
     }
 }

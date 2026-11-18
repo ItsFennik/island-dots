@@ -36,7 +36,7 @@
   "iconTheme": "WhiteSur-dark",
   "iconStyle": "default",
   "iconTint": "",
-  "layout": "menubar",
+  "shellLayout": "menubar",
   "taskbarHeight": 54,
   "desktopIcons": false,
   "desktopIconsApps": true,
@@ -65,6 +65,10 @@
   "notifTimeout": 5,
   "notifDnd": false,
   "widgets": true,
+  "widgetStyle": "tahoe",
+  "textColor": "auto",
+  "widgetPos": {},
+  "widgetSize": {},
   "widgetsPosition": "top-left",
   "widgetsAllScreens": false,
   "widgetsMargin": 24,
@@ -102,5 +106,6 @@
   "screenshotCopy": true,
   "screenshotThumb": true,
   "screenshotPointer": false,
-  "screenshotSound": true
+  "screenshotSound": true,
+  "liquidGlass": false
 }

@@ -8,17 +8,18 @@ MouseArea {
     property string glyph
     property color tint
     property bool current: false
-    implicitHeight: 28
+    implicitHeight: 30
 
     Rectangle {
         anchors.fill: parent
-        radius: 6
+        radius: 8
+        antialiasing: true
         color: root.current ? Theme.accent : "transparent"
     }
     Badge {
         id: badge
-        anchors { left: parent.left; leftMargin: 7; verticalCenter: parent.verticalCenter }
-        width: 20; height: 20
+        anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
+        width: 22; height: 22; radius: 6
         tint: root.tint; glyph: root.glyph
     }
     Text {

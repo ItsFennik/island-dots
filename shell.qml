@@ -196,6 +196,9 @@ ShellRoot {
         function toggle(): void { Config.commit("widgets", !(Config.saved.widgets ?? true)); }
         function show(): void { Config.commit("widgets", true); }
         function hide(): void { Config.commit("widgets", false); }
+        function edit(): void { WidgetLayout.edit(""); }
+        function reset(): void { WidgetLayout.reset(); }
+        function style(): void { Config.commit("widgetStyle", WidgetLayout.tahoe ? "classic" : "tahoe"); }
     }
 
     IpcHandler {

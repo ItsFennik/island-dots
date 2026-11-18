@@ -82,7 +82,13 @@ Singleton {
     }
 
     // ── Launch ────────────────────────────────────────────────────────
-    function launch(e) {
+    // `id` (desktop id) is re-resolved on every launch: Quickshell replaces every DesktopEntry
+    // object when an applications dir is rescanned (Nightcap re-registers its .desktop file each
+    // run), and a list built earlier can still hold the destroyed one ("execute is not a function").
+    function launch(e, id) {
+        const fresh = id ? (DesktopEntries.byId(id) ?? DesktopEntries.heuristicLookup(id)) : null;
+        if (fresh) e = fresh;
+        if (typeof e?.execute !== "function") { console.warn("Apps.launch: no live desktop entry for", id); return; }
         const u = Object.assign({}, usage);
         u[e.id] = (u[e.id] ?? 0) + 1;
         usage = u;

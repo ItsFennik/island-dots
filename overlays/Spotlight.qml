@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.services
+import qs.components
 
 // Spotlight-style search (Super+D, the bar's search icon). A floating glass bar in the upper
 // middle of the screen; results appear under it: Top Hit, Applications, a calculator,
@@ -94,9 +95,10 @@ PanelWindow {
         width: win.w
         height: win.fieldH + (win.rows.length ? results.height + 8 : 0)
         radius: 26
-        color: Qt.alpha(Theme.bg, 0.82)
-        border { width: 1; color: Qt.alpha(Theme.text, 0.14) }
+        color: Qt.alpha(Theme.bg, Theme.liquid ? 0.5 : 0.82)
+        border { width: 1; color: Theme.glassRim }
         clip: true
+        GlassSheen { radius: card.radius; height: Math.min(card.height, 140) }
 
         opacity: 0; scale: 0.96
         Component.onCompleted: { opacity = 1; scale = 1; }

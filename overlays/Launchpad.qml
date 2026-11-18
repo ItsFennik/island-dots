@@ -78,7 +78,7 @@ PanelWindow {
                 verticalAlignment: TextInput.AlignVCenter
                 focus: true
                 clip: true
-                color: "white"
+                color: Theme.inkSet ? Theme.ink : "white"
                 selectionColor: Theme.accent; selectedTextColor: Theme.onAccent
                 font { family: win.family; pixelSize: 14 }
                 Component.onCompleted: forceActiveFocus()
@@ -167,7 +167,7 @@ PanelWindow {
                                 horizontalAlignment: Text.AlignHCenter
                                 text: cell.modelData.name
                                 elide: Text.ElideRight
-                                color: "white"
+                                color: Theme.inkSet ? Theme.ink : "white"
                                 style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
                                 font { family: win.family; pixelSize: 13; weight: Font.Medium }
                             }

@@ -18,9 +18,13 @@ Singleton {
     readonly property color bg: pal.bg
     readonly property color sidebar: pal.bg_alt
     readonly property color card: pal.surface
-    readonly property color text: pal.fg
-    readonly property color textDim: pal.fg_dim
-    readonly property color textFaint: pal.fg_faint
+    // Text colour for all of Island (Appearance → Text colour): "auto" = the theme's own.
+    readonly property string textMode: Config.saved.textColor ?? "auto"
+    readonly property bool inkSet: textMode === "white" || textMode === "black"
+    readonly property color ink: textMode === "black" ? "#000000" : "#ffffff"
+    readonly property color text: inkSet ? ink : pal.fg
+    readonly property color textDim: inkSet ? Qt.alpha(ink, 0.6) : pal.fg_dim
+    readonly property color textFaint: inkSet ? Qt.alpha(ink, 0.35) : pal.fg_faint
     // Accent: the theme's, unless one is picked in Appearance (macOS accent colours).
     readonly property string accentOverride: Config.saved.accentColor ?? ""
     readonly property color accent: accentOverride || pal.accent
@@ -38,12 +42,21 @@ Singleton {
     readonly property color buttonBorder: dark ? "transparent" : Qt.alpha(pal.fg, 0.14)
     readonly property color focusRing: Qt.alpha(pal.accent, 0.45)
     readonly property color selection: Qt.alpha(pal.accent, 0.9)
+    // Liquid glass (Appearance → "Liquid glass", off by default): clearer panels, a bright rim and
+    // a top sheen (components/GlassSheen.qml). Hyprland's blur stays the same size/passes; only
+    // its vibrancy/contrast change (apply-settings.sh), so it costs no extra GPU.
+    readonly property bool liquid: Config.saved.liquidGlass === true
+    function glass(a) { return liquid ? a * 0.45 : a; }            // panel fill alpha
+    readonly property color glassRim: liquid ? Qt.rgba(1, 1, 1, dark ? 0.26 : 0.7) : Qt.alpha(pal.fg, 0.14)
     // Menu material: AppKit's look whatever the theme (graphite / frosted glass over Hyprland's
     // blur, system-blue selection unless an accent colour is picked in Appearance).
-    readonly property color menuBg: dark ? Qt.rgba(0.165, 0.165, 0.175, 0.80) : Qt.rgba(0.955, 0.955, 0.955, 0.82)
-    readonly property color menuEdge: dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.14)
-    readonly property color menuInner: dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.6)
-    readonly property color menuText: dark ? Qt.rgba(1, 1, 1, 0.88) : Qt.rgba(0, 0, 0, 0.86)
+    readonly property color menuBg: liquid ? (dark ? Qt.rgba(0.11, 0.11, 0.13, 0.46) : Qt.rgba(1, 1, 1, 0.48))
+                                           : (dark ? Qt.rgba(0.165, 0.165, 0.175, 0.80) : Qt.rgba(0.955, 0.955, 0.955, 0.82))
+    readonly property color menuEdge: liquid ? (dark ? Qt.rgba(0, 0, 0, 0.30) : Qt.rgba(0, 0, 0, 0.10))
+                                             : (dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.14))
+    readonly property color menuInner: liquid ? (dark ? Qt.rgba(1, 1, 1, 0.24) : Qt.rgba(1, 1, 1, 0.85))
+                                              : (dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.6))
+    readonly property color menuText: inkSet ? Qt.alpha(ink, 0.88) : dark ? Qt.rgba(1, 1, 1, 0.88) : Qt.rgba(0, 0, 0, 0.86)
     readonly property color menuSel: accentOverride || (dark ? "#0a84ff" : "#007aff")
     readonly property color menuOnSel: accentOverride === "#ffd60a" ? "#1c1c1e" : "#ffffff"
 

@@ -34,6 +34,11 @@ Singleton {
     // popups cover the screen with a transparent click-catcher while open instead.
     readonly property bool focusGrab: hyprland
 
+    // Hyprland swaps a layer surface's buffer cleanly when it is resized. Others (MangoWC, wlroots)
+    // show the old buffer stretched to the new size for a frame — a 30 px bar grown to full
+    // screen smeared into vertical streaks. Without this, surfaces keep a fixed size instead.
+    readonly property bool smoothResize: hyprland
+
     // ── Focused monitor ───────────────────────────────────────────────
     // Falls back to the monitor of the focused window, which works anywhere with
     // wlr-foreign-toplevel; callers fall back further to the first screen.

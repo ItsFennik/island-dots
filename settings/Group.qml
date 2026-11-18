@@ -9,11 +9,11 @@ Column {
     property string footer
     default property alias content: rows.data
     width: parent ? parent.width : 0
-    spacing: 7
+    spacing: 8
 
     Text {
         visible: root.title !== ""
-        leftPadding: 2
+        leftPadding: 4
         text: root.title
         color: Theme.text
         font { family: Theme.font; pixelSize: 13; weight: Font.Bold }
@@ -21,7 +21,8 @@ Column {
     Rectangle {
         width: parent.width
         height: rows.implicitHeight
-        radius: 10
+        radius: 14
+        antialiasing: true
         color: Theme.dark ? Qt.alpha(Theme.text, 0.045) : Qt.alpha(Theme.text, 0.03)
         border { width: 1; color: Qt.alpha(Theme.text, Theme.dark ? 0.07 : 0.08) }
         Column { id: rows; anchors { left: parent.left; right: parent.right; top: parent.top } }

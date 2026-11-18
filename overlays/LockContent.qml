@@ -127,7 +127,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: lock.realName
-            color: "white"
+            color: Theme.inkSet ? Theme.ink : "white"
             font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
         }
 
@@ -145,7 +145,7 @@ Item {
                 enabled: !lock.pam.active
                 echoMode: TextInput.Password
                 passwordCharacter: "●"
-                color: "white"
+                color: Theme.inkSet ? Theme.ink : "white"
                 selectionColor: Qt.rgba(1, 1, 1, 0.3)
                 font { family: Theme.font; pixelSize: 13; letterSpacing: 1 }
                 clip: true
@@ -173,7 +173,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: "→"
-                    color: "white"
+                    color: Theme.inkSet ? Theme.ink : "white"
                     font { family: Theme.font; pixelSize: 13; weight: Font.Bold }
                 }
             }

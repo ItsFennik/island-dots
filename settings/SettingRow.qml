@@ -22,7 +22,7 @@ Item {
 
     Rectangle {
         visible: root.y > 0
-        anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: 12; rightMargin: 12 }
+        anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: 14; rightMargin: 14 }
         height: 1
         color: Qt.alpha(Theme.text, 0.07)
     }
@@ -30,7 +30,7 @@ Item {
         id: head
         width: parent.width
         MouseArea { anchors.fill: parent; enabled: root.clickable; onClicked: root.clicked() }
-        height: Math.max(root.subtitle !== "" ? 50 : 40, slot.childrenRect.height + 16)
+        height: Math.max(root.subtitle !== "" ? 52 : 42, slot.childrenRect.height + 16)
         Rectangle {
             id: ic
             visible: root.glyph !== ""
@@ -40,7 +40,7 @@ Item {
             Text { anchors.centerIn: parent; text: root.glyph; color: "white"; font { family: Theme.mono; pixelSize: 12 } }
         }
         Column {
-            anchors { left: ic.visible ? ic.right : parent.left; leftMargin: ic.visible ? 10 : 12; right: slot.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
+            anchors { left: ic.visible ? ic.right : parent.left; leftMargin: ic.visible ? 10 : 14; right: slot.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
             spacing: 2
             Text { width: parent.width; text: root.title; color: Theme.text; elide: Text.ElideRight; font { family: Theme.font; pixelSize: 13 } }
             Text {
@@ -56,7 +56,7 @@ Item {
         }
         Item {
             id: slot
-            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
             width: childrenRect.width; height: childrenRect.height
         }
     }

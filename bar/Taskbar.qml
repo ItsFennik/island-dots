@@ -9,7 +9,7 @@ import Quickshell.Bluetooth
 import qs.services
 import qs.components
 
-// "Bottom bar" layout (setting layout = "taskbar"): one floating glass bar along the bottom.
+// "Bottom bar" layout (setting shellLayout = "taskbar"): one floating glass bar along the bottom.
 // Left: logo menu + now playing. Middle: the Dock's apps. Right: Settings, wallpaper, tray,
 // Bluetooth / Wi-Fi / sound, notifications, a volume (or battery) ring and the clock.
 // Lives inside Bar.qml's surface, so every popout opens (upwards) from here as usual.
@@ -135,6 +135,7 @@ Item {
     readonly property var parked: Hyprland.toplevels.values
         .filter(h => h.workspace?.name === "special:browser" && h.wayland).map(h => h.wayland)
     readonly property var apps: {
+        void DesktopEntries.applications.values; // rebuild (fresh entry objects) after a rescan
         const groups = {};
         for (const t of ToplevelManager.toplevels.values) {
             if (parked.includes(t)) continue;
@@ -160,28 +161,66 @@ Item {
             const i = it.wins.findIndex(w => w.activated);
             const next = i < 0 ? it.wins[0] : it.wins[(i + 1) % it.wins.length];
             if (next !== it.wins[i]) next.activate();
-        } else if (it.entry) Apps.launch(it.entry);
+        } else if (it.entry) Apps.launch(it.entry, it.id);
     }
+
+    // Magnification (same settings as the Dock): icons grow upwards out of the bar under the
+    // pointer. Bar.qml keeps fixed headroom above the bar (magHead) so the surface never resizes.
+    readonly property real mag: (s.dockMagnify ?? true) ? (s.dockMagnifySize ?? 1.7) : 1
+    readonly property int magHead: Math.ceil(tile * (mag - 1)) + 34     // + room for the name bubble
+    readonly property int gap: 8
+    readonly property real baseTotal: apps.length * tile + Math.max(0, apps.length - 1) * gap
+    property real px: -1e4                                               // pointer x, root coords
+    property real hoverAmt: dockHover.hovered && !bar.expanded ? 1 : 0
+    Behavior on hoverAmt { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+    function sizeAt(i) {
+        if (mag <= 1) return tile;
+        const c = (width - baseTotal) / 2 + i * (tile + gap) + tile / 2;   // unmagnified centre
+        const d = Math.abs(px - c), range = tile * 2.6;
+        const f = d < range ? (Math.cos(Math.PI * d / range) + 1) / 2 : 0;
+        return tile * (1 + (mag - 1) * f * hoverAmt);
+    }
+
+    // Hover area around the apps; reaches up over the grown icons while hovered (Bar adds it to
+    // the input mask, so the strip above the bar only takes input then).
+    property alias magHit: dockArea
+    Item {
+        id: dockArea
+        readonly property real padX: root.tile / 2
+        x: (root.width - width) / 2
+        y: dockHover.hovered && root.mag > 1 ? -root.magHead : 0
+        width: middle.width + padX * 2
+        height: root.height - y
+        HoverHandler { id: dockHover; onPointChanged: root.px = point.position.x + dockArea.x }
 
     Row {
         id: middle
-        anchors.centerIn: parent
-        spacing: 8
+        x: dockArea.padX
+        y: -dockArea.y
+        height: root.height
+        spacing: root.gap
         Repeater {
             model: root.apps
+            Item {
+                id: cell
+                required property var modelData
+                required property int index
+                readonly property real size: root.sizeAt(index)
+                width: size; height: middle.height
             Btn {
                 id: app
-                required property var modelData
-                width: root.tile; height: root.tile
+                readonly property var modelData: cell.modelData
+                width: cell.size; height: cell.size
+                y: (parent.height + root.tile) / 2 - height          // bottom stays put, grows upwards
                 onClicked: e => {
-                    if (e.button === Qt.MiddleButton) { if (modelData.entry) Apps.launch(modelData.entry); }
+                    if (e.button === Qt.MiddleButton) { if (modelData.entry) Apps.launch(modelData.entry, modelData.id); }
                     else if (e.button === Qt.RightButton) DockPins.toggle(modelData.id);
                     else root.activate(modelData);
                 }
                 Image {
                     anchors.fill: parent
                     source: AppIcons.source(app.modelData.icon)
-                    sourceSize { width: Math.max(64, root.tile * 2); height: Math.max(64, root.tile * 2) }
+                    sourceSize { width: Math.max(64, Math.ceil(root.tile * Math.max(2, root.mag))); height: Math.max(64, Math.ceil(root.tile * Math.max(2, root.mag))) }
                     smooth: true; mipmap: true
                     asynchronous: true
                     opacity: app.pressed ? 0.6 : 1
@@ -202,7 +241,9 @@ Item {
                     Text { id: nameText; anchors.centerIn: parent; text: app.modelData.name; color: Theme.menuText; font { family: root.family; pixelSize: 11 } }
                 }
             }
+            }
         }
+    }
     }
 
     // ── Right: settings, wallpaper, status, clock ─────────────────────

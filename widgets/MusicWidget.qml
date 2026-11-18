@@ -4,10 +4,10 @@ import Quickshell.Services.Mpris
 import qs.services
 
 // Now playing, Apple style: rounded cover art, title, artist, progress, transport.
-// Click the art to open the full player.
+// Click the art to open the full player. Small: art, play/pause, title. Medium: art beside
+// the title, progress and controls. Large: big art on top, everything under it.
 Card {
     id: root
-    wide: true
     property string screenName: ""
     readonly property MprisPlayer p: Media.player
     readonly property string iconFont: "JetBrainsMono Nerd Font"
@@ -38,8 +38,11 @@ Card {
     }
     Canvas {
         id: art
-        x: 16; y: 16
-        width: root.height - 32; height: width
+        width: root.size === "s" ? 76 : root.large ? 176 : root.height - 32
+        height: width
+        x: root.large ? (root.width - width) / 2 : root.size === "s" ? 14 : 16
+        y: root.size === "s" ? 14 : 16
+        onWidthChanged: requestPaint()
         property string loaded: ""
         property bool ready: false
         onImageLoaded: { ready = loaded !== "" && isImageLoaded(loaded); requestPaint(); }
@@ -55,22 +58,31 @@ Card {
                 // Center-crop non-square art.
                 const iw = artSrc.implicitWidth, ih = artSrc.implicitHeight, side = Math.min(iw, ih);
                 ctx.drawImage(loaded, (iw - side) / 2, (ih - side) / 2, side, side, 0, 0, w, w);
+                ready = true;
             } else {
-                ctx.fillStyle = Theme.card; ctx.fillRect(0, 0, w, w);
+                ready = false;
+                ctx.fillStyle = root.tahoe ? Qt.rgba(1, 1, 1, 0.12) : Theme.card; ctx.fillRect(0, 0, w, w);
             }
         }
         Connections { target: Theme; function onPalChanged() { art.requestPaint(); } }
+        Connections { target: root; function onTahoeChanged() { art.requestPaint(); } }
         Text {
             anchors.centerIn: parent
             visible: !(art.ready && artSrc.status === Image.Ready)
-            text: ""; color: Theme.textFaint
-            font { family: root.iconFont; pixelSize: 34 }
+            text: ""; color: root.fgFaint
+            font { family: root.iconFont; pixelSize: root.size === "s" ? 26 : 34 }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Popouts.toggle("media", root.screenName) }
     }
 
     Item {
-        anchors { left: art.right; leftMargin: 14; right: parent.right; rightMargin: 16; top: art.top; bottom: art.bottom }
+        visible: root.size !== "s"
+        anchors {
+            left: root.large ? parent.left : art.right; leftMargin: root.large ? 18 : 14
+            right: parent.right; rightMargin: root.large ? 18 : 16
+            top: root.large ? art.bottom : art.top; topMargin: root.large ? 12 : 0
+            bottom: root.large ? parent.bottom : art.bottom; bottomMargin: root.large ? 12 : 0
+        }
 
         Column {
             width: parent.width
@@ -79,7 +91,7 @@ Card {
                 width: parent.width
                 text: root.p ? (root.p.identity || "Music").toUpperCase() : "MUSIC"
                 elide: Text.ElideRight
-                color: "#ff375f"
+                color: root.tahoe ? root.fgDim : "#ff375f"
                 font { family: root.font; pixelSize: 10; weight: Font.Bold; letterSpacing: 0.5 }
             }
             Item { width: 1; height: 4 }
@@ -87,7 +99,7 @@ Card {
                 width: parent.width
                 text: root.p ? (Media.title || "Unknown title") : "Not Playing"
                 elide: Text.ElideRight
-                color: Theme.text
+                color: root.fg
                 font { family: root.font; pixelSize: 15; weight: Font.Bold }
             }
             Text {
@@ -95,7 +107,7 @@ Card {
                 visible: !!root.p
                 text: Media.artist || root.p?.trackAlbum || ""
                 elide: Text.ElideRight
-                color: Theme.textDim
+                color: root.fgDim
                 font { family: root.font; pixelSize: 12; weight: Font.Medium }
             }
         }
@@ -113,19 +125,19 @@ Card {
                 Rectangle {
                     width: parent.width; height: 4; radius: 2
                     antialiasing: true
-                    color: Qt.alpha(Theme.text, 0.18)
+                    color: root.fgTrack
                     Rectangle {
                         width: parent.width * Math.max(0, Math.min(1, (root.p?.position ?? 0) / Math.max(1, root.p?.length ?? 1)))
                         height: parent.height; radius: 2
                         antialiasing: true
-                        color: Qt.alpha(Theme.text, 0.85)
+                        color: root.fg
                     }
                 }
                 Item {
                     width: parent.width; height: 12
-                    Text { text: Media.fmt(root.p?.position ?? 0); color: Theme.textDim
+                    Text { text: Media.fmt(root.p?.position ?? 0); color: root.fgDim
                         font { family: root.font; pixelSize: 9; weight: Font.DemiBold } }
-                    Text { anchors.right: parent.right; text: "-" + Media.fmt(Math.max(0, (root.p?.length ?? 0) - (root.p?.position ?? 0))); color: Theme.textDim
+                    Text { anchors.right: parent.right; text: "-" + Media.fmt(Math.max(0, (root.p?.length ?? 0) - (root.p?.position ?? 0))); color: root.fgDim
                         font { family: root.font; pixelSize: 9; weight: Font.DemiBold } }
                 }
             }
@@ -146,11 +158,11 @@ Card {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: modelData.f()
-                        Rectangle { anchors.fill: parent; radius: 16; antialiasing: true; color: parent.containsMouse ? Qt.alpha(Theme.text, 0.1) : "transparent" }
+                        Rectangle { anchors.fill: parent; radius: 16; antialiasing: true; color: parent.containsMouse ? root.hover : "transparent" }
                         Text {
                             anchors.centerIn: parent
                             text: modelData.g
-                            color: parent.enabled ? Theme.text : Qt.alpha(Theme.text, 0.3)
+                            color: parent.enabled ? root.fg : root.fgFaint
                             font { family: root.iconFont; pixelSize: modelData.big ? 22 : 16 }
                         }
                     }
@@ -162,8 +174,30 @@ Card {
             visible: !root.p
             anchors { left: parent.left; bottom: parent.bottom }
             text: "Play something to see it here"
-            color: Theme.textFaint
+            color: root.fgFaint
             font { family: root.font; pixelSize: 11 }
         }
+    }
+
+    // ── Small: play/pause beside the art, title + artist along the bottom ──
+    MouseArea {
+        visible: root.size === "s" && !!root.p
+        anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 14 }
+        width: 36; height: 36
+        enabled: root.p?.canTogglePlaying ?? false
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: Media.playPause()
+        Rectangle { anchors.fill: parent; radius: 18; antialiasing: true; color: parent.containsMouse ? root.hover : "transparent" }
+        Text { anchors.centerIn: parent; text: root.p?.isPlaying ? "" : ""; color: root.fg
+            font { family: root.iconFont; pixelSize: 22 } }
+    }
+    Column {
+        visible: root.size === "s"
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
+        Text { width: parent.width; text: root.p ? (Media.title || "Unknown title") : "Not Playing"; elide: Text.ElideRight
+            color: root.fg; font { family: root.font; pixelSize: 13; weight: Font.Bold } }
+        Text { width: parent.width; visible: !!root.p; text: Media.artist || root.p?.trackAlbum || ""; elide: Text.ElideRight
+            color: root.fgDim; font { family: root.font; pixelSize: 11; weight: Font.Medium } }
     }
 }

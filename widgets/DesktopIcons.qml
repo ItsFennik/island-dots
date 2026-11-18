@@ -68,6 +68,7 @@ PanelWindow {
     Timer { interval: 4000; running: win.visible; repeat: true; triggeredOnStart: true; onTriggered: probe.running = true }
 
     readonly property var items: {
+        void DesktopEntries.applications.values; // rebuild (fresh entry objects) after a rescan
         const out = [{ id: "island:trash", kind: "trash", name: "Trash", icon: trashFull ? "user-trash-full" : "user-trash" }];
         for (const d of drives) out.push(Object.assign({ kind: "drive", icon: "drive-harddisk" }, d));
         if (s.desktopIconsApps ?? true)
@@ -79,7 +80,7 @@ PanelWindow {
     }
 
     function open(it) {
-        if (it.kind === "app") Apps.launch(it.entry);
+        if (it.kind === "app") Apps.launch(it.entry, it.id);
         else if (it.kind === "trash") Quickshell.execDetached(["gio", "open", "trash:///"]);
         else Quickshell.execDetached(["xdg-open", it.mount]);
         selected = ""; ejectFor = "";

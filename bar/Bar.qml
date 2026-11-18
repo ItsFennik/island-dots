@@ -19,11 +19,13 @@ PanelWindow {
     screen: modelData
 
     readonly property var s: Config.saved
-    // layout "taskbar": one floating bar along the bottom (bar/Taskbar.qml) instead of the menu bar + Dock.
-    readonly property bool taskbar: (s.layout ?? "menubar") === "taskbar"
+    // shellLayout "taskbar": one floating bar along the bottom (bar/Taskbar.qml) instead of the menu bar + Dock.
+    readonly property bool taskbar: (s.shellLayout ?? "menubar") === "taskbar"
     readonly property int tbGap: 8
     readonly property int tbH: s.taskbarHeight ?? 54
     readonly property int barH: taskbar ? tbH + tbGap : (s.barHeight ?? 30)
+    // Fixed room above the bottom bar for magnified app icons + name bubbles (never resizes).
+    readonly property int tbHead: taskbar && tbLoader.item ? tbLoader.item.magHead : 0
     readonly property string family: s.widgetFont || "Adwaita Sans"
     readonly property string glyphs: "JetBrainsMono Nerd Font"
     readonly property int fontPx: s.barFontSize ?? 13
@@ -73,9 +75,11 @@ PanelWindow {
     exclusiveZone: barH
     // Menus live in their own surface (below), so opening/closing one never resizes the bar —
     // a layer-surface resize shows a half-drawn frame, which was the flicker.
-    implicitHeight: catchAll ? screen.height : barH + (toastShown ? 200 : 0)
+    // Never resized to full screen (the click-catcher lives in the menu surface below); where
+    // resizes smear (Compositor.smoothResize false) the banner room is kept permanently too.
+    implicitHeight: barH + Math.max(tbHead, toastShown || !Compositor.smoothResize ? 200 : 0)
     color: "transparent"
-    mask: Region { item: bar; Region { item: banner } Region { item: win.catchAll ? catcher : null } }
+    mask: Region { item: bar; Region { item: banner } Region { item: tbLoader.item ? tbLoader.item.magHit : null } }
 
     WlrLayershell.namespace: "island-bar"
     WlrLayershell.layer: WlrLayer.Top
@@ -85,17 +89,10 @@ PanelWindow {
     onExpandedChanged: { grabArmed = false; if (expanded) arm.restart(); }
     Timer { id: arm; interval: 60; onTriggered: win.grabArmed = win.expanded }
     HyprlandFocusGrab { windows: menuLoader.item ? [win, menuLoader.item] : [win]; active: Compositor.focusGrab && win.grabArmed; onCleared: Popouts.close() }
-    // Without focus grabs (anything but Hyprland): while a popout is open, every bar covers its
-    // screen with a transparent catcher, so a click anywhere else closes it.
-    readonly property bool catchAll: !Compositor.focusGrab && Popouts.current !== ""
-    MouseArea {
-        id: catcher
-        anchors.fill: parent
-        z: -1
-        visible: win.catchAll
-        acceptedButtons: Qt.AllButtons
-        onPressed: Popouts.close()
-    }
+    // Without focus grabs (anything but Hyprland) the menu surface is full-screen and catches
+    // clicks everywhere except the bar itself, so a click elsewhere closes the popout while the
+    // bar's items still switch menus. It's a fresh surface per menu, so nothing ever resizes.
+    readonly property bool catchAll: !Compositor.focusGrab
     IdleInhibitor { window: win; enabled: Popouts.caffeine }
 
     // One menu-bar item: text or glyph, highlighted while its menu is open.
@@ -132,10 +129,12 @@ PanelWindow {
         width: parent.width - x * 2
         height: win.taskbar ? win.tbH : win.barH
         radius: win.taskbar ? 18 : 0
-        color: Qt.alpha(Theme.bg, win.s.barOpacity ?? 0.55)
-        border { width: win.taskbar ? 1 : 0; color: Qt.alpha(Theme.text, 0.12) }
+        color: Qt.alpha(Theme.bg, Theme.glass(win.s.barOpacity ?? 0.55))
+        border { width: win.taskbar ? 1 : 0; color: Theme.liquid ? Theme.glassRim : Qt.alpha(Theme.text, 0.12) }
+        GlassSheen { radius: bar.radius }
 
         Loader {
+            id: tbLoader
             anchors.fill: parent
             active: win.taskbar
             sourceComponent: Taskbar { bar: win }
@@ -320,6 +319,31 @@ PanelWindow {
     // The dropdown: a separate layer surface that only exists while a menu is open, at a fixed
     // size so switching menus doesn't resize it either. Hyprland fades it in/out on the GPU
     // (layer rule island-menu in hypr/island.lua), so Qt draws no fade frames.
+    // Without focus grabs: a separate full-screen, invisible surface catches clicks everywhere
+    // except the bar while a popout is open. The menu surface sits a layer above it (Overlay), so
+    // the two never race for stacking order, and neither ever resizes (resizes smear on Mango).
+    LazyLoader {
+        active: win.catchAll && win.shown !== ""
+        PanelWindow {
+            screen: win.screen
+            anchors { top: true; bottom: true; left: true; right: true }
+            exclusionMode: ExclusionMode.Ignore
+            color: "transparent"
+            WlrLayershell.namespace: "island-menu-catcher"
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            mask: Region {
+                item: menuCatcher
+                Region {
+                    intersection: Intersection.Subtract
+                    x: 0; width: win.width
+                    y: win.taskbar ? win.screen.height - win.barH - win.tbHead : 0
+                    height: win.barH + (win.taskbar ? win.tbHead : 0)
+                }
+            }
+            MouseArea { id: menuCatcher; anchors.fill: parent; acceptedButtons: Qt.AllButtons; onPressed: Popouts.close() }
+        }
+    }
     LazyLoader {
         id: menuLoader
         active: win.shown !== ""
@@ -332,7 +356,7 @@ PanelWindow {
             color: "transparent"
             mask: Region { item: panel }
             WlrLayershell.namespace: "island-menu"
-            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.layer: win.catchAll ? WlrLayer.Overlay : WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
             // macOS menus float on a soft shadow (drawn under the panel; faint enough that
@@ -374,6 +398,7 @@ PanelWindow {
                     color: "transparent"
                     border { width: 1; color: Theme.menuInner }
                 }
+                GlassSheen { visible: !panel.bare; radius: panel.radius; strength: Theme.dark ? 0.10 : 0.3 }
 
                 // Pointer leaving a popout that has been entered closes it (not menus you're reading).
                 HoverHandler {

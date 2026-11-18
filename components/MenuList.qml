@@ -32,7 +32,14 @@ Item {
             if (selectable(i)) { hi = i; return; }
         }
     }
-    function activate(i) { if (!selectable(i)) return; const f = items[i].f; done(); if (f) f(); }
+    // Run the action first: closing destroys this menu (and its parent's functions the
+    // action may call). Skip the close if the action opened another popout.
+    function activate(i) {
+        if (!selectable(i)) return;
+        const f = items[i].f, cur = Popouts.current;
+        if (f) f();
+        if (Popouts.current === cur) done();
+    }
 
     Component.onCompleted: Qt.callLater(() => root.forceActiveFocus())
     Keys.onDownPressed: move(1)

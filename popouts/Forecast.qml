@@ -58,24 +58,24 @@ Item {
                 spacing: -2
                 Row {
                     spacing: 5
-                    Text { text: Weather.place || "Weather"; color: "white"; elide: Text.ElideRight; width: Math.min(implicitWidth, 190)
+                    Text { text: Weather.place || "Weather"; color: Theme.inkSet ? Theme.ink : "white"; elide: Text.ElideRight; width: Math.min(implicitWidth, 190)
                         font { family: Theme.font; pixelSize: 15; weight: Font.Bold } }
-                    Text { visible: !Weather.location; text: "\u{f0124}"; color: "white"; anchors.verticalCenter: parent.verticalCenter
+                    Text { visible: !Weather.location; text: "\u{f0124}"; color: Theme.inkSet ? Theme.ink : "white"; anchors.verticalCenter: parent.verticalCenter
                         font { family: Theme.mono; pixelSize: 10 } }
                 }
-                Text { text: Weather.resolved; visible: text !== "" && text !== Weather.place; color: "white"; opacity: 0.75
+                Text { text: Weather.resolved; visible: text !== "" && text !== Weather.place; color: Theme.inkSet ? Theme.ink : "white"; opacity: 0.75
                     width: parent.width; elide: Text.ElideRight; font { family: Theme.font; pixelSize: 11 } }
-                Text { text: Weather.temp + root.deg; color: "white"; topPadding: 2
+                Text { text: Weather.temp + root.deg; color: Theme.inkSet ? Theme.ink : "white"; topPadding: 2
                     font { family: Theme.font; pixelSize: 50; weight: Font.Light } }
             }
             Column {
                 anchors { right: parent.right; bottom: parent.bottom; margins: 14; rightMargin: 16 }
                 spacing: 2
-                Text { anchors.right: parent.right; text: Weather.glyph(Weather.code, Weather.isDay); color: "white"
+                Text { anchors.right: parent.right; text: Weather.glyph(Weather.code, Weather.isDay); color: Theme.inkSet ? Theme.ink : "white"
                     font { family: Theme.mono; pixelSize: 28 } }
-                Text { anchors.right: parent.right; text: Weather.desc; color: "white"
+                Text { anchors.right: parent.right; text: Weather.desc; color: Theme.inkSet ? Theme.ink : "white"
                     font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold } }
-                Text { anchors.right: parent.right; text: "H:" + Weather.hi + root.deg + "  L:" + Weather.lo + root.deg; color: "white"; opacity: 0.85
+                Text { anchors.right: parent.right; text: "H:" + Weather.hi + root.deg + "  L:" + Weather.lo + root.deg; color: Theme.inkSet ? Theme.ink : "white"; opacity: 0.85
                     font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
             }
         }
