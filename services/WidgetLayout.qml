@@ -27,13 +27,14 @@ Singleton {
         weather: s.widgetWeather ?? true,
         calendar: s.widgetCalendar ?? true,
         music: s.widgetMusic ?? true,
-        system: s.widgetSystem ?? true
+        system: s.widgetSystem ?? true,
+        verse: s.widgetVerse ?? true
     })
-    readonly property var ids: ["weather", "calendar", "clock", "music", "system"].filter(i => on[i])
+    readonly property var ids: ["weather", "calendar", "clock", "music", "system", "verse"].filter(i => on[i])
 
     // A lone small tile in a row takes the full width, as on macOS.
     function wide(id) {
-        if (id === "music" || id === "system") return true;
+        if (id === "music" || id === "system" || id === "verse") return true;
         if (tahoe) {
             if (id === "weather") return !on.calendar;
             if (id === "calendar") return !on.weather;
@@ -54,14 +55,14 @@ Singleton {
     function width(id) { return size(id) === "s" ? unit : unit * 2 + gap; }
     function height(id) { return size(id) === "l" ? unit * 2 + gap : unit; }
     function remove(id) {
-        const key = { clock: "widgetClock", weather: "widgetWeather", calendar: "widgetCalendar", music: "widgetMusic", system: "widgetSystem" }[id];
+        const key = { clock: "widgetClock", weather: "widgetWeather", calendar: "widgetCalendar", music: "widgetMusic", system: "widgetSystem", verse: "widgetVerse" }[id];
         if (key) Config.commit(key, false);
     }
 
     // Auto layout rows. Tahoe: weather + month calendar, then the clock.
     // Classic: clock + weather, then the wide calendar.
-    readonly property var rows: (tahoe ? [["weather", "calendar"], ["clock"], ["music"], ["system"]]
-                                       : [["clock", "weather"], ["calendar"], ["music"], ["system"]])
+    readonly property var rows: (tahoe ? [["weather", "calendar"], ["clock"], ["music"], ["system"], ["verse"]]
+                                       : [["clock", "weather"], ["calendar"], ["music"], ["system"], ["verse"]])
                                 .map(r => r.filter(i => on[i])).filter(r => r.length > 0)
 
     // Auto position: distance of the widget's near edges from the chosen corner.

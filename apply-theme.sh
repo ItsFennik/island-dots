@@ -177,10 +177,10 @@ body {
   --bg-2: $surface;
   --bg-3: $bg_alt;
   --bg-4: $bg;
-  --hover: color-mix(in srgb, $fg 7%, transparent);
-  --active: color-mix(in srgb, $fg 13%, transparent);
-  --active-2: color-mix(in srgb, $fg 18%, transparent);
-  --message-hover: color-mix(in srgb, $fg 4%, transparent);
+  --hover: color-mix(in srgb, $fg 10%, transparent);
+  --active: color-mix(in srgb, $fg 17%, transparent);
+  --active-2: color-mix(in srgb, $fg 23%, transparent);
+  --message-hover: color-mix(in srgb, $fg 6%, transparent);
 
   /* accent */
   --accent-1: $accent;
@@ -220,7 +220,8 @@ $(shades purple "$magenta")
 [class*="divider"]:not([class*="isUnread"]) { border-color: var(--bg-2) !important; }
 [class*="timestamp"], [class*="timestamp"] time { color: var(--text-4) !important; }
 [class*="messageContent"] { color: var(--text-3) !important; }
-::selection { background: color-mix(in srgb, $accent 35%, transparent); color: $fg; }
+/* solid accent + its own text colour: readable on every theme (Monochrome's grey accent at 35% was invisible) */
+::selection { background: $accent !important; color: $accent_fg !important; }
 EOF
 fi
 

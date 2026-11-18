@@ -13,14 +13,14 @@ Card {
     readonly property int batPct: Math.round((bat?.percentage ?? 0) <= 1 ? (bat?.percentage ?? 0) * 100 : bat.percentage)
 
     readonly property var rings: [
-        { label: "CPU", frac: SysStats.cpu, text: Math.round(SysStats.cpu * 100) + "%", g: "", color: root.tahoe ? "" : "#0a84ff" },
-        { label: "Memory", frac: SysStats.mem, text: (SysStats.memUsed / 1048576).toFixed(1) + "G", g: "\uf2db", color: root.tahoe ? "" : "#30d158" },
+        { label: "CPU", frac: SysStats.cpu, text: Math.round(SysStats.cpu * 100) + "%", g: "", color: root.cBlue },
+        { label: "Memory", frac: SysStats.mem, text: (SysStats.memUsed / 1048576).toFixed(1) + "G", g: "\uf2db", color: root.cGreen },
         SysStats.temp >= 0
-            ? { label: "Temp", frac: Math.min(1, SysStats.temp / 100), text: SysStats.temp + "°", g: "", color: SysStats.temp >= 85 ? "#ff453a" : root.tahoe ? "" : "#ff9f0a" }
+            ? { label: "Temp", frac: Math.min(1, SysStats.temp / 100), text: SysStats.temp + "°", g: "", color: SysStats.temp >= 85 ? "#ff453a" : root.cOrange }
             : null,
         hasBat
-            ? { label: "Battery", frac: batPct / 100, text: batPct + "%", g: "", color: batPct <= 15 ? "#ff453a" : root.tahoe ? "" : "#30d158" }
-            : { label: "Disk", frac: SysStats.disk, text: Math.round(SysStats.disk * 100) + "%", g: "", color: root.tahoe ? "" : "#bf5af2" }
+            ? { label: "Battery", frac: batPct / 100, text: batPct + "%", g: "", color: batPct <= 15 ? "#ff453a" : root.cGreen }
+            : { label: "Disk", frac: SysStats.disk, text: Math.round(SysStats.disk * 100) + "%", g: "", color: root.cPurple }
     ].filter(r => r !== null)
 
     MouseArea {
@@ -54,7 +54,7 @@ Card {
                         onFracChanged: requestPaint()
                         onWidthChanged: requestPaint()
                         Connections { target: Theme; function onPalChanged() { ring.requestPaint(); } }
-                        Connections { target: root; function onFgChanged() { ring.requestPaint(); } function onTahoeChanged() { ring.requestPaint(); } }
+                        Connections { target: root; function onFgChanged() { ring.requestPaint(); } function onTahoeChanged() { ring.requestPaint(); } function onCBlueChanged() { ring.requestPaint(); } }
                         onPaint: {
                             const lw = root.small ? 5 : 6, ctx = getContext("2d"), c = width / 2, r = c - lw / 2 - 1;
                             ctx.reset();

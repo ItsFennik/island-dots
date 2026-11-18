@@ -8,9 +8,9 @@ import qs.services
 Card {
     id: root
     property string screenName: ""
-    readonly property color red: "#ff453a"
-    readonly property color accent: tahoe ? fg : red        // today's circle, classic weekday
-    readonly property color onAccent: tahoe ? onFg : "white"
+    readonly property color red: cRed || "#ff453a"
+    readonly property color accent: cRed ? red : fg        // today's circle, classic weekday
+    readonly property color onAccent: cRed ? (red.hslLightness > 0.6 ? "black" : "white") : onFg
     readonly property bool med: size === "m"
 
     SystemClock { id: clk; precision: SystemClock.Minutes }

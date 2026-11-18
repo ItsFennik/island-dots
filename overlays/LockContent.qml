@@ -61,6 +61,43 @@ Item {
         }
     }
 
+    // ── Verse of the day (services/Verse, ESV) ────────────────
+    Rectangle {
+        visible: (Config.saved.lockVerse ?? true) && Verse.ok
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Math.round(content.height * 0.36)
+        width: Math.min(Math.round(content.width * 0.42), 640)
+        height: verseCol.height + 32
+        radius: 20
+        color: Qt.rgba(0, 0, 0, 0.22)
+        border { width: 1; color: Qt.rgba(1, 1, 1, 0.14) }
+        Column {
+            id: verseCol
+            anchors { left: parent.left; right: parent.right; margins: 22; verticalCenter: parent.verticalCenter }
+            spacing: 8
+            Text {
+                text: "VERSE OF THE DAY"
+                color: Qt.rgba(1, 1, 1, 0.6)
+                font { family: Theme.font; pixelSize: 11; weight: Font.Bold; letterSpacing: 0.8 }
+            }
+            Text {
+                width: parent.width
+                text: "\u201c" + Verse.text + "\u201d"
+                color: Theme.inkSet ? Theme.ink : Qt.rgba(1, 1, 1, 0.92)
+                wrapMode: Text.WordWrap
+                lineHeight: 1.1
+                font { family: Theme.font; pixelSize: Math.max(15, Math.round(content.height * 0.019)); weight: Font.DemiBold }
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignRight
+                text: "— " + Verse.ref
+                color: Qt.rgba(1, 1, 1, 0.7)
+                font { family: Theme.font; pixelSize: 13; italic: true }
+            }
+        }
+    }
+
     // ── Picture, name, password ───────────────────────────────
     Column {
         id: login

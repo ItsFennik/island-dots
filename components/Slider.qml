@@ -12,6 +12,8 @@ Item {
     property real stepSize: 1
     property int decimals: 0
     property string suffix: ""
+    // The bubble shows value × displayScale: 0–1 volume sliders use 100 + suffix "%".
+    property real displayScale: 1
     property string minText: ""
     property string maxText: ""
     // When true (Settings), the wheel only adjusts the slider after it's been clicked, so
@@ -75,7 +77,7 @@ Item {
         color: Theme.dark ? "#3a3a3c" : "#ffffff"
         border { width: 1; color: Theme.hairline }
         z: 2
-        Text { id: bubble; anchors.centerIn: parent; text: root.shownValue.toFixed(root.decimals) + root.suffix
+        Text { id: bubble; anchors.centerIn: parent; text: (root.shownValue * root.displayScale).toFixed(root.decimals) + root.suffix
             color: Theme.text; font { family: Theme.font; pixelSize: 11 } }
     }
     MouseArea {

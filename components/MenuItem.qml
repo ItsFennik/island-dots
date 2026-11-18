@@ -14,10 +14,23 @@ MouseArea {
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
 
+    // Same as the Settings sidebar: soft accent wash + a short accent pill for the current
+    // row, a faint wash under the pointer for the rest.
     Rectangle {
         anchors.fill: parent
         radius: 10
-        color: root.current ? Theme.control : "transparent"
+        antialiasing: true
+        color: root.current ? Qt.alpha(Theme.accent, Theme.dark ? 0.22 : 0.16)
+             : root.pressed ? Qt.alpha(Theme.pal.fg, 0.1)
+             : root.containsMouse ? Theme.hover : "transparent"
+        Behavior on color { ColorAnimation { duration: 110 } }
+    }
+    Rectangle {
+        anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+        width: 3; height: root.current ? 14 : 0
+        radius: 1.5; antialiasing: true
+        color: Theme.accent
+        Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
     }
     Text {
         id: g
@@ -25,7 +38,7 @@ MouseArea {
         anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
         width: 18
         text: root.glyph
-        color: root.current ? root.tint : Theme.textDim
+        color: root.current ? Theme.accent : Theme.textDim
         font { family: Theme.mono; pixelSize: 14 }
     }
     Text {
@@ -34,8 +47,8 @@ MouseArea {
         elide: Text.ElideRight
         maximumLineCount: 1
         textFormat: Text.PlainText
-        color: root.current ? root.tint : Theme.textDim
-        font { family: Theme.font; pixelSize: 13 }
+        color: root.current || root.containsMouse ? root.tint : Theme.textDim
+        font { family: Theme.font; pixelSize: 13; weight: root.current ? Font.Medium : Font.Normal }
     }
     Text {
         id: d

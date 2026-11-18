@@ -20,7 +20,8 @@ Scope {
     Component { id: cClock; ClockWidget { size: WidgetLayout.size("clock") } }
     Component { id: cMusic; MusicWidget { size: WidgetLayout.size("music"); screenName: root.modelData.name } }
     Component { id: cSystem; SystemWidget { size: WidgetLayout.size("system") } }
-    readonly property var comps: ({ weather: cWeather, calendar: cCalendar, clock: cClock, music: cMusic, system: cSystem })
+    Component { id: cVerse; VerseWidget { size: WidgetLayout.size("verse") } }
+    readonly property var comps: ({ weather: cWeather, calendar: cCalendar, clock: cClock, music: cMusic, system: cSystem, verse: cVerse })
 
     Variants {
         model: root.shown ? WidgetLayout.ids : []

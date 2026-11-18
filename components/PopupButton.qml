@@ -16,14 +16,20 @@ MouseArea {
     readonly property string currentText: options.find(o => o[0] === value)?.[1] ?? String(value ?? "")
     property bool open: false
 
-    implicitWidth: Math.min(maxWidth, label.implicitWidth + 40); implicitHeight: 22
+    implicitWidth: Math.min(maxWidth, label.implicitWidth + 40); implicitHeight: 24
+    hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
     onClicked: open = !open
 
     Rectangle {
         anchors.fill: parent
-        radius: 6
+        radius: 7
+        antialiasing: true
         color: Theme.button
         border { width: 1; color: Theme.buttonBorder }
+        Rectangle { anchors.fill: parent; radius: parent.radius; antialiasing: true
+            color: root.pressed ? Qt.rgba(0, 0, 0, 0.12) : root.containsMouse ? Qt.alpha(Theme.pal.fg, 0.06) : "transparent"
+            Behavior on color { ColorAnimation { duration: 100 } } }
     }
     Text {
         id: label
@@ -58,7 +64,8 @@ MouseArea {
                 height: Math.min(list.contentHeight, parent.height - 40) + 10
                 x: Math.max(6, Math.min(parent.width - width - 6, at.x - 8))
                 y: Math.max(6, Math.min(parent.height - height - 6, at.y - 5 - root.current * rowH + list.contentY))
-                radius: 8
+                radius: 10
+                antialiasing: true
                 color: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.98) : Qt.rgba(0.97, 0.97, 0.97, 0.98)
                 border { width: 1; color: Qt.alpha(Theme.text, 0.14) }
                 ListView {
@@ -77,7 +84,7 @@ MouseArea {
                         hoverEnabled: true
                         onClicked: { root.open = false; if (modelData[0] !== root.value) root.picked(modelData[0]); }
                         Component.onCompleted: list.contentW = Math.max(list.contentW, t.implicitWidth + 40)
-                        Rectangle { anchors.fill: parent; radius: 4; color: it.containsMouse ? Theme.accent : "transparent" }
+                        Rectangle { anchors.fill: parent; radius: 6; antialiasing: true; color: it.containsMouse ? Theme.accent : "transparent" }
                         Text { visible: it.index === root.current; anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
                             text: "✓"; color: it.containsMouse ? Theme.onAccent : Theme.text; font { family: Theme.font; pixelSize: 11 } }
                         Text { id: t; anchors { left: parent.left; leftMargin: 22; verticalCenter: parent.verticalCenter }

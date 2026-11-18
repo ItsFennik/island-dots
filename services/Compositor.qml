@@ -39,6 +39,28 @@ Singleton {
     // screen smeared into vertical streaks. Without this, surfaces keep a fixed size instead.
     readonly property bool smoothResize: hyprland
 
+    // ── Tiling layouts ────────────────────────────────────────────────
+    // What this compositor can tile with ([value, label]); Settings → Windows offers exactly these.
+    // The saved choice (setting `layout`) is shared, so one picked elsewhere is translated to the
+    // nearest one here by layoutHere(); apply-settings.sh does the same mapping per compositor.
+    readonly property var layouts: hyprland ? [["dwindle", "Dwindle"], ["master", "Master"], ["scrolling", "Scrolling"], ["monocle", "Monocle"]]
+        : mango ? [["dwindle", "Dwindle"], ["tile", "Master (left)"], ["right_tile", "Master (right)"], ["center_tile", "Master (centre)"],
+                   ["vertical_tile", "Master (top)"], ["scroller", "Scrolling"], ["vertical_scroller", "Scrolling (vertical)"],
+                   ["grid", "Grid"], ["vertical_grid", "Grid (vertical)"], ["fair", "Fair"], ["vertical_fair", "Fair (vertical)"],
+                   ["deck", "Deck"], ["vertical_deck", "Deck (vertical)"], ["monocle", "Monocle"]]
+        : niri ? [["scrolling", "Scrolling"]]
+        : i3 ? [["default", "Split"], ["tabbed", "Tabbed"], ["stacking", "Stacked"]]
+        : []
+    function layoutHere(v) {
+        if (layouts.some(l => l[0] === v)) return v;
+        const near = hyprland ? { tile: "master", right_tile: "master", center_tile: "master", vertical_tile: "master", deck: "master", vertical_deck: "master",
+                                  scroller: "scrolling", vertical_scroller: "scrolling", tabbed: "monocle", stacking: "monocle" }
+                   : mango ? { master: "tile", scrolling: "scroller", tabbed: "monocle", stacking: "monocle" }
+                   : i3 ? { monocle: "tabbed", deck: "stacking", vertical_deck: "stacking" } : {};
+        return near[v] ?? layouts[0]?.[0] ?? v;
+    }
+    readonly property string displayName: ({ hyprland: "Hyprland", niri: "niri", mango: "MangoWC", sway: "Sway", scroll: "Scroll" })[name] ?? name
+
     // ── Focused monitor ───────────────────────────────────────────────
     // Falls back to the monitor of the focused window, which works anywhere with
     // wlr-foreign-toplevel; callers fall back further to the first screen.
@@ -52,7 +74,8 @@ Singleton {
     // Number of the focused workspace (1-based), or -1 when the compositor doesn't say.
     readonly property int focusedWorkspace: hyprland ? (Hyprland.focusedWorkspace?.id ?? -1)
                                           : i3 ? (I3.focusedWorkspace?.number ?? -1)
-                                          : niri ? niriWorkspace : -1
+                                          : niri ? niriWorkspace
+                                          : mango ? mangoActive(mangoOutput) : -1
 
     signal workspaceChanged()
 
@@ -104,19 +127,50 @@ Singleton {
     }
 
     // ── MangoWC ───────────────────────────────────────────────────────
-    // `mmsg -w` streams per-monitor state; "<output> selmon 1" marks the focused one.
+    // `mmsg watch all-monitors` streams one JSON line per change: every monitor with its tags
+    // ({index, is_active, is_urgent, client_count}); "active" marks the focused monitor.
     property string mangoOutput: ""
+    property var mangoTags: ({})            // monitor name → tags array
     Process {
         id: mangoWatch
         running: root.mango
-        command: ["mmsg", "-w"]
+        command: ["mmsg", "watch", "all-monitors"]
         stdout: SplitParser {
             onRead: line => {
-                const m = /^(\S+)\s+selmon\s+1\s*$/.exec(line);
-                if (m) root.mangoOutput = m[1];
+                let mons;
+                try { mons = JSON.parse(line).monitors; } catch (e) { return; }
+                if (!mons) return;
+                const tags = {};
+                let focused = "";
+                for (const m of mons) { tags[m.name] = m.tags ?? []; if (m.active) focused = m.name; }
+                const before = root.focusedWorkspace;
+                root.mangoTags = tags;
+                if (focused) root.mangoOutput = focused;
+                if (root.focusedWorkspace !== before) root.workspaceChanged();
             }
         }
         onExited: if (root.mango) retry.restart()
+    }
+    function mangoActive(name) { return (mangoTags[name] ?? []).find(t => t.is_active)?.index ?? -1; }
+
+    // ── Workspaces per screen (menu-bar indicator) ────────────────────
+    // [{ id, active, occupied, urgent }] for the workspaces that exist / are known on `screenName`,
+    // sorted by id. Empty where the compositor doesn't say (the indicator hides itself).
+    function workspaces(screenName) {
+        if (mango) return (mangoTags[screenName] ?? []).map(t => ({ id: t.index, active: t.is_active, occupied: t.client_count > 0, urgent: t.is_urgent }));
+        if (hyprland) return Hyprland.workspaces.values
+            .filter(w => w.id > 0 && w.monitor?.name === screenName)
+            .map(w => ({ id: w.id, active: w.active, occupied: (w.toplevels?.values?.length ?? 1) > 0, urgent: w.urgent }))
+            .sort((a, b) => a.id - b.id);
+        if (i3) return I3.workspaces.values
+            .filter(w => w.number > 0 && w.monitor?.name === screenName)
+            .map(w => ({ id: w.number, active: w.active, occupied: true, urgent: w.urgent }))
+            .sort((a, b) => a.id - b.id);
+        if (niri) return niriWorkspaces
+            .filter(w => w.output === screenName)
+            .map(w => ({ id: w.idx, active: w.is_active, occupied: w.active_window_id != null, urgent: !!w.is_urgent }))
+            .sort((a, b) => a.id - b.id);
+        return [];
     }
 
     // Restart a watcher that died (compositor restarted, socket hiccup); give up after a few tries.
@@ -184,6 +238,20 @@ Singleton {
         else if (mango) mmsg("tag," + i);
     }
     function closeWindow() { tl?.close(); }
+
+    // Overview (overlays/Overview.qml): go to workspace i / move a given window there.
+    // `w` is an Overview window: { id (Mango client id / Hyprland address), tl (Toplevel) }.
+    function focusWorkspace(i) {
+        if (hyprland) hypr("hl.dsp.focus({ workspace = " + i + " })");
+        else if (niri) niriAct("focus-workspace", String(i));
+        else if (i3) sway("workspace number " + i);
+        else if (mango) run(["mmsg", "dispatch", "view," + i + ",0"]);
+    }
+    function moveWindow(w, i) {
+        if (hyprland) hypr('hl.dsp.window.move({ workspace = ' + i + ', window = "address:' + w.id + '" })');
+        else if (mango) run(["mmsg", "dispatch", "tag," + i + ",0", "client," + w.id]);
+        else if (w.tl) { w.tl.activate(); moveTo(i); }
+    }
 
     // Force Quit: Hyprland lets you click a window; elsewhere kill the focused window's process.
     function forceQuit() {

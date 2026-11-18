@@ -85,10 +85,11 @@ Item {
                     id: label
                     visible: !row.sep
                     anchors { left: parent.left; leftMargin: row.header ? 8 : 20; verticalCenter: parent.verticalCenter }
-                    text: row.modelData.text ?? ""
+                    text: row.header ? (row.modelData.text ?? "").toUpperCase() : (row.modelData.text ?? "")
                     color: row.header ? Qt.alpha(Theme.menuText, 0.5)
                          : !row.enabled ? Qt.alpha(Theme.menuText, 0.28) : row.lit ? Theme.menuOnSel : Theme.menuText
-                    font { family: root.family; pixelSize: row.header ? 11 : 13; weight: row.header ? Font.DemiBold : Font.Normal }
+                    font { family: root.family; pixelSize: row.header ? 11 : 13; letterSpacing: row.header ? 0.6 : 0
+                           weight: row.header ? Font.DemiBold : Font.Normal }
                 }
                 // Shortcut: key in a fixed column at the right edge, modifiers just left of it.
                 Text {

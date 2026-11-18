@@ -19,6 +19,15 @@ eval "$(jq -r --argjson u "$user" '. * $u | to_entries[] | "s_\(.key)=\(.value|t
 put() { local f="$1" new; new="$(cat)"; [ -f "$f" ] && [ "$new" = "$(<"$f")" ] && return 1; printf '%s\n' "$new" > "$f"; }
 
 # ── Hyprland ──────────────────────────────────────────────────────────
+# Tiling layout: one shared choice (Settings offers the running compositor's own list);
+# each compositor gets the nearest layout it has.
+case "$s_layout" in
+  dwindle|master|scrolling|monocle) hlayout=$s_layout ;;
+  tile|right_tile|center_tile|vertical_tile|deck|vertical_deck) hlayout=master ;;
+  scroller|vertical_scroller) hlayout=scrolling ;;
+  tabbed|stacking) hlayout=monocle ;;
+  *) hlayout=dwindle ;;
+esac
 anim=""
 if [ "$s_animations" = true ]; then
   # speed is in deciseconds; each leaf runs a multiple of the base so moves feel unhurried
@@ -55,7 +64,7 @@ else
   glassblur="vibrancy = 0.1696, contrast = 0.8916, brightness = 0.8172, noise = 0.0117"
 fi
 hypr="hl.config({
-    general = { gaps_in = $s_gapsIn, gaps_out = $s_gapsOut, border_size = $s_borderSize, layout = \"$s_layout\" },
+    general = { gaps_in = $(( (s_gapsIn + 1) / 2 )), gaps_out = $s_gapsOut, border_size = $s_borderSize, layout = \"$hlayout\" },
     decoration = {
         rounding = $s_rounding,
         active_opacity = $s_activeOpacity,
@@ -115,7 +124,10 @@ fi
 if [ -d "$CFG/mango" ] || command -v mango >/dev/null; then
   mkdir -p "$CFG/mango"
   n() { [ "$1" = true ] && echo 1 || echo 0; }
-  case "$s_layout" in master) mlayout=tile ;; scrolling) mlayout=scroller ;; *) mlayout=dwindle ;; esac
+  case "$s_layout" in
+    dwindle|tile|right_tile|center_tile|vertical_tile|scroller|vertical_scroller|grid|vertical_grid|fair|vertical_fair|deck|vertical_deck|monocle) mlayout=$s_layout ;;
+    master) mlayout=tile ;; scrolling) mlayout=scroller ;; tabbed|stacking) mlayout=monocle ;; *) mlayout=dwindle ;;
+  esac
   # Hyprland's "popin" scales the window up; Mango's zoom does that from a scaled snapshot,
   # which showed text twice while opening/closing, so it becomes a fade here.
   case "$s_windowAnim" in slide) mopen=slide ;; *) mopen=fade ;; esac
@@ -181,7 +193,9 @@ fi
 if [ -n "${SWAYSOCK:-}" ] || [ -d "$CFG/sway" ]; then
   mkdir -p "$CFG/sway"
   onoff() { [ "$1" = true ] && echo enabled || echo disabled; }
-  sway_cfg="gaps inner $s_gapsIn
+  case "$s_layout" in tabbed|monocle) slayout=tabbed ;; stacking|deck|vertical_deck) slayout=stacking ;; *) slayout=default ;; esac
+  sway_cfg="workspace_layout $slayout
+gaps inner $s_gapsIn
 gaps outer $s_gapsOut
 default_border pixel $s_borderSize
 default_floating_border pixel $s_borderSize

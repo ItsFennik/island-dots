@@ -13,7 +13,8 @@ import qs.services
 SettingRow {
     id: root
     required property var spec
-    readonly property var value: Config.values[spec.key]
+    // spec.norm(v): how a stored value shows here (e.g. a tiling layout from another compositor)
+    readonly property var value: spec.norm ? spec.norm(Config.values[spec.key]) : Config.values[spec.key]
 
     title: spec.label
     // spec.live: "weather" → the subtitle shows what the field currently resolves to

@@ -31,7 +31,7 @@ Item {
                 text: ""; color: Qt.alpha(Theme.menuText, 0.6); font { family: Theme.mono; pixelSize: 12 } }
             Slider {
                 anchors { left: lo.right; leftMargin: 8; right: hi.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                from: 0; to: 1; stepSize: 0.01; suffix: ""
+                from: 0; to: 1; stepSize: 0.01; displayScale: 100; suffix: "%"
                 value: Audio.muted ? 0 : Math.min(1, Audio.volume)
                 onMoved: v => Audio.setVolume(v)
             }

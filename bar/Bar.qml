@@ -195,6 +195,16 @@ PanelWindow {
             }
         }
 
+        // Workspaces, centred on the screen (setting barWorkspaces / barWorkspaceStyle).
+        Workspaces {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: !win.taskbar && (win.s.barWorkspaces ?? true) && known.length > 0
+            screenName: win.screen.name
+            family: win.family
+            fontPx: win.fontPx
+            barH: win.barH
+        }
+
         Row {
             visible: !win.taskbar
             anchors { right: parent.right; rightMargin: 8 }

@@ -35,12 +35,34 @@ Rectangle {
     // text drawn on an fg-filled shape (calendar's today circle)
     readonly property color onFg: fg.hslLightness > 0.5 ? "black" : "white"
 
+    // Accent colours (Settings → Desktop & Widgets → Colours):
+    //  · system: macOS colours on Classic, white monochrome on Tahoe ("" = use fg)
+    //  · theme: the shell theme's palette · wallpaper: matugen colours from the wallpaper
+    readonly property string colorMode: Config.saved.widgetColors ?? "system"
+    readonly property bool wallTint: colorMode === "wallpaper" && WallColors.ready
+    readonly property var wp: WallColors.p
+    function pickAccent(sys, themeKey, wallKey) {
+        if (colorMode === "theme") return Theme.pal[themeKey] ?? sys;
+        if (wallTint) return wp[wallKey] ?? sys;
+        return tahoe ? "" : sys;
+    }
+    readonly property string cBlue: pickAccent("#0a84ff", "blue", "primary")
+    readonly property string cGreen: pickAccent("#30d158", "green", "tertiary")
+    readonly property string cOrange: pickAccent("#ff9f0a", "yellow", "secondary")
+    readonly property string cPurple: pickAccent("#bf5af2", "magenta", "primary_fixed_dim")
+    readonly property string cRed: pickAccent("#ff453a", "red", "error")
+    readonly property string cPink: pickAccent("#ff375f", "magenta", "tertiary")
+    readonly property string cCyan: pickAccent("#64d2ff", "cyan", "primary")
+
     width: wide ? unit * 2 + gap : unit
     height: large ? unit * 2 + gap : unit
     radius: tahoe ? 22 : 24
     antialiasing: true
-    // Tahoe: widgetsOpacity 0..1 → white veil 0.06..0.30 over the blur
-    color: tahoe ? Qt.rgba(1, 1, 1, 0.06 + 0.24 * glass)
+    // Tahoe: widgetsOpacity 0..1 → white veil 0.06..0.30 over the blur (wallpaper-tinted when
+    // Colours is Wallpaper). Classic: the wallpaper's container colour instead of graphite.
+    color: tahoe && wallTint ? Qt.alpha(wp.primary_container, 0.10 + 0.30 * glass)
+         : tahoe ? Qt.rgba(1, 1, 1, 0.06 + 0.24 * glass)
+         : wallTint ? Qt.alpha(wp.surface_container, Theme.glass(Math.min(0.92, glass + 0.15)))
          : Theme.dark ? Qt.rgba(0.12, 0.12, 0.13, Theme.glass(Math.min(0.92, glass + 0.15)))
                       : Qt.rgba(0.97, 0.97, 0.97, Theme.glass(Math.min(0.95, glass + 0.25)))
     border { width: 1; color: tahoe ? Qt.rgba(1, 1, 1, 0.22 + 0.16 * glass)

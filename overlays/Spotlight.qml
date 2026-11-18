@@ -1,23 +1,28 @@
 import QtQuick
 import QtQuick.Window
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.services
 import qs.components
 
-// Spotlight-style search (Super+D, the bar's search icon). A floating glass bar in the upper
-// middle of the screen; results appear under it: Top Hit, Applications, a calculator,
-// "$ command" to run in a shell, and a web search. Only exists while open.
-//   ↑/↓ pick · Enter open · Ctrl+Enter / right-click: Keep in Dock · Esc close
+// Spotlight (Super+D, the bar's search icon). A dark glass card in the upper middle of the
+// screen. Empty: Recently Used + Frequently Used (services/SpotHistory.qml). Typing searches
+// apps, system actions (Lock, Sleep…), files in ~ (3+ letters), math, "> cmd" / "$ cmd" for a
+// shell command, and the web. "?" lists the prefixes. Only exists while open.
+//   ↑/↓ pick · Enter open · Ctrl+1-9 quick select · Shift+Del remove from history
+//   Ctrl+Enter / right-click: Keep in Dock · Esc clear, then close
 PanelWindow {
     id: win
 
     readonly property string family: Config.saved.widgetFont || "Adwaita Sans"
-    readonly property int w: 680
-    readonly property int fieldH: 58
-    readonly property int rowH: 42
-    readonly property int maxRows: 8
+    readonly property int w: 700
+    readonly property int fieldH: 52
+    readonly property int rowH: 44
+    readonly property int headH: 26
+    readonly property int footH: 34
+    readonly property int maxRows: 9
 
     // Without focus grabs it covers the whole screen (click outside the card closes it).
     readonly property bool catchAll: !Compositor.focusGrab
@@ -27,7 +32,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     // Fixed size (the biggest it can get) so typing never reallocates the surface.
     implicitWidth: w + 40
-    implicitHeight: fieldH + maxRows * rowH + 3 * 26 + 60
+    implicitHeight: fieldH + maxRows * rowH + 4 * headH + footH + 40
     color: "transparent"
     mask: Region { item: card; Region { item: win.catchAll ? catcher : null } }
 
@@ -47,185 +52,349 @@ PanelWindow {
         onPressed: Popouts.closeOverlays()
     }
 
+    // ── Sources ───────────────────────────────────────────────────────
+    readonly property var system: [
+        { key: "sys:lock", title: "Lock", sub: "Lock the screen", glyph: "", words: "lock screen", f: () => Compositor.lock() },
+        { key: "sys:sleep", title: "Sleep", sub: "Suspend to RAM", glyph: "󰒲", words: "sleep suspend", cmd: ["systemctl", "suspend"] },
+        { key: "sys:logout", title: "Log Out", sub: "End the session", glyph: "󰍃", words: "log out logout exit quit session", confirm: true, f: () => Compositor.logout() },
+        { key: "sys:reboot", title: "Restart", sub: "Reboot the computer", glyph: "", words: "restart reboot", confirm: true, cmd: ["systemctl", "reboot"] },
+        { key: "sys:off", title: "Shut Down", sub: "Power off the computer", glyph: "⏻", words: "shut down shutdown power off poweroff", confirm: true, cmd: ["systemctl", "poweroff"] },
+        { key: "sys:settings", title: "System Settings", sub: "Island settings", glyph: "", words: "settings preferences island", f: () => Popouts.openSettings("") }
+    ]
+    readonly property var help: [
+        { kind: "help", fill: "", title: "Apps & actions", sub: "Just type a name — Firefox, Lock, Sleep, Restart…", glyph: "" },
+        { kind: "help", fill: "> ", title: "> command", sub: "Run a shell command ($ works too)", glyph: "" },
+        { kind: "help", fill: "", title: "Math", sub: "2*(3+4), 15% of 80 → type it, Enter copies the result", glyph: "󰃬" },
+        { kind: "help", fill: "", title: "Files", sub: "3+ letters also search your home folder", glyph: "" },
+        { kind: "help", fill: "", title: "Web", sub: "Anything else: last row searches DuckDuckGo", glyph: "󰖟" }
+    ]
+
+    // A history key back to a row (null when the app is gone).
+    function fromKey(key) {
+        if (key.startsWith("app:")) {
+            const e = DesktopEntries.byId(key.slice(4));
+            return e && !e.noDisplay ? appRow(e) : null;
+        }
+        if (key.startsWith("sys:")) { const s = system.find(x => x.key === key); return s ? Object.assign({ kind: "sys" }, s) : null; }
+        if (key.startsWith("cmd:")) { const c = key.slice(4); return { kind: "cmd", key, cmd: c, title: c, sub: "Shell command", glyph: "" }; }
+        return null;
+    }
+    function appRow(e) { return { kind: "app", key: "app:" + e.id, entry: e, title: e.name, sub: e.comment || e.genericName || "", icon: e.icon }; }
+
     // ── Search ────────────────────────────────────────────────────────
     property string query: ""
     property int index: 0
+    property string confirmKey: ""
     readonly property string q: query.trim()
     readonly property bool cmd: q.startsWith(">") || q.startsWith("$")
     readonly property string calc: {
-        if (cmd || !/^[\d\s+\-*/%().,^]+$/.test(q) || !/\d/.test(q) || !/[+\-*/%^]/.test(q)) return "";
+        let s = q.replace(/^=/, "");
+        s = s.replace(/(\d+(?:[.,]\d+)?)\s*%\s*of\s*/gi, "($1/100)*");
+        if (cmd || !/^[\d\s+\-*/%().,^]+$/.test(s) || !/\d/.test(s) || !/[+\-*/%^]/.test(s) && !q.startsWith("=")) return "";
         try {
-            const v = Function('"use strict"; return (' + q.replace(/,/g, ".").replace(/\^/g, "**") + ")")();
+            const v = Function('"use strict"; return (' + s.replace(/,/g, ".").replace(/\^/g, "**") + ")")();
             return typeof v === "number" && isFinite(v) ? String(Math.round(v * 1e10) / 1e10) : "";
         } catch (e) { return ""; }
     }
-    readonly property var apps: q === "" || cmd ? [] : Apps.search(q).slice(0, 7)
+
+    // Files: `find` in ~ (no hidden dirs, depth 4), debounced, only for 3+ letters.
+    property var files: []
+    readonly property bool wantFiles: q.length >= 3 && !cmd && calc === "" && q !== "?"
+    onQChanged: { files = []; finder.running = false; if (wantFiles) debounce.restart(); }
+    Timer { id: debounce; interval: 220; onTriggered: { finder.pattern = win.q; finder.running = true; } }
+    Process {
+        id: finder
+        property string pattern: ""
+        command: ["sh", "-c", "cd \"$HOME\" && timeout 1 find . -maxdepth 4 -name '.*' -prune -o -iname \"*$1*\" -print 2>/dev/null | head -n 4", "sh", pattern]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (finder.pattern !== win.q) return;
+                const home = Quickshell.env("HOME");
+                win.files = text.split("\n").filter(l => l && l !== ".").map(l => {
+                    const rel = l.replace(/^\.\//, ""), name = rel.split("/").pop();
+                    const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+                    const icon = ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext) ? "image-x-generic"
+                        : ["mp4", "mkv", "webm", "mov"].includes(ext) ? "video-x-generic"
+                        : ["mp3", "flac", "ogg", "wav", "opus"].includes(ext) ? "audio-x-generic"
+                        : ext === "pdf" ? "application-pdf" : ext ? "text-x-generic" : "folder";
+                    return { kind: "file", title: name, sub: "~/" + rel, icon, path: home + "/" + rel };
+                });
+            }
+        }
+    }
 
     // Flat list of rows: { kind, section?, ... }
     readonly property var rows: {
         const out = [];
-        if (q === "") return out;
-        if (cmd) {
-            const c = q.slice(1).trim();
-            out.push({ kind: "cmd", title: c ? "Run  " + c : "Run a shell command", sub: "Shell", icon: "utilities-terminal", section: "Command", cmd: c });
+        const add = (list, section) => list.forEach((r, i) => out.length < maxRows && out.push(Object.assign({}, r, { section: i === 0 ? section : "" })));
+        if (q === "") {
+            const rec = SpotHistory.recent.map(fromKey).filter(r => r).slice(0, 3);
+            const seen = rec.map(r => r.key);
+            const freq = SpotHistory.frequent().filter(k => !seen.includes(k)).map(fromKey).filter(r => r).slice(0, 8 - rec.length);
+            add(rec, "Recently used");
+            add(freq, "Frequently used");
+            if (!out.length) add(Apps.search("").slice(0, 8).map(appRow), "Applications");
             return out;
         }
-        if (calc !== "") out.push({ kind: "calc", title: calc, sub: q + " =", icon: "accessories-calculator", section: "Calculator" });
-        apps.forEach((e, i) => out.push({ kind: "app", entry: e, title: e.name, sub: e.genericName || e.comment || "", icon: e.icon,
-                                          section: i === 0 ? (calc ? "Applications" : "Top Hit") : i === 1 && !calc ? "Applications" : "" }));
-        out.push({ kind: "web", title: "Search the web for “" + q + "”", sub: "DuckDuckGo", icon: "web-browser", section: "Web" });
+        if (q === "?") { add(help, "Help"); return out; }
+        if (cmd) {
+            const c = q.slice(1).trim();
+            add([{ kind: "cmd", key: "cmd:" + c, cmd: c, title: c ? c : "Type a shell command", sub: "Run in a shell", glyph: "" }], "Command");
+            return out;
+        }
+        if (calc !== "") add([{ kind: "calc", title: calc, sub: q.replace(/^=/, "") + " =  ·  Enter copies", glyph: "󰃬" }], "Math");
+        const ql = q.toLowerCase();
+        const sys = system.map(s => ({ s, m: Math.max(Apps.match(s.title.toLowerCase(), ql), ...s.words.split(" ").map(w => Apps.match(w, ql) * 0.7)) }))
+            .filter(x => x.m >= 300).sort((a, b) => b.m - a.m).map(x => Object.assign({ kind: "sys" }, x.s));
+        const apps = Apps.search(q).slice(0, sys.length ? 4 : 5).map(appRow);
+        if (sys.length && (!apps.length || Apps.match(apps[0].title.toLowerCase(), ql) < Apps.match(sys[0].title.toLowerCase(), ql))) {
+            add(sys.slice(0, 2), "Actions"); add(apps, "Applications");
+        } else {
+            add(apps, "Applications"); add(sys.slice(0, 2), "Actions");
+        }
+        add(files.slice(0, Math.max(0, maxRows - 1 - out.length)), "Files");
+        add([{ kind: "web", title: "Search the web for “" + q + "”", sub: "DuckDuckGo", glyph: "󰖟" }], "Web");
         return out;
     }
-    onRowsChanged: index = 0
+    onRowsChanged: { index = Math.min(index, Math.max(0, rows.length - 1)); if (!rows.some(r => r.key === confirmKey)) confirmKey = ""; }
+    onQueryChanged: { index = 0; confirmKey = ""; }
+
+    function inHistory(r) { return !!r?.key && (SpotHistory.count[r.key] !== undefined || SpotHistory.recent.includes(r.key)); }
 
     function run(r) {
         if (!r) return;
-        if (r.kind === "app") Apps.launch(r.entry);
-        else if (r.kind === "cmd") { if (!r.cmd) return; Apps.run(r.cmd); }
-        else if (r.kind === "calc") Quickshell.execDetached(["wl-copy", r.title]);
-        else if (r.kind === "web") Quickshell.execDetached(["xdg-open", "https://duckduckgo.com/?q=" + encodeURIComponent(q)]);
+        if (r.kind === "help") { input.text = r.fill; return; }
+        if (r.kind === "cmd" && !r.cmd) return;
+        if (r.confirm && confirmKey !== r.key) { confirmKey = r.key; return; }
+        if (r.key) SpotHistory.record(r.key);
         Popouts.closeOverlays();
+        if (r.kind === "app") Apps.launch(r.entry, r.entry.id);
+        else if (r.kind === "sys") { if (r.f) r.f(); else Quickshell.execDetached(r.cmd); }
+        else if (r.kind === "cmd") Apps.run(r.cmd);
+        else if (r.kind === "calc") Quickshell.execDetached(["wl-copy", r.title]);
+        else if (r.kind === "file") Quickshell.execDetached(["xdg-open", r.path]);
+        else if (r.kind === "web") Quickshell.execDetached(["xdg-open", "https://duckduckgo.com/?q=" + encodeURIComponent(q)]);
     }
 
     // ── Card ──────────────────────────────────────────────────────────
+    readonly property color sel: Qt.alpha(Theme.text, 0.10)
+    readonly property color chip: Qt.alpha(Theme.text, 0.10)
+
     Rectangle {
         id: card
         anchors.horizontalCenter: parent.horizontalCenter
         y: (win.catchAll ? win.topGap : 0) + 10
         width: win.w
-        height: win.fieldH + (win.rows.length ? results.height + 8 : 0)
-        radius: 26
-        color: Qt.alpha(Theme.bg, Theme.liquid ? 0.5 : 0.82)
+        height: win.fieldH + 1 + (win.rows.length ? results.height + 12 : 0) + 1 + win.footH
+        radius: 14
+        color: Qt.alpha(Theme.bg, Theme.liquid ? 0.55 : 0.86)
         border { width: 1; color: Theme.glassRim }
         clip: true
-        GlassSheen { radius: card.radius; height: Math.min(card.height, 140) }
+        GlassSheen { radius: card.radius; height: Math.min(card.height, 120) }
 
-        opacity: 0; scale: 0.96
+        opacity: 0; scale: 0.97
         Component.onCompleted: { opacity = 1; scale = 1; }
-        Behavior on opacity { NumberAnimation { duration: 140 } }
-        Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 120 } }
+        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
         // Field
         Item {
+            id: field
             width: parent.width; height: win.fieldH
             Text {
                 id: glass
-                anchors { left: parent.left; leftMargin: 20; verticalCenter: parent.verticalCenter }
-                text: ""; color: Theme.textDim
-                font { family: "JetBrainsMono Nerd Font"; pixelSize: 20 }
+                anchors { left: parent.left; leftMargin: 18; verticalCenter: parent.verticalCenter }
+                text: ""; color: Theme.textDim
+                font { family: "JetBrainsMono Nerd Font"; pixelSize: 16; hintingPreference: Font.PreferNoHinting }
             }
             TextInput {
                 id: input
-                anchors { left: glass.right; leftMargin: 14; right: hint.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                anchors { left: glass.right; leftMargin: 12; right: parent.right; rightMargin: 18; verticalCenter: parent.verticalCenter }
                 focus: true
                 clip: true
                 color: Theme.text
                 selectionColor: Theme.accent; selectedTextColor: Theme.onAccent
-                font { family: win.family; pixelSize: 24; weight: Font.Light }
+                font { family: win.family; pixelSize: 17 }
                 Component.onCompleted: forceActiveFocus()
                 onTextChanged: win.query = text
-                Text {
+                Row {
                     visible: !input.text
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Spotlight Search"
-                    color: Theme.textFaint
-                    font: input.font
+                    spacing: 8
+                    Text { id: ph; text: "Apps, files, commands or math…"; color: Theme.textFaint; font: input.font }
+                    Text { text: "·  ? for help"; color: Qt.alpha(Theme.textFaint, 0.7); anchors.baseline: ph.baseline; font { family: win.family; pixelSize: 13 } }
                 }
                 Keys.onPressed: e => {
-                    const n = win.rows.length, ctrl = e.modifiers & Qt.ControlModifier;
+                    const n = win.rows.length, ctrl = e.modifiers & Qt.ControlModifier, shift = e.modifiers & Qt.ShiftModifier;
+                    const r = win.rows[win.index];
                     if (e.key === Qt.Key_Escape) { if (input.text) input.text = ""; else Popouts.closeOverlays(); }
                     else if (e.key === Qt.Key_Down || e.key === Qt.Key_Tab || (ctrl && (e.key === Qt.Key_J || e.key === Qt.Key_N))) { if (n) win.index = (win.index + 1) % n; }
                     else if (e.key === Qt.Key_Up || e.key === Qt.Key_Backtab || (ctrl && (e.key === Qt.Key_K || e.key === Qt.Key_P))) { if (n) win.index = (win.index + n - 1) % n; }
-                    else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && ctrl) { const r = win.rows[win.index]; if (r?.kind === "app") DockPins.toggle(r.entry.id); }
-                    else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) win.run(win.rows[win.index]);
+                    else if (ctrl && e.key >= Qt.Key_1 && e.key <= Qt.Key_9) win.run(win.rows[e.key - Qt.Key_1]);
+                    else if (shift && e.key === Qt.Key_Delete) { if (win.inHistory(r)) SpotHistory.forget(r.key); }
+                    else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && ctrl) { if (r?.kind === "app") DockPins.toggle(r.entry.id); }
+                    else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) win.run(r);
                     else return;
                     e.accepted = true;
                 }
             }
-            Text {
-                id: hint
-                anchors { right: parent.right; rightMargin: 20; verticalCenter: parent.verticalCenter }
-                visible: win.rows[win.index]?.kind === "app"
-                text: DockPins.has(win.rows[win.index]?.entry?.id ?? "") ? "⌃↵ Remove from Dock" : "⌃↵ Keep in Dock"
-                color: Theme.textFaint
-                font { family: win.family; pixelSize: 11 }
-            }
         }
 
-        Rectangle { visible: win.rows.length > 0; y: win.fieldH; width: parent.width; height: 1; color: Theme.hairline }
+        Rectangle { y: win.fieldH; width: parent.width; height: 1; color: Theme.hairline }
 
         // Results
         Column {
             id: results
-            y: win.fieldH + 6
-            x: 8
-            width: parent.width - 16
+            visible: win.rows.length > 0
+            y: win.fieldH + 1 + 6
+            x: 6
+            width: parent.width - 12
             Repeater {
                 model: win.rows
                 delegate: Column {
                     id: rowCol
                     required property var modelData
                     required property int index
+                    readonly property var r: modelData
                     width: results.width
                     Text {
-                        visible: !!rowCol.modelData.section
-                        leftPadding: 12; topPadding: rowCol.index === 0 ? 2 : 6; bottomPadding: 3
-                        text: rowCol.modelData.section ?? ""
+                        visible: !!rowCol.r.section
+                        height: win.headH
+                        leftPadding: 12; topPadding: rowCol.index === 0 ? 6 : 10
+                        text: (rowCol.r.section ?? "").toUpperCase()
                         color: Theme.textFaint
-                        font { family: win.family; pixelSize: 11; weight: Font.Bold }
+                        font { family: win.family; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 0.8 }
                     }
                     MouseArea {
                         id: row
                         readonly property bool hot: win.index === rowCol.index
-                        readonly property bool topHit: rowCol.modelData.section === "Top Hit"
+                        readonly property bool asking: win.confirmKey !== "" && win.confirmKey === rowCol.r.key
                         width: parent.width
-                        height: topHit ? win.rowH + 10 : win.rowH
+                        height: win.rowH
                         hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: Qt.PointingHandCursor
                         onEntered: win.index = rowCol.index
                         onClicked: e => {
-                            if (e.button === Qt.RightButton) { if (rowCol.modelData.kind === "app") DockPins.toggle(rowCol.modelData.entry.id); }
-                            else win.run(rowCol.modelData);
+                            if (e.button === Qt.RightButton) { if (rowCol.r.kind === "app") DockPins.toggle(rowCol.r.entry.id); }
+                            else win.run(rowCol.r);
                         }
-                        Rectangle { anchors.fill: parent; radius: 10; color: row.hot ? Theme.accent : "transparent" }
-                        Image {
+                        Rectangle { anchors.fill: parent; radius: 8; color: row.hot ? win.sel : "transparent" }
+
+                        // Icon: app/file icon, or a glyph in a round badge (actions, commands, math…)
+                        Item {
                             id: ic
                             anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
-                            width: row.topHit ? 40 : 28; height: width
-                            sourceSize { width: 40 * Screen.devicePixelRatio; height: 40 * Screen.devicePixelRatio }
-                            source: AppIcons.source(rowCol.modelData.icon)
-                            asynchronous: true
+                            width: 28; height: 28
+                            Image {
+                                visible: !rowCol.r.glyph
+                                anchors.fill: parent
+                                sourceSize { width: 28 * Screen.devicePixelRatio; height: 28 * Screen.devicePixelRatio }
+                                source: rowCol.r.glyph ? "" : AppIcons.source(rowCol.r.icon, rowCol.r.kind === "file" ? "text-x-generic" : undefined)
+                                asynchronous: true
+                            }
+                            Rectangle {
+                                visible: !!rowCol.r.glyph
+                                anchors.fill: parent
+                                radius: width / 2
+                                color: row.asking ? "#ff453a" : Qt.alpha(Theme.text, 0.12)
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: rowCol.r.glyph ?? ""
+                                    color: row.asking ? "#ffffff" : Theme.text
+                                    font { family: "JetBrainsMono Nerd Font"; pixelSize: 14; hintingPreference: Font.PreferNoHinting }
+                                }
+                            }
                         }
                         Column {
-                            anchors { left: ic.right; leftMargin: 12; right: pin.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
-                            spacing: 0
+                            anchors { left: ic.right; leftMargin: 12; right: tail.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                            spacing: 1
                             Text {
                                 width: parent.width
-                                text: rowCol.modelData.title
+                                text: row.asking ? "Press ↵ again to " + rowCol.r.title.toLowerCase() : rowCol.r.title
                                 elide: Text.ElideRight
-                                color: row.hot ? Theme.onAccent : Theme.text
-                                font { family: win.family; pixelSize: rowCol.modelData.kind === "calc" ? 20 : row.topHit ? 16 : 14; weight: row.topHit ? Font.DemiBold : Font.Normal }
+                                color: row.asking ? "#ff6961" : Theme.text
+                                font { family: win.family; pixelSize: rowCol.r.kind === "calc" ? 17 : 13; weight: Font.Medium }
                             }
                             Text {
                                 visible: text !== ""
                                 width: parent.width
-                                text: rowCol.modelData.sub ?? ""
-                                elide: Text.ElideRight
-                                color: row.hot ? Qt.alpha(Theme.onAccent, 0.75) : Theme.textDim
+                                text: rowCol.r.sub ?? ""
+                                elide: rowCol.r.kind === "file" ? Text.ElideMiddle : Text.ElideRight
+                                color: Theme.textDim
                                 font { family: win.family; pixelSize: 11 }
                             }
                         }
-                        Text {
-                            id: pin
-                            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                            visible: rowCol.modelData.kind === "app" && DockPins.has(rowCol.modelData.entry.id)
-                            text: "In Dock"
-                            color: row.hot ? Qt.alpha(Theme.onAccent, 0.75) : Theme.textFaint
-                            font { family: win.family; pixelSize: 11 }
+                        Row {
+                            id: tail
+                            anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                            spacing: 8
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: rowCol.r.kind === "app" && DockPins.has(rowCol.r.entry.id)
+                                text: "In Dock"
+                                color: Theme.textFaint
+                                font { family: win.family; pixelSize: 10 }
+                            }
+                            Rectangle {
+                                visible: row.hot
+                                width: 26; height: 20; radius: 5
+                                color: win.chip
+                                Text { anchors.centerIn: parent; text: "↵"; color: Theme.textDim; font { family: win.family; pixelSize: 12 } }
+                            }
                         }
                     }
                 }
+            }
+        }
+
+        // Footer: key hints
+        Rectangle { y: card.height - win.footH - 1; width: parent.width; height: 1; color: Theme.hairline }
+        Item {
+            id: foot
+            y: card.height - win.footH
+            width: parent.width; height: win.footH
+            readonly property bool history: win.q === ""
+            component Key: Row {
+                property string keys
+                property string label
+                spacing: 6
+                anchors.verticalCenter: parent?.verticalCenter
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: kt.implicitWidth + 10; height: 17; radius: 4
+                    color: win.chip
+                    Text { id: kt; anchors.centerIn: parent; text: keys; color: Theme.textDim; font { family: win.family; pixelSize: 10 } }
+                }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: label; color: Theme.textFaint; font { family: win.family; pixelSize: 11 } }
+            }
+            Row {
+                anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
+                spacing: 14
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: foot.history ? "History" : win.q === "?" ? "Help" : "Results"
+                    color: Theme.textDim
+                    font { family: win.family; pixelSize: 11; weight: Font.Medium }
+                }
+                Key { keys: "↑↓"; label: "Navigate" }
+                Key { keys: "↵"; label: "Open" }
+                Key { keys: "Ctrl 1-9"; label: "Quick select" }
+                Key {
+                    id: forget
+                    visible: win.inHistory(win.rows[win.index])
+                    keys: "⇧ Del"; label: "Remove from history"
+                }
+                Key {
+                    visible: !forget.visible && win.rows[win.index]?.kind === "app"
+                    keys: "Ctrl ↵"; label: DockPins.has(win.rows[win.index]?.entry?.id ?? "") ? "Remove from Dock" : "Keep in Dock"
+                }
+            }
+            Row {
+                anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                spacing: 14
+                Key { visible: foot.history; keys: "?"; label: "Help" }
+                Key { keys: "Esc"; label: "Close" }
             }
         }
     }

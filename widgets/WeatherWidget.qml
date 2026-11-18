@@ -127,7 +127,7 @@ Card {
                     Text { anchors.horizontalCenter: parent.horizontalCenter; text: Weather.glyph(day.modelData.code, true); color: root.ink
                         font { family: "JetBrainsMono Nerd Font"; pixelSize: 17 } }
                     Text { visible: day.modelData.rain >= 30; anchors.horizontalCenter: parent.horizontalCenter
-                        text: day.modelData.rain + "%"; color: "#64d2ff"
+                        text: day.modelData.rain + "%"; color: root.cCyan || "#64d2ff"
                         font { family: root.font; pixelSize: 9; weight: Font.Bold } }
                 }
                 Text { x: 140; width: 34; anchors.verticalCenter: parent.verticalCenter; horizontalAlignment: Text.AlignRight

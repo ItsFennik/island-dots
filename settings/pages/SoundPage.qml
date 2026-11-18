@@ -22,7 +22,7 @@ Column {
             Row {
                 spacing: 8
                 Text { anchors.verticalCenter: parent.verticalCenter; text: ""; color: Theme.textDim; font { family: Theme.mono; pixelSize: 12 } }
-                Slider { width: 200; from: 0; to: 1; stepSize: 0.01; suffix: ""; value: Math.min(1, Audio.volume); onMoved: v => Audio.setVolume(v) }
+                Slider { width: 200; from: 0; to: 1; stepSize: 0.01; displayScale: 100; suffix: "%"; value: Math.min(1, Audio.volume); onMoved: v => Audio.setVolume(v) }
                 Text { anchors.verticalCenter: parent.verticalCenter; text: ""; color: Theme.textDim; font { family: Theme.mono; pixelSize: 13 } }
             }
         }
@@ -64,7 +64,7 @@ Column {
         SettingRow {
             visible: !!root.source?.audio
             title: "Input volume"
-            Slider { width: 230; from: 0; to: 1; stepSize: 0.01; value: Math.min(1, root.source?.audio?.volume ?? 0)
+            Slider { width: 230; from: 0; to: 1; stepSize: 0.01; displayScale: 100; suffix: "%"; value: Math.min(1, root.source?.audio?.volume ?? 0)
                 onMoved: v => { if (root.source?.audio) root.source.audio.volume = v; } }
         }
     }

@@ -22,6 +22,7 @@ import qs.overlays
 // Island: macOS-style menu bar, dock, desktop widgets, Spotlight, Launchpad and Settings — one process.
 //   qs -c island ipc call launcher toggle      (Spotlight)
 //   qs -c island ipc call launchpad toggle
+//   qs -c island ipc call overview toggle     (niri-style workspace overview)
 //   qs -c island ipc call menu <system|app|notifs|controls|clipboard|power|close>
 //   qs -c island ipc call picker <wallpapers|wallhaven|themes|toggle|close>
 //   qs -c island ipc call settings toggle
@@ -57,10 +58,12 @@ ShellRoot {
     readonly property var overlayScreen: Quickshell.screens.find(s => s.name === Popouts.overlayScreen) ?? Quickshell.screens[0]
     LazyLoader { active: Popouts.spotlight; Spotlight { screen: root.overlayScreen } }
     LazyLoader { active: Popouts.launchpad; Launchpad { screen: root.overlayScreen } }
+    LazyLoader { active: Popouts.overview; Overview { screen: root.overlayScreen } }
     Connections {
         target: Popouts
         function onSpotlightChanged() { if (!Popouts.spotlight) reclaim.restart(); }
         function onLaunchpadChanged() { if (!Popouts.launchpad) reclaim.restart(); }
+        function onOverviewChanged() { if (!Popouts.overview) reclaim.restart(); }
     }
     Timer { id: reclaim; interval: 500; onTriggered: gc() }
 
@@ -79,6 +82,13 @@ ShellRoot {
         function window(): void { Screenshot.capture("window"); }
         function screen(): void { Screenshot.capture("screen"); }
         function all(): void { Screenshot.capture("all"); }
+    }
+
+    IpcHandler {
+        target: "overview"
+        function toggle(): void { Popouts.toggleOverview(); }
+        function open(): void { Popouts.openOverlay("overview"); }
+        function close(): void { Popouts.closeOverlays(); }
     }
 
     IpcHandler {

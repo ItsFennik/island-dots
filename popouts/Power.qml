@@ -59,7 +59,7 @@ Item {
 
     component Section: Text {
         color: Theme.textDim
-        font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold }
+        font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold; letterSpacing: 0.6; capitalization: Font.AllUppercase }
     }
     // Glyph button (round), accent when on.
     component Round: MouseArea {
@@ -92,7 +92,7 @@ Item {
         Slider {
             anchors.verticalCenter: parent.verticalCenter
             width: lv.width - 30 - 40 - 20
-            from: 0; to: 1; stepSize: 0.01
+            from: 0; to: 1; stepSize: 0.01; displayScale: 100; suffix: "%"
             value: lv.muted ? 0 : Math.min(1, lv.value)
             onMoved: v => lv.changed(v)
         }

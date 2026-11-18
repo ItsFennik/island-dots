@@ -27,7 +27,9 @@ MouseArea {
 
     Rectangle { visible: root.kind === "sep"; anchors { left: parent.left; right: parent.right; leftMargin: 10; rightMargin: 10; verticalCenter: parent.verticalCenter }
         height: 1; color: Qt.alpha(Theme.menuText, Theme.dark ? 0.13 : 0.11) }
-    Rectangle { visible: root.lit; anchors.fill: parent; radius: 5; color: Qt.alpha(Theme.menuText, Theme.dark ? 0.12 : 0.08) }
+    Rectangle { visible: root.plain; anchors.fill: parent; radius: 6; antialiasing: true
+        color: root.lit ? Qt.alpha(Theme.menuText, root.pressed ? (Theme.dark ? 0.18 : 0.12) : (Theme.dark ? 0.11 : 0.07)) : "transparent"
+        Behavior on color { ColorAnimation { duration: 100 } } }
 
     Rectangle {
         id: circle
@@ -36,6 +38,7 @@ MouseArea {
         width: 24; height: 24; radius: 12
         antialiasing: true
         color: root.on ? Theme.menuSel : Qt.alpha(Theme.menuText, Theme.dark ? 0.16 : 0.1)
+        Behavior on color { ColorAnimation { duration: 120 } }
         Text { anchors.centerIn: parent; text: root.icon; color: root.on ? Theme.menuOnSel : Theme.menuText
             font { family: Theme.mono; pixelSize: 12 } }
     }
@@ -51,10 +54,11 @@ MouseArea {
         anchors { left: circle.visible ? circle.right : parent.left
                   leftMargin: circle.visible ? 9 : root.plain ? 20 : 10
                   right: det.visible ? det.left : slot.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
-        text: root.text
+        text: root.kind === "section" ? root.text.toUpperCase() : root.text
         elide: Text.ElideRight
         color: root.kind === "section" ? Qt.alpha(Theme.menuText, 0.5) : Theme.menuText
         font { family: Theme.font; pixelSize: root.kind === "section" ? 11 : 13
+               letterSpacing: root.kind === "section" ? 0.6 : 0
                weight: root.kind === "header" || root.kind === "section" ? Font.DemiBold : Font.Normal }
     }
     Text {

@@ -70,7 +70,7 @@ Scope {
                 { key: "cursorSize", type: "slider", label: "Pointer size", from: 16, to: 64, step: 2, suffix: " px", minText: "Normal", maxText: "Large" } ] } ] },
         { id: "menubar", section: 2, text: "Menu Bar", glyph: "", tint: "#8e8e93",
           about: "Menus, status items and the clock across the top of the screen. Control Centre opens from the toggles icon next to the clock.",
-          keywords: "control centre center menu bar clock time seconds 24 hour height opacity blur font size weather temperature",
+          keywords: "workspaces workspace tags dots numbers control centre center menu bar clock time seconds 24 hour height opacity blur font size weather temperature",
           groups: [
             { title: "Menu Bar", rows: [
                 { key: "barHeight", type: "slider", label: "Height", from: 22, to: 44, suffix: " px" },
@@ -78,6 +78,10 @@ Scope {
                 { key: "barBlur", type: "switch", label: "Blur behind the menu bar" },
                 { key: "barFontSize", type: "slider", label: "Text size", from: 10, to: 18, suffix: " px" },
                 { key: "barWeather", type: "switch", label: "Show the weather", sub: "Click it for the forecast; location is set under Desktop & Widgets" } ] },
+            { title: "Workspaces", footer: "Click to switch, scroll to step through, right-click for the Overview.", rows: [
+                { key: "barWorkspaces", type: "switch", label: "Show workspaces", sub: "Centred in the menu bar" },
+                { key: "barWorkspaceStyle", type: "choice", label: "Style", when: "barWorkspaces", options: [["numbers", "[1] [2] [3]"], ["dots", "o-o-o"]] },
+                { key: "barWorkspaceCount", type: "slider", label: "Always show", from: 1, to: 10, suffix: "", minText: "1", maxText: "10", when: "barWorkspaces" } ] },
             { title: "Clock", rows: [
                 { key: "clock24h", type: "switch", label: "Use a 24-hour clock" },
                 { key: "clockSeconds", type: "switch", label: "Display the time with seconds" } ] } ] },
@@ -98,11 +102,12 @@ Scope {
                 { key: "dockMargin", type: "slider", label: "Distance from the edge", from: 0, to: 30, suffix: " px", when: "dock" } ] } ] },
         { id: "desktop", section: 2, text: "Desktop & Widgets", glyph: "", tint: "#30d158",
           about: "Widgets sit on the desktop under your windows. Drag one anywhere, or right-click it to change its size.",
-          keywords: "widgets clock weather location city country units celsius fahrenheit calendar music now playing system cpu style tahoe classic opacity corner",
+          keywords: "widgets clock weather location city country units celsius fahrenheit calendar music now playing system cpu verse bible esv scripture lock screen style tahoe classic opacity corner colours colors wallpaper tint accent matugen",
           groups: [
             { title: "", rows: [
                 { key: "widgets", type: "switch", label: "Show widgets" },
                 { key: "widgetStyle", type: "choice", label: "Style", when: "widgets", options: [["tahoe", "Tahoe"], ["classic", "Classic"]] },
+                { key: "widgetColors", type: "choice", label: "Colours", sub: "Accents and tint. Wallpaper picks them from your wallpaper", when: "widgets", options: [["system", "System"], ["theme", "Theme"], ["wallpaper", "Wallpaper"]] },
                 { key: "widgetsOpacity", type: "slider", label: "Widget opacity", from: 0, to: 1, step: 0.01, decimals: 2, minText: "Clear", maxText: "Solid", when: "widgets" } ] },
             { title: "Widgets", rows: [
                 { key: "widgetClock", type: "switch", label: "Clock", when: "widgets" },
@@ -110,7 +115,9 @@ Scope {
                 { key: "widgetWeather", type: "switch", label: "Weather", when: "widgets" },
                 { key: "widgetCalendar", type: "switch", label: "Calendar", when: "widgets" },
                 { key: "widgetMusic", type: "switch", label: "Now Playing", when: "widgets" },
-                { key: "widgetSystem", type: "switch", label: "System", sub: "CPU, memory, temperature and disk", when: "widgets" } ] },
+                { key: "widgetSystem", type: "switch", label: "System", sub: "CPU, memory, temperature and disk", when: "widgets" },
+                { key: "widgetVerse", type: "switch", label: "Verse of the Day", sub: "ESV, from Bible Gateway", when: "widgets" },
+                { key: "lockVerse", type: "switch", label: "Verse on the lock screen", sub: "The same verse under the clock" } ] },
             { title: "Arrangement", footer: "Widgets you haven't moved stack in the chosen corner.", rows: [
                 { type: "button", label: "Arrange widgets", sub: "Or just drag a widget on the desktop", text: "Edit Widgets…", f: () => WidgetLayout.edit("") },
                 { type: "button", label: "Widget positions", sub: "Stack them in the corner again", text: "Reset", f: () => WidgetLayout.reset() },
@@ -121,11 +128,12 @@ Scope {
                 { key: "weatherLocation", type: "text", label: "Location", sub: "Empty to use your approximate location", live: "weather", placeholder: "City, Country — or empty for automatic" },
                 { key: "weatherUnits", type: "choice", label: "Units", sub: "Temperature and wind speed", options: [["c", "Celsius · km/h"], ["f", "Fahrenheit · mph"]] } ] } ] },
         { id: "windows", section: 2, text: "Windows", glyph: "", tint: "#30b0c7",
-          about: "How Hyprland tiles, spaces and rounds your windows, and the blur behind translucent ones.",
-          keywords: "windows gaps borders rounding corner radius layout tiling dwindle master transparency opacity dim blur",
+          about: "How " + Compositor.displayName + " tiles, spaces and rounds your windows, and the blur behind translucent ones.",
+          keywords: "windows gaps borders rounding corner radius layout tiling dwindle master scroller scrolling grid monocle deck tile tabbed transparency opacity dim blur",
           groups: [
             { title: "Tiling", rows: [
-                { key: "layout", type: "choice", label: "Tiling layout", options: [["dwindle", "Dwindle"], ["master", "Master"]] },
+                { key: "layout", type: "choice", label: "Tiling layout", options: Compositor.layouts, norm: v => Compositor.layoutHere(v),
+                  sub: Compositor.niri ? "niri always scrolls" : "Options for " + Compositor.displayName + ", detected automatically" },
                 { key: "gapsIn", type: "slider", label: "Space between windows", from: 0, to: 30, suffix: " px" },
                 { key: "gapsOut", type: "slider", label: "Space around the screen edge", from: 0, to: 40, suffix: " px" } ] },
             { title: "Look", rows: [
@@ -322,15 +330,31 @@ Scope {
                 Rectangle {
                     id: searchBox
                     anchors { left: parent.left; right: parent.right; top: lights.bottom; margins: 10; topMargin: 14 }
-                    height: 30; radius: 15
+                    height: 30; radius: 10
                     antialiasing: true
-                    color: Qt.alpha(Theme.pal.fg, Theme.dark ? 0.08 : 0.06)
-                    border { width: search.activeFocus ? 3 : 0; color: Theme.focusRing }
-                    Text { id: glass; anchors { left: parent.left; leftMargin: 11; verticalCenter: parent.verticalCenter }
-                        text: ""; color: Theme.textDim; font { family: Theme.mono; pixelSize: 11 } }
+                    color: search.activeFocus ? Qt.alpha(Theme.pal.fg, Theme.dark ? 0.11 : 0.04) : Qt.alpha(Theme.pal.fg, Theme.dark ? 0.07 : 0.06)
+                    border { width: search.activeFocus ? 2 : 1; color: search.activeFocus ? Theme.focusRing : Qt.alpha(Theme.pal.fg, 0.06) }
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Text { id: glass; anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                        text: ""; color: search.activeFocus ? Theme.text : Theme.textDim; font { family: Theme.mono; pixelSize: 11 } }
+                    // Clear ×
+                    MouseArea {
+                        id: clearBtn
+                        visible: search.text !== ""
+                        anchors { right: parent.right; rightMargin: 7; verticalCenter: parent.verticalCenter }
+                        width: 16; height: 16
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { search.text = ""; search.forceActiveFocus(); }
+                        Rectangle { anchors.fill: parent; radius: 8; antialiasing: true; color: Qt.alpha(Theme.pal.fg, clearBtn.pressed ? 0.45 : 0.3) }
+                        Repeater {
+                            model: [45, -45]
+                            Rectangle { required property var modelData; x: 4.5; y: 7.4; width: 7; height: 1.2; radius: 0.6
+                                antialiasing: true; rotation: modelData; color: Theme.bg }
+                        }
+                    }
                     TextInput {
                         id: search
-                        anchors { left: glass.right; leftMargin: 6; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                        anchors { left: glass.right; leftMargin: 7; right: clearBtn.visible ? clearBtn.left : parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
                         color: Theme.text; selectionColor: Theme.selection; selectedTextColor: Theme.onAccent
                         clip: true
                         font { family: Theme.font; pixelSize: 13 }
@@ -353,25 +377,43 @@ Scope {
 
                         // Account card
                         MouseArea {
+                            id: account
                             visible: root.query === ""
-                            width: parent.width; height: 62
+                            width: parent.width; height: 60
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
                             onClicked: root.page = "general"
-                            Rectangle { anchors.fill: parent; radius: 8; color: "transparent" }
                             Rectangle {
+                                anchors.fill: parent; radius: 10; antialiasing: true
+                                color: account.pressed ? Qt.alpha(Theme.pal.fg, 0.1) : account.containsMouse ? Theme.hover : "transparent"
+                                Behavior on color { ColorAnimation { duration: 110 } }
+                            }
+                            // Drawn as a Badge (a Shape) so the round edge stays smooth in the software renderer.
+                            Badge {
                                 id: avatar
-                                x: 6; anchors.verticalCenter: parent.verticalCenter
+                                x: 8; anchors.verticalCenter: parent.verticalCenter
                                 width: 40; height: 40; radius: 20
-                                gradient: Gradient { GradientStop { position: 0; color: "#a1a1a6" } GradientStop { position: 1; color: "#6e6e73" } }
+                                tint: Qt.darker(Theme.accent, Theme.dark ? 1.5 : 1.15); topColor: Theme.accent
+                                glyph: ""
                                 Text { anchors.centerIn: parent; color: "white"; font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
                                     text: root.userName.split(/\s+/).filter(w => w).slice(0, 2).map(w => w[0].toUpperCase()).join("") }
                             }
                             Column {
-                                anchors { left: avatar.right; leftMargin: 10; right: parent.right; verticalCenter: parent.verticalCenter }
+                                anchors { left: avatar.right; leftMargin: 11; right: chev.left; rightMargin: 6; verticalCenter: parent.verticalCenter }
+                                spacing: 1
                                 Text { width: parent.width; text: root.userName; elide: Text.ElideRight; color: Theme.text
                                     font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold } }
                                 Text { text: "Local Account"; color: Theme.textDim; font { family: Theme.font; pixelSize: 11 } }
                             }
+                            Text { id: chev; anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                                text: ""; color: Theme.textFaint; font { family: Theme.mono; pixelSize: 10 } }
                         }
+                        Rectangle {
+                            visible: root.query === ""
+                            x: 8; width: parent.width - 16; height: 1
+                            color: Qt.alpha(Theme.pal.fg, 0.08)
+                        }
+                        Item { visible: root.query === ""; width: 1; height: 8 }
 
                         Repeater {
                             model: root.query === "" ? root.pages : root.hits
@@ -380,7 +422,7 @@ Scope {
                                 required property int index
                                 readonly property var list: root.query === "" ? root.pages : root.hits
                                 width: side.width
-                                Item { width: 1; height: index > 0 && root.query === "" && parent.list[index - 1].section !== modelData.section ? 14 : 0 }
+                                Item { width: 1; height: index > 0 && root.query === "" && parent.list[index - 1].section !== modelData.section ? 12 : 1 }
                                 SidebarItem {
                                     width: parent.width
                                     text: modelData.text; glyph: modelData.glyph; tint: modelData.tint
@@ -408,6 +450,10 @@ Scope {
                 Item {
                     id: toolbar
                     width: parent.width; height: 56
+                    // Above the scroller with an opaque fill: the software renderer doesn't clip
+                    // Shapes (Badge), so a header icon scrolled up used to smear over the toolbar.
+                    z: 1
+                    Rectangle { anchors.fill: parent; color: Theme.bg }
                     Rectangle {
                         anchors.fill: nav; anchors.margins: -2
                         radius: height / 2; antialiasing: true
@@ -461,31 +507,28 @@ Scope {
                         x: (scroller.width - width) / 2; y: 4
                         spacing: 22
 
-                        // Header card (Tahoe): big icon, title and description, centred. Every pane
-                        // but General, which draws its own.
-                        Rectangle {
+                        // Pane header: icon beside the title and description, left-aligned. Every
+                        // pane but General, which draws its own.
+                        Item {
                             id: heroCard
                             visible: root.current.id !== "general"
                             width: parent.width
-                            height: visible ? heroCol.implicitHeight + 40 : 0
-                            radius: 14
-                            antialiasing: true
-                            color: Theme.dark ? Qt.alpha(Theme.pal.fg, 0.045) : Qt.alpha(Theme.pal.fg, 0.03)
-                            border { width: 1; color: Qt.alpha(Theme.pal.fg, 0.07) }
+                            height: visible ? Math.max(heroIcon.height, heroCol.implicitHeight) + 6 : 0
+                            Badge {
+                                id: heroIcon
+                                x: 4; y: 2
+                                width: 48; height: 48; radius: 12; glyphSize: 24
+                                tint: root.current.tint; topColor: Qt.lighter(root.current.tint, 1.25); glyph: root.current.glyph
+                            }
                             Column {
                                 id: heroCol
-                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 28; rightMargin: 28 }
-                                spacing: 6
-                                Badge {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    width: 60; height: 60; radius: 14; glyphSize: 30
-                                    tint: root.current.tint; topColor: Qt.lighter(root.current.tint, 1.2); glyph: root.current.glyph
-                                }
-                                Item { width: 1; height: 2 }
-                                Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.current.text; color: Theme.text
-                                    font { family: Theme.font; pixelSize: 20; weight: Font.Bold } }
+                                anchors { left: heroIcon.right; leftMargin: 14; right: parent.right; rightMargin: 4 }
+                                y: heroCol.implicitHeight < heroIcon.height ? heroIcon.y + (heroIcon.height - implicitHeight) / 2 : 0
+                                spacing: 3
+                                Text { text: root.current.text; color: Theme.text
+                                    font { family: Theme.font; pixelSize: 22; weight: Font.Bold } }
                                 Text { width: parent.width; visible: text !== ""; text: root.current.about ?? ""
-                                    horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap; lineHeight: 1.1
+                                    wrapMode: Text.WordWrap; lineHeight: 1.15
                                     color: Theme.textDim; font { family: Theme.font; pixelSize: 12 } }
                             }
                         }

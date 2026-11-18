@@ -46,6 +46,7 @@ Item {
         width: 28; height: 28; radius: 14
         antialiasing: true
         color: on ? onColor : root.offBg
+        Behavior on color { ColorAnimation { duration: 140 } }
         Text { anchors.centerIn: parent; text: parent.glyph; color: parent.on ? "white" : Theme.menuText
             font { family: Theme.mono; pixelSize: 13 } }
     }
@@ -57,6 +58,11 @@ Item {
         property string title
         property string status
         width: parent.width; height: 40
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        Rectangle { anchors { fill: parent; margins: 3 } radius: 10; antialiasing: true
+            color: cr.pressed ? Qt.alpha(Theme.menuText, 0.1) : cr.containsMouse ? Qt.alpha(Theme.menuText, 0.06) : "transparent"
+            Behavior on color { ColorAnimation { duration: 100 } } }
         Toggle { id: tg; x: 10; anchors.verticalCenter: parent.verticalCenter; glyph: cr.glyph; on: cr.on }
         Column {
             anchors { left: tg.right; leftMargin: 8; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
@@ -74,11 +80,15 @@ Item {
         property string tip
         width: root.u; height: root.u
         opacity: enabled ? 1 : 0.4
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
         Module { anchors.fill: parent }
         Toggle { anchors.centerIn: parent; anchors.verticalCenterOffset: sm.tip ? -7 : 0; width: 34; height: 34; radius: 17; glyph: sm.glyph; on: sm.on }
         Text { visible: sm.tip !== ""; anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 6 }
             text: sm.tip; color: root.dim; font { family: Theme.font; pixelSize: 10 } }
-        Rectangle { anchors.fill: parent; radius: 16; color: Qt.rgba(0, 0, 0, sm.pressed ? 0.12 : 0) }
+        Rectangle { anchors.fill: parent; radius: 16; antialiasing: true
+            color: sm.pressed ? Qt.rgba(0, 0, 0, 0.12) : sm.containsMouse ? Qt.alpha(Theme.menuText, 0.05) : "transparent"
+            Behavior on color { ColorAnimation { duration: 100 } } }
     }
     // macOS Control Centre slider: a thick rounded track, white fill, icon inside on the left.
     component BigSlider: Item {

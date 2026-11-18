@@ -91,7 +91,7 @@ Card {
                 width: parent.width
                 text: root.p ? (root.p.identity || "Music").toUpperCase() : "MUSIC"
                 elide: Text.ElideRight
-                color: root.tahoe ? root.fgDim : "#ff375f"
+                color: root.cPink || root.fgDim
                 font { family: root.font; pixelSize: 10; weight: Font.Bold; letterSpacing: 0.5 }
             }
             Item { width: 1; height: 4 }

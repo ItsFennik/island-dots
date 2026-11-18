@@ -21,7 +21,7 @@ Card {
         property date t: clk.date
         onTChanged: requestPaint()
         Connections { target: Theme; function onPalChanged() { face.requestPaint(); } }
-        Connections { target: root; function onFontChanged() { face.requestPaint(); } function onGlassChanged() { face.requestPaint(); } function onFgChanged() { face.requestPaint(); } function onTahoeChanged() { face.requestPaint(); } }
+        Connections { target: root; function onFontChanged() { face.requestPaint(); } function onGlassChanged() { face.requestPaint(); } function onFgChanged() { face.requestPaint(); } function onTahoeChanged() { face.requestPaint(); } function onCOrangeChanged() { face.requestPaint(); } }
 
         onPaint: {
             const ctx = getContext("2d");
@@ -69,7 +69,7 @@ Card {
             hand(m * Math.PI / 30, r * 0.78, 3.5 * k, root.fg, 0);
             ctx.beginPath(); ctx.arc(0, 0, 4 * k, 0, 2 * Math.PI); ctx.fillStyle = root.fg; ctx.fill();
             if (root.seconds) {
-                const sc = root.tahoe ? root.fgDim : "#ff9f0a";
+                const sc = root.cOrange || root.fgDim;
                 hand(s * Math.PI / 30, r * 0.86, 1.5 * k, sc, r * 0.16);
                 ctx.beginPath(); ctx.arc(0, 0, 2.5 * k, 0, 2 * Math.PI); ctx.fillStyle = sc; ctx.fill();
             }
@@ -81,7 +81,7 @@ Card {
         visible: root.size === "m"
         anchors { left: face.right; leftMargin: 18; right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
         spacing: -2
-        Text { text: Qt.formatDate(clk.date, "dddd").toUpperCase(); color: root.tahoe ? root.fgDim : "#ff9f0a"
+        Text { text: Qt.formatDate(clk.date, "dddd").toUpperCase(); color: root.cOrange || root.fgDim
             font { family: root.font; pixelSize: 12; weight: Font.Bold; letterSpacing: 0.4 } }
         Text {
             readonly property bool h24: Config.saved.clock24h ?? true

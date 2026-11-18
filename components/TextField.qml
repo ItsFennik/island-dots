@@ -9,10 +9,12 @@ Rectangle {
     property string placeholder
     signal accepted()
     signal edited()                      // every keystroke (textEdited), for live-saving fields
-    implicitWidth: 220; implicitHeight: 24
-    radius: 6
-    color: Theme.dark ? Qt.alpha(Theme.text, 0.08) : "#ffffff"
-    border { width: input.activeFocus ? 3 : 1; color: input.activeFocus ? Theme.focusRing : Qt.alpha(Theme.text, 0.14) }
+    implicitWidth: 220; implicitHeight: 26
+    radius: 8
+    antialiasing: true
+    color: input.activeFocus ? (Theme.dark ? Qt.alpha(Theme.text, 0.11) : "#ffffff") : (Theme.dark ? Qt.alpha(Theme.text, 0.07) : Qt.alpha(Theme.text, 0.04))
+    border { width: input.activeFocus ? 2 : 1; color: input.activeFocus ? Theme.focusRing : Qt.alpha(Theme.text, Theme.dark ? 0.08 : 0.1) }
+    Behavior on color { ColorAnimation { duration: 120 } }
     TextInput {
         id: input
         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }

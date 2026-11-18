@@ -30,16 +30,19 @@ Singleton {
     // Full-screen / floating overlays (separate windows, created only while open).
     property bool spotlight: false
     property bool launchpad: false
+    property bool overview: false
     property string overlayScreen: ""
     function openOverlay(which) {
         close();
         overlayScreen = Compositor.screenName();
         spotlight = which === "spotlight";
         launchpad = which === "launchpad";
+        overview = which === "overview";
     }
     function toggleSpotlight() { spotlight ? closeOverlays() : openOverlay("spotlight"); }
     function toggleLaunchpad() { launchpad ? closeOverlays() : openOverlay("launchpad"); }
-    function closeOverlays() { spotlight = false; launchpad = false; }
+    function toggleOverview() { overview ? closeOverlays() : openOverlay("overview"); }
+    function closeOverlays() { spotlight = false; launchpad = false; overview = false; }
     // Right-click on a tray icon: open its menu; the same icon again closes it.
     function trayMenu(item, screenName) {
         if (current === "tray" && trayItem === item) { close(); return; }

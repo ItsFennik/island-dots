@@ -83,7 +83,7 @@ Item {
                     color: Theme.textDim
                     elide: Text.ElideRight
                     width: Math.min(implicitWidth, col.width - 50)
-                    font { family: root.family; pixelSize: 11; weight: Font.Bold }
+                    font { family: root.family; pixelSize: 11; weight: Font.DemiBold; letterSpacing: 0.6; capitalization: Font.AllUppercase }
                 }
             }
         }

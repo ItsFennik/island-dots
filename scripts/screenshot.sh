@@ -52,6 +52,10 @@ case "$mode" in
 esac
 echo "$(date +%T) picked geom='$geom' output='$output'" >> "$log"
 
+# slurp's overlay must be off screen first: compositors that fade/blur closing layers
+# (MangoWC) otherwise bake its dimmed, blurred frame into the shot.
+[ -n "$geom" ] && sleep 0.12
+
 file=$(mktemp --suffix=.png "${XDG_RUNTIME_DIR:-/tmp}/island-shot-XXXXXX") || exit 1
 if [ -n "$geom" ]; then grim $pointer -g "$geom" "$file"
 elif [ -n "$output" ]; then grim $pointer -o "$output" "$file"
