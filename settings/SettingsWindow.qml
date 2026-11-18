@@ -80,7 +80,7 @@ Scope {
                 { key: "barWeather", type: "switch", label: "Show the weather", sub: "Click it for the forecast; location is set under Desktop & Widgets" } ] },
             { title: "Workspaces", footer: "Click to switch, scroll to step through, right-click for the Overview.", rows: [
                 { key: "barWorkspaces", type: "switch", label: "Show workspaces", sub: "Centred in the menu bar" },
-                { key: "barWorkspaceStyle", type: "choice", label: "Style", when: "barWorkspaces", options: [["numbers", "[1] [2] [3]"], ["dots", "o-o-o"]] },
+                { key: "barWorkspaceStyle", type: "wsstyle", label: "Style", when: "barWorkspaces", options: [["numbers", "Numbers"], ["dots", "Dots"]] },
                 { key: "barWorkspaceCount", type: "slider", label: "Always show", from: 1, to: 10, suffix: "", minText: "1", maxText: "10", when: "barWorkspaces" } ] },
             { title: "Clock", rows: [
                 { key: "clock24h", type: "switch", label: "Use a 24-hour clock" },

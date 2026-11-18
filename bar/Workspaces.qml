@@ -15,11 +15,17 @@ MouseArea {
     property int barH: 30
 
     readonly property var s: Config.saved
-    readonly property bool dots: (s.barWorkspaceStyle ?? "numbers") === "dots"
+    // Preview mode (Settings' style picker): fixed sample workspaces in a given style, no input.
+    property string previewStyle: ""
+    readonly property bool preview: previewStyle !== ""
+    enabled: !preview
+    readonly property bool dots: (preview ? previewStyle : (s.barWorkspaceStyle ?? "numbers")) === "dots"
 
-    readonly property var known: Compositor.workspaces(screenName)
+    readonly property var known: preview
+        ? [1, 2, 3, 4].map(i => ({ id: i, active: i === 2, occupied: i <= 3, urgent: false }))
+        : Compositor.workspaces(screenName)
     readonly property var list: {
-        let n = Math.max(1, s.barWorkspaceCount ?? 5);
+        let n = preview ? 4 : Math.max(1, s.barWorkspaceCount ?? 5);
         for (const w of known) if (w.active || w.occupied) n = Math.max(n, w.id);
         const out = [];
         for (let i = 1; i <= n; i++) out.push(known.find(w => w.id === i) ?? { id: i, active: false, occupied: false, urgent: false });

@@ -20,7 +20,9 @@ PanelWindow {
 
     readonly property var s: Config.saved
     // shellLayout "taskbar": one floating bar along the bottom (bar/Taskbar.qml) instead of the menu bar + Dock.
-    readonly property bool taskbar: (s.shellLayout ?? "menubar") === "taskbar"
+    // "compact": the same, but a content-sized pill centred along the bottom (bar/CompactBar.qml).
+    readonly property bool compact: (s.shellLayout ?? "menubar") === "compact"
+    readonly property bool taskbar: (s.shellLayout ?? "menubar") === "taskbar" || compact
     readonly property int tbGap: 8
     readonly property int tbH: s.taskbarHeight ?? 54
     readonly property int barH: taskbar ? tbH + tbGap : (s.barHeight ?? 30)
@@ -124,11 +126,11 @@ PanelWindow {
     // ── The bar ───────────────────────────────────────────────────────
     Rectangle {
         id: bar
-        x: win.taskbar ? win.tbGap : 0
+        x: win.compact ? Math.round((parent.width - width) / 2) : win.taskbar ? win.tbGap : 0
         y: win.taskbar ? win.height - win.tbGap - win.tbH : 0
-        width: parent.width - x * 2
+        width: win.compact && tbLoader.item ? Math.min(parent.width - win.tbGap * 2, tbLoader.item.implicitWidth) : parent.width - (win.taskbar ? win.tbGap * 2 : 0)
         height: win.taskbar ? win.tbH : win.barH
-        radius: win.taskbar ? 18 : 0
+        radius: win.compact ? Math.round(win.tbH * 0.32) : win.taskbar ? 18 : 0
         color: Qt.alpha(Theme.bg, Theme.glass(win.s.barOpacity ?? 0.55))
         border { width: win.taskbar ? 1 : 0; color: Theme.liquid ? Theme.glassRim : Qt.alpha(Theme.text, 0.12) }
         GlassSheen { radius: bar.radius }
@@ -137,7 +139,9 @@ PanelWindow {
             id: tbLoader
             anchors.fill: parent
             active: win.taskbar
-            sourceComponent: Taskbar { bar: win }
+            sourceComponent: win.compact ? compactComp : taskbarComp
+            Component { id: taskbarComp; Taskbar { bar: win } }
+            Component { id: compactComp; CompactBar { bar: win } }
         }
 
         Row {

@@ -53,6 +53,9 @@ Item {
         Btn {
             id: logo
             width: root.tile; height: root.tile
+            // Row ignored the inherited verticalCenter anchor (tile sat at y=0), so place it explicitly.
+            anchors.verticalCenter: undefined
+            y: Math.round((left.height - height) / 2)
             active: root.isOpen("system")
             onClicked: root.bar.openFrom("system", logo, "left")
             // Nerd Font logos sit off-centre in their text box, so centre the glyph's ink instead.
@@ -66,6 +69,16 @@ Item {
                 color: Theme.text
                 font { family: root.glyphs; pixelSize: Math.round(root.tile * 0.6); hintingPreference: Font.PreferNoHinting }
             }
+        }
+
+        // Workspaces (same setting and style as the menu bar's indicator).
+        Workspaces {
+            id: wsInd
+            visible: (root.s.barWorkspaces ?? true) && known.length > 0
+            screenName: root.bar.screen?.name ?? ""
+            family: root.family
+            fontPx: 12
+            barH: root.height
         }
 
         Rectangle { visible: media.visible; width: 1; height: root.tile * 0.7; anchors.verticalCenter: parent.verticalCenter; color: Qt.alpha(Theme.text, 0.15) }
@@ -83,14 +96,15 @@ Item {
             Row {
                 id: mediaRow
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 9
+                spacing: 7
                 Btn {
                     id: art
-                    width: root.tile; height: root.tile
+                    width: Math.round(root.tile * 0.78); height: width
+                    anchors.verticalCenter: parent.verticalCenter
                     active: root.isOpen("media")
-                    onClicked: root.bar.openFrom("media", art, "left")
+                    onClicked: e => e.button === Qt.MiddleButton ? Media.previous() : root.bar.openFrom("media", art, "left")
                     Rectangle {
-                        anchors.fill: parent; radius: 8
+                        anchors.fill: parent; radius: 6
                         color: Qt.alpha(Theme.text, 0.1)
                         clip: true
                         Image {
@@ -104,28 +118,18 @@ Item {
                 }
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 150
-                    spacing: 2
+                    width: 112
+                    spacing: 0
                     Text { width: parent.width; text: Media.label; elide: Text.ElideRight; color: Theme.text
                         font { family: root.family; pixelSize: 12; weight: Font.DemiBold } }
                     Text { width: parent.width; text: Media.artist; visible: text !== ""; elide: Text.ElideRight; color: Theme.textDim
                         font { family: root.family; pixelSize: 11 } }
-                    Rectangle {
-                        readonly property bool usable: (media.p?.positionSupported ?? false) && (media.p?.lengthSupported ?? false) && (media.p?.length ?? 0) > 0
-                        visible: usable
-                        width: parent.width; height: 3; radius: 1.5
-                        color: Qt.alpha(Theme.text, 0.18)
-                        Rectangle {
-                            height: parent.height; radius: parent.radius; color: Theme.text
-                            width: parent.usable ? parent.width * Math.max(0, Math.min(1, media.p.position / media.p.length)) : 0
-                        }
-                    }
                 }
+                // play/pause + next only (previous is in the media popout / middle-click the art)
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
-                    Glyph { text: "󰒮"; px: 14; onClicked: Media.previous() }      // 󰒮
-                    Glyph { text: Media.playing ? "󰏤" : "󰐊"; px: 16; onClicked: Media.playPause() }   // 󰏤 / 󰐊
-                    Glyph { text: "󰒭"; px: 14; onClicked: Media.next() }          // 󰒭
+                    Glyph { width: 24; text: Media.playing ? "󰏤" : "󰐊"; px: 15; onClicked: Media.playPause() }   // 󰏤 / 󰐊
+                    Glyph { width: 24; text: "󰒭"; px: 13; onClicked: Media.next() }          // 󰒭
                 }
             }
         }
@@ -161,12 +165,25 @@ Item {
             const i = it.wins.findIndex(w => w.activated);
             const next = i < 0 ? it.wins[0] : it.wins[(i + 1) % it.wins.length];
             if (next !== it.wins[i]) next.activate();
-        } else if (it.entry) Apps.launch(it.entry, it.id);
+        } else launch(it);
     }
 
-    // Magnification (same settings as the Dock): icons grow upwards out of the bar under the
+    // Launch bounce, like the Dock: bounces until the app's first window shows (then one more
+    // beat), or gives up after 2.4 s.
+    function launch(it) {
+        if (!it.entry) return;
+        Apps.launch(it.entry, it.id);
+        if (!(s.taskbarBounce ?? true)) return;
+        bounceStop.interval = 2400;
+        bouncing = it.id; bounceStop.restart();
+    }
+    property string bouncing: ""
+    Timer { id: bounceStop; interval: 2400; onTriggered: root.bouncing = "" }
+    onAppsChanged: if (bouncing && apps.some(a => a.id === bouncing && a.wins.length > 0)) bounceStop.interval = 700
+
+    // Magnification (own settings, taskbarMagnify/-Size): icons grow upwards out of the bar under the
     // pointer. Bar.qml keeps fixed headroom above the bar (magHead) so the surface never resizes.
-    readonly property real mag: (s.dockMagnify ?? true) ? (s.dockMagnifySize ?? 1.7) : 1
+    readonly property real mag: (s.taskbarMagnify ?? true) ? (s.taskbarMagnifySize ?? 1.7) : 1
     readonly property int magHead: Math.ceil(tile * (mag - 1)) + 34     // + room for the name bubble
     readonly property int gap: 8
     readonly property real baseTotal: apps.length * tile + Math.max(0, apps.length - 1) * gap
@@ -211,9 +228,17 @@ Item {
                 id: app
                 readonly property var modelData: cell.modelData
                 width: cell.size; height: cell.size
-                y: (parent.height + root.tile) / 2 - height          // bottom stays put, grows upwards
+                y: Math.round((parent.height + root.tile) / 2 - height - bounce.offset)   // bottom stays put, grows upwards
+                QtObject { id: bounce; property real offset: 0 }
+                SequentialAnimation {
+                    running: root.bouncing === app.modelData.id
+                    loops: Animation.Infinite
+                    NumberAnimation { target: bounce; property: "offset"; to: root.tile * 0.45; duration: 300; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: bounce; property: "offset"; to: 0; duration: 300; easing.type: Easing.InQuad }
+                    onRunningChanged: if (!running) bounce.offset = 0
+                }
                 onClicked: e => {
-                    if (e.button === Qt.MiddleButton) { if (modelData.entry) Apps.launch(modelData.entry, modelData.id); }
+                    if (e.button === Qt.MiddleButton) root.launch(modelData);
                     else if (e.button === Qt.RightButton) DockPins.toggle(modelData.id);
                     else root.activate(modelData);
                 }
@@ -252,39 +277,10 @@ Item {
         anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
         spacing: 6
 
-        Btn {
-            width: root.tile; height: root.tile
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: Popouts.openSettings()
-            Image {
-                anchors.fill: parent
-                source: AppIcons.source("systemsettings")
-                sourceSize { width: Math.max(64, root.tile * 2); height: Math.max(64, root.tile * 2) }
-                smooth: true; mipmap: true; asynchronous: true
-            }
-        }
-        Btn {
-            id: wall
-            width: root.tile; height: root.tile
-            anchors.verticalCenter: parent.verticalCenter
-            active: root.isOpen("wallpapers")
-            onClicked: root.bar.openFrom("wallpapers", wall, "right")
-            Rectangle {
-                anchors { fill: parent; margins: 2 }
-                radius: 8; clip: true
-                color: Qt.alpha(Theme.text, 0.1)
-                border { width: 1; color: Qt.alpha(Theme.text, 0.15) }
-                Image {
-                    anchors { fill: parent; margins: 1 }
-                    source: wallInfo.thumb ? "file://" + wallInfo.thumb : ""
-                    sourceSize { width: 96; height: 96 }
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                }
-            }
-        }
-
-        Item { width: 4; height: 1 }
+        // Settings + wallpapers as plain monochrome glyphs, like the status icons.
+        Glyph { text: "󰒓"; px: 16; onClicked: Popouts.openSettings() }                        // 󰒓
+        Glyph { id: wall; text: "󰸉"; px: 16; active: root.isOpen("wallpapers")
+            onClicked: root.bar.openFrom("wallpapers", wall, "right") }                             // 󰸉
 
         Repeater {
             model: SystemTray.items

@@ -26,7 +26,7 @@ PanelWindow {
     readonly property int shelfH: base + pad * 2
     readonly property string iconTheme: "application-x-executable"
 
-    readonly property bool wanted: (s.dock ?? true) && (s.shellLayout ?? "menubar") !== "taskbar" && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData)
+    readonly property bool wanted: (s.dock ?? true) && (s.shellLayout ?? "menubar") === "menubar" && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData)
     visible: wanted
 
     // Memory: the surface is only as wide as the fully magnified dock (plus room for the menu),

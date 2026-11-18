@@ -1,11 +1,13 @@
 import QtQuick
 import qs.components
 import qs.services
+import qs.bar
 
 // One data-driven settings row. spec: { key, type, label, sub, ... }
 //   switch                       on/off
 //   slider   from to step decimals suffix minText maxText
 //   choice   options: [[value, text], ...]   (segmented when ≤ 4, pop-up otherwise)
+//   wsstyle  options: [[value, text], ...]   picture tiles with a live mini workspace indicator
 //   list     options or source: "gtk" | "icons" | "cursors"   (pop-up button)
 //   font                         searchable list of installed fonts (expands inline)
 //   text     placeholder
@@ -28,6 +30,7 @@ SettingRow {
     Loader {
         sourceComponent: root.spec.type === "switch" ? sw
                        : root.spec.type === "slider" ? sl
+                       : root.spec.type === "wsstyle" ? ws
                        : root.segmented ? seg
                        : root.spec.type === "choice" || root.spec.type === "list" ? pop
                        : root.spec.type === "font" ? fontBtn
@@ -44,6 +47,43 @@ SettingRow {
     Component { id: seg; Segmented {
         options: root.spec.options.map(o => ({ value: o[0], text: o[1] })); value: root.value
         onPicked: v => Config.set(root.spec.key, v) } }
+    Component { id: ws; Row {
+        spacing: 10
+        Repeater {
+            model: root.spec.options
+            MouseArea {
+                id: tileArea
+                required property var modelData
+                readonly property bool sel: root.value === modelData[0]
+                width: 116; height: 58
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Config.set(root.spec.key, modelData[0])
+                // sample of the menu bar with the indicator drawn exactly as it will be
+                Rectangle {
+                    id: sample
+                    width: parent.width; height: 40
+                    radius: 9
+                    color: Qt.alpha(Theme.text, tileArea.containsMouse && !tileArea.sel ? 0.1 : 0.06)
+                    border { width: tileArea.sel ? 2 : 1; color: tileArea.sel ? Theme.accent : Qt.alpha(Theme.text, 0.1) }
+                    Workspaces {
+                        anchors.centerIn: parent
+                        screenName: ""
+                        previewStyle: tileArea.modelData[0]
+                        family: Theme.font
+                        fontPx: 12
+                        barH: 26
+                    }
+                }
+                Text {
+                    anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom }
+                    text: tileArea.modelData[1]
+                    color: tileArea.sel ? Theme.text : Theme.textDim
+                    font { family: Theme.font; pixelSize: 11; weight: tileArea.sel ? Font.DemiBold : Font.Normal }
+                }
+            }
+        }
+    } }
     Component { id: pop; PopupButton {
         options: root.items; value: root.value
         onPicked: v => Config.set(root.spec.key, v) } }

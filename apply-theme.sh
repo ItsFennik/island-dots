@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply an Island theme everywhere: GTK 3/4, Qt 5/6 (Kvantum), Hyprland / niri / Sway borders, Foot.
+# Apply an Island theme everywhere: GTK 3/4, Qt 5/6 (Kvantum), Hyprland / niri / Sway borders, Foot, Herdr.
 # (The bar picks the theme up itself from the state file.)
 #
 #   apply-theme.sh <id>        id = file name in themes/ without .json (e.g. catppuccin-mocha)
@@ -223,6 +223,49 @@ $(shades purple "$magenta")
 /* solid accent + its own text colour: readable on every theme (Monochrome's grey accent at 35% was invisible) */
 ::selection { background: $accent !important; color: $accent_fg !important; }
 EOF
+fi
+
+# ── Herdr (~/.config/herdr-app/themes/island.json; live) ─────────────
+# Terminal colours + Herdr's panel colours from the palette. Herdr uses it while its
+# settings.json says "theme": "island". A layout that overrides panel colours with see-through
+# hex (e.g. a "glass" clone: canvas/chrome/background/surface) gets the same hues, alpha kept.
+HERDR="$CFG/herdr-app"
+if [ -d "$HERDR" ]; then
+  mkdir -p "$HERDR/themes"
+  put "$HERDR/themes/island.json" <<EOF
+{
+  "background": "$bg",
+  "foreground": "$fg",
+  "selection": "$overlay",
+  "cursor": "$accent",
+  "ansi": [
+    "$surface", "$red", "$green", "$yellow", "$blue", "$magenta", "$cyan", "$fg_dim",
+    "$fg_faint", "$red", "$green", "$yellow", "$blue", "$magenta", "$cyan", "$fg"
+  ],
+  "colors": {
+    "canvas": "$bg_alt",
+    "chrome": "$bg_alt",
+    "surface": "$surface",
+    "popover": "$surface",
+    "raised": "$overlay",
+    "border": "$overlay",
+    "muted": "$fg_dim",
+    "dim": "$fg_faint",
+    "accent": "$accent",
+    "accent_foreground": "$accent_fg"
+  }
+}
+EOF
+  for lay in "$HERDR"/layouts/*.json; do
+    [ -f "$lay" ] || continue
+    # Only personal layouts with #rrggbbaa overrides; Herdr's shipped ones are read-only.
+    jq -e '(.cloned_from != null) and ((.colors // {}) | to_entries | any(.value | test("^#[0-9a-fA-F]{8}$")))' "$lay" >/dev/null 2>&1 || continue
+    new="$(jq --arg canvas "$bg_alt" --arg chrome "$bg_alt" --arg background "$bg" --arg surface "$surface" '
+      .colors |= with_entries(
+        if (.value | test("^#[0-9a-fA-F]{8}$")) and ($ARGS.named[.key] != null)
+        then .value = $ARGS.named[.key] + .value[7:9] else . end)' "$lay")"
+    printf '%s\n' "$new" | put "$lay"
+  done
 fi
 
 # ── Qt 5 / 6 (Kvantum "Island" theme, recoloured from KvArc) ──────────

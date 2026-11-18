@@ -13,7 +13,7 @@ import Quickshell.WindowManager
 //   Hyprland          native IPC (Quickshell.Hyprland), focus grabs
 //   Sway, Scroll, i3  i3 IPC (Quickshell.I3) + swaymsg
 //   niri              `niri msg -j event-stream` + `niri msg action …`
-//   MangoWC           `mmsg` (watch for the focused monitor, -d for dispatches)
+//   MangoWC           `mmsg` (watch for the focused monitor, `dispatch` for actions)
 //   anything else     wlr-foreign-toplevel + ext-workspace (labwc, Wayfire, river, …)
 //
 // Every caller goes through here, so nothing else in Island should mention a compositor.
@@ -191,7 +191,7 @@ Singleton {
     function hypr(d) { run(["hyprctl", "dispatch", d]); }
     function niriAct(...a) { run(["niri", "msg", "action", ...a]); }
     function sway(c) { run([msg, c]); }
-    function mmsg(d) { run(["mmsg", "-d", d]); }
+    function mmsg(d) { run(["mmsg", "dispatch", d]); }
     readonly property var tl: ToplevelManager.activeToplevel
 
     // What the window menu can offer here. Missing = greyed out.

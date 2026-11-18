@@ -106,10 +106,14 @@ Column {
 
     Group {
         title: "Layout"
-        footer: "Bottom bar: one floating bar with your apps, now playing, status and the clock, in place of the menu bar and Dock. Desktop icons: Trash, mounted drives and (optionally) your Dock apps; double-click to open, right-click a USB drive to eject."
+        footer: "Bottom bar: one floating bar with your apps, now playing, status and the clock, in place of the menu bar and Dock. Compact bar: a smaller pill only as wide as its contents — start, search, apps, status, CPU/RAM and the clock. Desktop icons: Trash, mounted drives and (optionally) your Dock apps; double-click to open, right-click a USB drive to eject."
         Setting { spec: ({ key: "liquidGlass", type: "switch", label: "Liquid glass", sub: "Clearer panels with a glass rim and sheen — no extra GPU" }) }
-        Setting { spec: ({ key: "shellLayout", type: "choice", label: "Layout", options: [["menubar", "Menu bar + Dock"], ["taskbar", "Bottom bar"]] }) }
-        Setting { spec: ({ key: "taskbarHeight", type: "slider", label: "Bottom bar height", from: 44, to: 72, suffix: " px" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
+        Setting { spec: ({ key: "shellLayout", type: "choice", label: "Layout", options: [["menubar", "Menu bar + Dock"], ["taskbar", "Bottom bar"], ["compact", "Compact bar"]] }) }
+        Setting { spec: ({ key: "taskbarHeight", type: "slider", label: "Bottom bar height", from: 40, to: 72, suffix: " px" }); visible: ["taskbar", "compact"].includes(Config.values.shellLayout ?? "menubar") }
+        Setting { spec: ({ key: "taskbarMagnify", type: "switch", label: "Magnification", sub: "Bottom bar icons grow under the pointer" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
+        Setting { spec: ({ key: "taskbarMagnifySize", type: "slider", label: "Magnified size", from: 1.1, to: 2.5, step: 0.05, decimals: 2, suffix: "×", minText: "Small", maxText: "Large", when: "taskbarMagnify" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
+        Setting { spec: ({ key: "taskbarBounce", type: "switch", label: "Animate opening applications", sub: "Bottom bar icons bounce while an app starts" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
+        Setting { spec: ({ key: "compactStats", type: "switch", label: "Show CPU and memory", sub: "In the compact bar, next to the clock" }); visible: (Config.values.shellLayout ?? "menubar") === "compact" }
         Setting { spec: ({ key: "desktopIcons", type: "switch", label: "Desktop icons", sub: "Trash and mounted drives" }) }
         Setting { spec: ({ key: "desktopIconsApps", type: "switch", label: "Show Dock apps on the desktop" }); visible: Config.values.desktopIcons === true }
         Setting { spec: ({ key: "desktopIconSize", type: "slider", label: "Desktop icon size", from: 40, to: 96, suffix: " px" }); visible: Config.values.desktopIcons === true }

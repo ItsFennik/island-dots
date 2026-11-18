@@ -13,14 +13,15 @@ It runs on **Hyprland, niri, Sway/SwayFX/Scroll and MangoWC**. Any other composi
 
 ## Features
 
-- **Menu bar**: distro logo menu, the focused app's name and menus, tray, Wi-Fi / Bluetooth / sound / battery, weather, clock. Menus drop down from the bar, and moving across menu titles switches between them, like macOS. Notification banners slide in at the top right.
+- **Menu bar**: distro logo menu, the focused app's name and menus, workspace indicator (numbers or dots), tray, Wi-Fi / Bluetooth / sound / battery, weather, clock. Menus drop down from the bar, and moving across menu titles switches between them, like macOS. Notification banners slide in at the top right.
 - **Dock**: pinned and running apps, magnification, bounce on launch, drag to reorder or pin, right-click menu, trash, optional autohide.
+- **Layouts**: menu bar + Dock, a floating bottom bar (with its own magnification and launch bounce), or a compact pill only as wide as its contents — start, search, apps, status, CPU/RAM and the clock.
 - **Desktop widgets**: clock, weather, calendar, now playing (with cover art), system stats.
 - **Spotlight** (apps, calculator, `>` commands) and **Launchpad**.
 - **Control Centre**: Wi-Fi, Bluetooth, volume, brightness (DDC/CI), media, Do Not Disturb, caffeine.
 - **Notifications**: the notification daemon, history, Do Not Disturb.
 - **Clipboard history** (cliphist), **wallpaper picker** (images and video), **Wallhaven** browser.
-- **Themes**: Catppuccin, Nord, Gruvbox, Rosé Pine, Tokyo Night, Kanagawa, Everforest, monochrome, or Material You from your wallpaper via matugen. A theme also recolours GTK 3/4, compositor borders, Foot and Vesktop.
+- **Themes**: Catppuccin, Nord, Gruvbox, Rosé Pine, Tokyo Night, Kanagawa, Everforest, monochrome, or Material You from your wallpaper via matugen. A theme also recolours GTK 3/4, Qt (Kvantum), compositor borders, Foot, Vesktop and Herdr.
 - **System Settings**: a macOS-style settings app. Changes apply live to the shell, the compositor (gaps, borders, input, cursor, animations), GTK and Foot.
 - **Lock screen**: big clock over your wallpaper, picture, name and a password pill. Built on ext-session-lock, so it works on every compositor above.
 - **SDDM theme**: the same look for the login screen, with Sleep / Restart / Shut Down and a session picker.

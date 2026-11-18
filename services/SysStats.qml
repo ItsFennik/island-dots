@@ -8,7 +8,9 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property bool wanted: (Config.saved.widgets ?? true) && (Config.saved.widgetSystem ?? true)
+    // Also polls for the compact bar's CPU/RAM readout.
+    readonly property bool wanted: ((Config.saved.widgets ?? true) && (Config.saved.widgetSystem ?? true))
+        || ((Config.saved.shellLayout ?? "menubar") === "compact" && (Config.saved.compactStats ?? true))
 
     property real cpu: 0
     property real mem: 0
