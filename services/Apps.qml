@@ -89,6 +89,8 @@ Singleton {
         const fresh = id ? (DesktopEntries.byId(id) ?? DesktopEntries.heuristicLookup(id)) : null;
         if (fresh) e = fresh;
         if (typeof e?.execute !== "function") { console.warn("Apps.launch: no live desktop entry for", id); return; }
+        // Feeds Spotlight's "Frequently used" from every launch surface, not just Spotlight.
+        SpotHistory.record("app:" + e.id);
         const u = Object.assign({}, usage);
         u[e.id] = (u[e.id] ?? 0) + 1;
         usage = u;

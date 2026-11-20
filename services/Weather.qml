@@ -17,7 +17,7 @@ Singleton {
     property var data: null
     readonly property bool ok: data !== null
     property bool failed: false
-    property bool loading: fetch.running
+    property bool loading: fetch?.running ?? false
     property string fetchedFor: ""          // location the current data belongs to
     property var updatedAt: null            // Date of the last good fetch
     readonly property bool badLocation: failed && location !== "" && fetchedFor !== location

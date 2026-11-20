@@ -10,9 +10,10 @@ import qs.services
 import qs.components
 
 // "Bottom bar" layout (setting shellLayout = "taskbar"): one floating glass bar along the bottom.
-// Left: logo menu + now playing. Middle: the Dock's apps. Right: Settings, wallpaper, tray,
-// Bluetooth / Wi-Fi / sound, notifications, a volume (or battery) ring and the clock.
-// Lives inside Bar.qml's surface, so every popout opens (upwards) from here as usual.
+// Left: logo menu + now playing. Middle: the Dock's apps. Right: tray, Bluetooth / Wi-Fi / sound /
+// weather, Spotlight, notifications, Control Centre (a battery ring on laptops) and the clock —
+// each opens its own menu and has a hover label. Lives inside Bar.qml's surface, so every popout
+// opens (upwards) from here as usual.
 Item {
     id: root
     required property var bar                     // the Bar window (openFrom, shown, expanded)
@@ -23,10 +24,14 @@ Item {
     readonly property int tile: Math.round(height * 0.74)
     function isOpen(name) { return bar.expanded && bar.shown === name; }
 
-    // A round-cornered hover/press highlight used by every button here.
+    // A round-cornered hover/press highlight used by every button here. Set `tip` (and
+    // optionally `tipSub`) to show a small label above the bar on hover — the right-hand status
+    // icons use it to say what they are and what state they're in.
     component Btn: MouseArea {
         id: b
         property bool active: false
+        property string tip: ""
+        property string tipSub: ""
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         cursorShape: Qt.PointingHandCursor
@@ -34,6 +39,44 @@ Item {
             anchors.fill: parent
             radius: 9
             color: b.active ? Qt.alpha(Theme.text, 0.18) : b.containsMouse ? Qt.alpha(Theme.text, 0.08) : "transparent"
+        }
+        Rectangle {
+            id: tipBox
+            visible: b.tip !== "" && b.containsMouse && !root.bar.expanded
+            width: Math.min(270, Math.max(tipTitle.implicitWidth, tipSubText.implicitWidth) + 18)
+            height: tipCol.implicitHeight + 10
+            // Keep the bubble on screen for the icons at the far right.
+            x: {
+                const abs = (b.parent ? b.parent.x : 0) + b.x;
+                return Math.max(4 - abs, Math.min(root.width - width - 4 - abs, b.width / 2 - width / 2));
+            }
+            y: -height - 9
+            radius: 7
+            color: Theme.menuBg
+            border { width: 1; color: Theme.menuEdge }
+            z: 1000
+            Column {
+                id: tipCol
+                anchors.centerIn: parent
+                spacing: 0
+                Text {
+                    id: tipTitle
+                    width: Math.min(252, implicitWidth)
+                    text: b.tip
+                    elide: Text.ElideRight
+                    color: Theme.menuText
+                    font { family: root.family; pixelSize: 11; weight: Font.DemiBold }
+                }
+                Text {
+                    id: tipSubText
+                    visible: b.tipSub !== ""
+                    width: Math.min(252, implicitWidth)
+                    text: b.tipSub
+                    elide: Text.ElideRight
+                    color: Qt.alpha(Theme.menuText, 0.6)
+                    font { family: root.family; pixelSize: 10 }
+                }
+            }
         }
     }
     component Glyph: Btn {
@@ -179,7 +222,11 @@ Item {
     }
     property string bouncing: ""
     Timer { id: bounceStop; interval: 2400; onTriggered: root.bouncing = "" }
-    onAppsChanged: if (bouncing && apps.some(a => a.id === bouncing && a.wins.length > 0)) bounceStop.interval = 700
+    onAppsChanged: {
+        if (bouncing && apps.some(a => a.id === bouncing && a.wins.length > 0)) bounceStop.interval = 700;
+        // keep the open right-click menu's app fresh, and close it if the app went away
+        if (Popouts.ctxApp && root.isOpen("appctx")) Popouts.ctxApp = apps.find(a => a.id === Popouts.ctxApp.id) ?? null;
+    }
 
     // Magnification (own settings, taskbarMagnify/-Size): icons grow upwards out of the bar under the
     // pointer. Bar.qml keeps fixed headroom above the bar (magHead) so the surface never resizes.
@@ -239,7 +286,7 @@ Item {
                 }
                 onClicked: e => {
                     if (e.button === Qt.MiddleButton) root.launch(modelData);
-                    else if (e.button === Qt.RightButton) DockPins.toggle(modelData.id);
+                    else if (e.button === Qt.RightButton) { Popouts.ctxApp = modelData; root.bar.openFrom("appctx", app, "above"); }
                     else root.activate(modelData);
                 }
                 Image {
@@ -271,16 +318,11 @@ Item {
     }
     }
 
-    // ── Right: settings, wallpaper, status, clock ─────────────────────
+    // ── Right: tray, status, Spotlight, clock ────────────────────────
     Row {
         id: right
         anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
         spacing: 6
-
-        // Settings + wallpapers as plain monochrome glyphs, like the status icons.
-        Glyph { text: "󰒓"; px: 16; onClicked: Popouts.openSettings() }                        // 󰒓
-        Glyph { id: wall; text: "󰸉"; px: 16; active: root.isOpen("wallpapers")
-            onClicked: root.bar.openFrom("wallpapers", wall, "right") }                             // 󰸉
 
         Repeater {
             model: SystemTray.items
@@ -290,6 +332,8 @@ Item {
                 width: 28; height: root.height - 12
                 anchors.verticalCenter: parent.verticalCenter
                 active: root.isOpen("tray") && Popouts.trayItem === modelData
+                tip: modelData.tooltipTitle || modelData.title || "Tray"
+                tipSub: modelData.tooltipDescription || ""
                 onClicked: e => {
                     if (e.button === Qt.MiddleButton) modelData.secondaryActivate();
                     else if (e.button === Qt.RightButton || modelData.onlyMenu) { if (modelData.hasMenu) { Popouts.trayItem = modelData; root.bar.openFrom("tray", trayItem, "right"); } }
@@ -307,28 +351,67 @@ Item {
         }
 
         Glyph {
-            visible: !!Bluetooth.defaultAdapter
-            text: Bluetooth.defaultAdapter?.enabled ? "󰂯" : "󰂲"     // 󰂯 / 󰂲
-            active: root.isOpen("controls")
-            onClicked: Popouts.openSettings("bluetooth")
+            id: bt
+            readonly property var adapter: Bluetooth.defaultAdapter
+            readonly property var connected: adapter ? adapter.devices.values.filter(d => d.connected) : []
+            visible: !!adapter
+            text: adapter?.enabled ? "󰂯" : "󰂲"     // 󰂯 / 󰂲
+            active: root.isOpen("bluetooth")
+            tip: "Bluetooth"
+            tipSub: !adapter ? "Unavailable" : !adapter.enabled ? "Off"
+                 : connected.length ? connected.map(d => d.name || d.address).join(", ") : "On"
+            onClicked: root.bar.openFrom("bluetooth", bt, "right")
         }
         Glyph {
             id: wifi
             text: Net.glyph
             active: root.isOpen("network")
+            tip: Net.wired ? "Ethernet" : "Wi-Fi"
+            tipSub: Net.label
             onClicked: root.bar.openFrom("network", wifi, "right")
         }
         Glyph {
             id: vol
             text: Audio.glyph
             active: root.isOpen("sound")
+            tip: "Sound"
+            tipSub: Audio.muted ? "Muted" : Math.round(Math.min(1, Audio.volume) * 100) + "% · " + Audio.name
             onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : root.bar.openFrom("sound", vol, "right")
             WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
+        }
+        Btn {
+            id: wx
+            visible: (root.s.barWeather ?? true) && Weather.ok
+            width: wxRow.implicitWidth + 14; height: root.height - 12
+            anchors.verticalCenter: parent.verticalCenter
+            active: root.isOpen("weather")
+            tip: "Weather"
+            tipSub: Weather.temp + "° · " + Weather.desc
+            onClicked: root.bar.openFrom("weather", wx, "right")
+            Row {
+                id: wxRow
+                anchors.centerIn: parent
+                spacing: 5
+                Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.glyph(Weather.code, Weather.isDay); color: Theme.text
+                    font { family: root.glyphs; pixelSize: 14; hintingPreference: Font.PreferNoHinting } }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.temp + "°"; color: Theme.text
+                    font { family: root.family; pixelSize: 12 } }
+            }
+        }
+        Glyph {
+            id: search
+            text: ""; px: 15
+            active: Popouts.spotlight
+            tip: "Spotlight"
+            tipSub: "Apps, files, commands and math"
+            onClicked: Popouts.toggleSpotlight()
         }
         Glyph {
             id: bell
             text: Notifs.dnd ? "󰂛" : "󰂚"                    // 󰂛 / 󰂚
             active: root.isOpen("notifs")
+            tip: "Notifications"
+            tipSub: Notifs.dnd ? "Do Not Disturb" : Notifs.unread > 0 ? Notifs.unread + " unread" : "None"
             onClicked: e => e.button === Qt.MiddleButton ? Notifs.setDnd(!Notifs.dnd) : root.bar.openFrom("notifs", bell, "right")
             Rectangle {
                 visible: Notifs.unread > 0
@@ -338,18 +421,22 @@ Item {
             }
         }
 
-        // Ring: battery on laptops, otherwise volume (scroll to change, click for Control Centre).
+        // Battery ring on laptops; on desktops the slot is the Control Centre (the ring used to
+        // duplicate the volume icon and open the Control Centre anyway).
         Btn {
             id: ring
             readonly property var bat: UPower.displayDevice
             readonly property bool battery: bat?.isLaptopBattery ?? false
+            readonly property bool charging: bat?.state === UPowerDeviceState.Charging || bat?.state === UPowerDeviceState.FullyCharged
             readonly property real frac: battery ? ((bat.percentage <= 1 ? bat.percentage : bat.percentage / 100))
                                                  : (Audio.muted ? 0 : Math.min(1, Audio.volume))
+            visible: battery
             width: root.tile; height: root.tile
             anchors.verticalCenter: parent.verticalCenter
             active: root.isOpen("controls")
+            tip: "Battery"
+            tipSub: Math.round(frac * 100) + "%" + (charging ? " · Charging" : "")
             onClicked: root.bar.openFrom("controls", ring, "right")
-            WheelHandler { enabled: !ring.battery; onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
             onFracChanged: dial.requestPaint()
             Canvas {
                 id: dial
@@ -369,19 +456,34 @@ Item {
             Column {
                 anchors.centerIn: parent
                 spacing: -2
-                Text { anchors.horizontalCenter: parent.horizontalCenter; text: ring.battery ? "" : Audio.glyph; color: Theme.textDim
-                    font { family: root.glyphs; pixelSize: 8; hintingPreference: Font.PreferNoHinting } }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: ring.charging ? "" : ["", "", "", "", ""][Math.min(4, Math.floor(ring.frac * 5))]
+                    color: Theme.textDim
+                    font { family: root.glyphs; pixelSize: 8; hintingPreference: Font.PreferNoHinting }
+                }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: Math.round(ring.frac * 100); color: Theme.text
                     font { family: root.family; pixelSize: 11; weight: Font.DemiBold } }
             }
+        }
+        Glyph {
+            id: cc
+            visible: !ring.battery
+            text: ""; px: 16
+            active: root.isOpen("controls") || root.isOpen("media")
+            tip: "Control Centre"
+            tipSub: "Display, sound and quick toggles"
+            onClicked: root.bar.openFrom("controls", cc, "right")
         }
 
         Btn {
             id: clock
             width: clockText.implicitWidth + 18; height: root.height - 12
             anchors.verticalCenter: parent.verticalCenter
-            active: root.isOpen("weather")
-            onClicked: root.bar.openFrom("weather", clock, "right")
+            active: root.isOpen("notifs")
+            tip: Qt.formatDate(clockSrc.date, "dddd d MMMM")
+            tipSub: "Notifications"
+            onClicked: root.bar.openFrom("notifs", clock, "right")
             Text {
                 id: clockText
                 anchors.centerIn: parent

@@ -30,7 +30,6 @@ SettingRow {
     Loader {
         sourceComponent: root.spec.type === "switch" ? sw
                        : root.spec.type === "slider" ? sl
-                       : root.spec.type === "wsstyle" ? ws
                        : root.segmented ? seg
                        : root.spec.type === "choice" || root.spec.type === "list" ? pop
                        : root.spec.type === "font" ? fontBtn
@@ -47,8 +46,11 @@ SettingRow {
     Component { id: seg; Segmented {
         options: root.spec.options.map(o => ({ value: o[0], text: o[1] })); value: root.value
         onPicked: v => Config.set(root.spec.key, v) } }
-    Component { id: ws; Row {
+    Component { id: ws; Flow {
+        width: root.width
+        leftPadding: 16; rightPadding: 16
         spacing: 10
+        bottomPadding: 12
         Repeater {
             model: root.spec.options
             MouseArea {
@@ -112,11 +114,15 @@ SettingRow {
 
     property bool fontOpen: false
     readonly property bool isFont: spec.type === "font"
+    // Under the row: the font list while open, or the workspace style tiles (too many to sit
+    // beside the label, so they wrap in a grid).
     below: Loader {
         width: parent.width
         height: item ? item.implicitHeight : 0
-        active: root.fontOpen
-        sourceComponent: Column {
+        active: root.fontOpen || root.spec.type === "wsstyle"
+        sourceComponent: root.spec.type === "wsstyle" ? ws : fontList
+    }
+    Component { id: fontList; Column {
             padding: 12; topPadding: 0
             spacing: 8
             readonly property var fonts: Qt.fontFamilies()
@@ -142,6 +148,5 @@ SettingRow {
                         font { family: parent.modelData; pixelSize: 13 } }
                 }
             }
-        }
-    }
+        } }
 }

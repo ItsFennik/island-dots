@@ -3,35 +3,86 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Spotlight's history: what was opened recently and how often, keyed "app:<desktop id>",
-// "sys:<action>" or "cmd:<shell command>". Stored in ~/.local/state/island/spotlight.json.
-// First run seeds the counts from the launcher's app launch counts (Apps.usage).
+// Spotlight's memory: what was opened recently, how often, and what's pinned to the top of
+// "Frequently used" — keyed "app:<desktop id>", "sys:<action>" or "cmd:<shell command>" and
+// stored in ~/.local/state/island/spotlight.json. Every app launch counts, whichever surface
+// started it (Spotlight, Launchpad, Dock, menu bar, desktop icons), because Apps.launch()
+// records here. The launcher's counts (Apps.usage) are merged in with max(), so history from
+// before this file existed still ranks apps without double counting.
 Singleton {
     id: root
 
     property var recent: []          // keys, newest first
-    property var count: ({})         // key -> uses
-    property bool seeded: false
+    property var count: ({})         // key -> launches
+    property var pinned: []          // keys kept at the top of "Frequently used", newest first
+    property bool ready: false
+    property var pending: []         // launches that arrived before the file finished loading
 
     function record(key) {
-        recent = [key, ...recent.filter(k => k !== key)].slice(0, 30);
+        if (!key) return;
+        if (!ready) { pending.push(key); return; }
         const c = Object.assign({}, count);
         c[key] = (c[key] ?? 0) + 1;
         count = c;
+        recent = [key, ...recent.filter(k => k !== key)].slice(0, 30);
         save();
     }
     function forget(key) {
         recent = recent.filter(k => k !== key);
+        pinned = pinned.filter(k => k !== key);
         const c = Object.assign({}, count);
         delete c[key];
         count = c;
         save();
     }
-    // Most used keys, best first.
-    function frequent() {
-        return Object.keys(count).sort((a, b) => count[b] - count[a]);
+
+    function isPinned(key) { return !!key && pinned.includes(key); }
+    function togglePin(key) {
+        if (!key) return;
+        pinned = isPinned(key) ? pinned.filter(k => k !== key) : [key, ...pinned];
+        save();
     }
-    function save() { store.setText(JSON.stringify({ recent, count }) + "\n"); }
+
+    // Most used keys, best first. Ties go to whatever was opened most recently.
+    function frequent() {
+        const recency = k => { const i = recent.indexOf(k); return i < 0 ? 999 : i; };
+        return Object.keys(count)
+            .filter(k => (count[k] ?? 0) > 0)
+            .sort((a, b) => ((count[b] ?? 0) - (count[a] ?? 0)) || (recency(a) - recency(b)));
+    }
+    // "Frequently used" order: pinned keys first, then the rest by count.
+    function frequentOrdered() {
+        return [...new Set([...pinned, ...frequent().filter(k => !pinned.includes(k))])];
+    }
+
+    function save() {
+        if (!ready) return;
+        store.setText(JSON.stringify({ recent, count, pinned }, null, 2) + "\n");
+    }
+
+    // Fold the launcher's per-app counts into ours (max, so it's safe to run repeatedly).
+    function mergeLauncher() {
+        if (!ready) return;
+        const usage = Apps.usage ?? {};
+        const c = Object.assign({}, count);
+        let changed = false;
+        for (const id in usage) {
+            const key = "app:" + id;
+            if ((c[key] ?? 0) < usage[id]) { c[key] = usage[id]; changed = true; }
+        }
+        if (changed) { count = c; save(); }
+    }
+
+    function loaded() {
+        root.ready = true;
+        const queued = root.pending;
+        root.pending = [];
+        for (const k of queued) root.record(k);
+        root.mergeLauncher();
+    }
+
+    readonly property var appUsage: Apps.usage
+    onAppUsageChanged: mergeLauncher()
 
     FileView {
         id: store
@@ -39,17 +90,20 @@ Singleton {
         printErrors: false
         atomicWrites: true
         onLoaded: {
-            try { const d = JSON.parse(text()); root.recent = d.recent ?? []; root.count = d.count ?? {}; root.seeded = true; }
-            catch (e) { root.recent = []; root.count = {}; }
+            try {
+                const d = JSON.parse(text());
+                root.recent = Array.isArray(d.recent) ? d.recent : [];
+                root.count = d.count ?? {};
+                root.pinned = Array.isArray(d.pinned) ? d.pinned : [];
+            } catch (e) {
+                console.warn("island: could not parse spotlight history:", e);
+                root.recent = []; root.count = {}; root.pinned = [];
+            }
+            root.loaded();
         }
-        onLoadFailed: root.seeded = false
-    }
-    // No file yet: start "frequently used" from the launcher's counts.
-    readonly property var appUsage: Apps.usage
-    onAppUsageChanged: {
-        if (seeded || Object.keys(count).length) return;
-        const c = {};
-        for (const id in appUsage) c["app:" + id] = appUsage[id];
-        count = c;
+        onLoadFailed: {
+            root.recent = []; root.count = {}; root.pinned = [];
+            root.loaded();
+        }
     }
 }

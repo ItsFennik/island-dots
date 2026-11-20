@@ -18,9 +18,13 @@ Item {
     readonly property var s: Config.saved
     readonly property string family: Theme.font
     readonly property string glyphs: "JetBrainsMono Nerd Font"
-    readonly property int tile: Math.round(height * 0.72)
-    readonly property int icon: Math.round(tile * 0.78)
-    implicitWidth: Math.ceil(row.width + 12)
+    // App icon size (setting compactIconSize); every button is a square tile a little larger,
+    // capped to the bar, so all items share one height and one centre line.
+    readonly property int icon: Math.min(height - 10, s.compactIconSize ?? 28)
+    readonly property int tile: Math.min(height - 6, icon + 8)
+    readonly property int gap: 4                         // the one spacing used everywhere
+    readonly property int edge: Math.round((height - tile) / 2)
+    implicitWidth: Math.ceil(row.width + edge * 2)
     // Bar.qml's taskbar plumbing: no magnification here, so no headroom and no extra hit area.
     readonly property int magHead: 0
     readonly property Item magHit: null
@@ -32,20 +36,24 @@ Item {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         cursorShape: Qt.PointingHandCursor
-        anchors.verticalCenter: parent.verticalCenter
+        height: root.tile
+        y: Math.round((root.height - height) / 2)
         Rectangle {
             anchors.fill: parent
-            radius: 7
+            radius: Math.round(root.tile * 0.24)
             color: b.active || b.pressed ? Qt.alpha(Theme.text, 0.16) : b.containsMouse ? Qt.alpha(Theme.text, 0.08) : "transparent"
         }
     }
     component Glyph: Btn {
         property alias text: g.text
-        property int px: 15
-        width: 28; height: root.tile
+        property int px: Math.round(root.tile * 0.44)
+        width: root.tile
         Text { id: g; anchors.centerIn: parent; color: Theme.text; font { family: root.glyphs; pixelSize: parent.px; hintingPreference: Font.PreferNoHinting } }
     }
-    component Sep: Rectangle { width: 1; height: root.tile * 0.6; anchors.verticalCenter: parent.verticalCenter; color: Qt.alpha(Theme.text, 0.15) }
+    component Sep: Item {
+        width: 1 + root.gap * 2; height: root.height
+        Rectangle { x: root.gap; width: 1; height: Math.round(root.tile * 0.6); anchors.verticalCenter: parent.verticalCenter; color: Qt.alpha(Theme.text, 0.15) }
+    }
 
     // ── Apps (pinned first, then everything else that's open) ─────────
     readonly property var parked: Hyprland.toplevels.values
@@ -72,41 +80,49 @@ Item {
         }
         return out;
     }
+    onAppsChanged: {
+        if (launching && apps.some(a => a.id === launching && a.wins.length > 0)) launchStop.interval = 500;
+        if (Popouts.ctxApp && root.isOpen("appctx")) Popouts.ctxApp = apps.find(a => a.id === Popouts.ctxApp.id) ?? null;
+    }
     function activate(it) {
         if (it.wins.length) {
             const i = it.wins.findIndex(w => w.activated);
             const next = i < 0 ? it.wins[0] : it.wins[(i + 1) % it.wins.length];
             if (next !== it.wins[i]) next.activate();
-        } else if (it.entry) Apps.launch(it.entry, it.id);
+        } else launch(it);
     }
+    // Launch feedback (no headroom above the pill, so it stays inside the tile): the icon hops a
+    // few px and the dash pulses until the first window shows (+ a short beat), or 4 s pass.
+    function launch(it) {
+        if (!it.entry) return;
+        Apps.launch(it.entry, it.id);
+        if (!(s.taskbarBounce ?? true)) return;
+        launchStop.interval = 4000;
+        launching = it.id; launchStop.restart();
+    }
+    property string launching: ""
+    Timer { id: launchStop; interval: 4000; onTriggered: root.launching = "" }
 
     Row {
         id: row
-        x: 6
+        x: root.edge
         height: parent.height
-        spacing: 2
+        spacing: root.gap
 
-        // Start: Launchpad on click, logo menu on right-click.
-        Btn {
+        // Power: the shutdown menu (Lock, Sleep, Log Out, Restart, Shut Down); right-click: system menu.
+        Glyph {
             id: start
-            width: root.tile; height: root.tile
-            // Row ignored the inherited verticalCenter anchor (tile sat at y=0), so place it explicitly.
-            anchors.verticalCenter: undefined
-            y: Math.round((parent.height - height) / 2)
-            active: Popouts.launchpad || root.isOpen("system")
-            onClicked: e => e.button === Qt.RightButton ? root.bar.openFrom("system", start, "left") : Popouts.toggleLaunchpad()
-            TextMetrics { id: logoInk; font: logoText.font; text: logoText.text }
-            Text {
-                id: logoText
-                readonly property rect ink: logoInk.tightBoundingRect
-                x: Math.round((parent.width - ink.width) / 2 - ink.x)
-                y: Math.round((parent.height - ink.height) / 2 - ink.y - baselineOffset)
-                text: osInfo.glyph
-                color: Theme.accent
-                font { family: root.glyphs; pixelSize: Math.round(root.tile * 0.58); hintingPreference: Font.PreferNoHinting }
-            }
+            text: "\uf011"
+            active: root.isOpen("power") || root.isOpen("system")
+            onClicked: e => root.bar.openFrom(e.button === Qt.RightButton ? "system" : "power", start, "above")
         }
-        Glyph { text: "󰍉"; px: 17; width: root.tile; active: Popouts.spotlight; onClicked: Popouts.toggleSpotlight() }   // 󰍉
+        // Launchpad
+        Glyph {
+            text: "\u{f003b}"
+            active: Popouts.launchpad
+            onClicked: Popouts.toggleLaunchpad()
+        }
+        Glyph { text: "󰍉"; active: Popouts.spotlight; onClicked: Popouts.toggleSpotlight() }   // 󰍉
         Workspaces {
             id: wsInd
             visible: (root.s.barWorkspaces ?? true) && known.length > 0
@@ -116,7 +132,7 @@ Item {
             barH: root.height
         }
 
-        Item { width: 4; height: 1 }
+        Sep {}
 
         Repeater {
             model: root.apps
@@ -124,28 +140,47 @@ Item {
                 id: app
                 required property var modelData
                 readonly property bool focused: modelData.wins.some(w => w.activated)
-                width: root.tile; height: root.tile
-                active: focused
+                readonly property bool launching: root.launching === modelData.id
+                property real hop: 0
+                width: root.tile
+                SequentialAnimation {
+                    running: app.launching
+                    loops: Animation.Infinite
+                    NumberAnimation { target: app; property: "hop"; to: Math.max(2, root.edge + 3); duration: 260; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: app; property: "hop"; to: 0; duration: 260; easing.type: Easing.InQuad }
+                    PauseAnimation { duration: 120 }
+                    onRunningChanged: if (!running) app.hop = 0
+                }
+                active: focused || (root.isOpen("appctx") && Popouts.ctxApp?.id === modelData.id)
                 onClicked: e => {
-                    if (e.button === Qt.MiddleButton) { if (modelData.entry) Apps.launch(modelData.entry, modelData.id); }
-                    else if (e.button === Qt.RightButton) DockPins.toggle(modelData.id);
+                    if (e.button === Qt.MiddleButton) root.launch(modelData);
+                    else if (e.button === Qt.RightButton) { Popouts.ctxApp = modelData; root.bar.openFrom("appctx", app, "above"); }
                     else root.activate(modelData);
                 }
                 Image {
-                    anchors.centerIn: parent
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: Math.round((parent.height - height) / 2 - app.hop)
                     width: root.icon; height: root.icon
                     source: AppIcons.source(app.modelData.icon)
                     sourceSize { width: Math.max(48, root.icon * 2); height: Math.max(48, root.icon * 2) }
                     smooth: true; mipmap: true; asynchronous: true
                     opacity: app.pressed ? 0.6 : 1
                 }
-                // running: short grey dash; focused: longer accent dash
+                // running: short grey dash; focused: longer accent dash; launching: pulsing accent dash
                 Rectangle {
-                    visible: app.modelData.wins.length > 0
+                    id: dash
+                    visible: app.modelData.wins.length > 0 || app.launching
                     anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 1 }
                     width: app.focused ? 14 : 5; height: 3; radius: 1.5
-                    color: app.focused ? Theme.accent : Qt.alpha(Theme.text, 0.55)
+                    color: app.focused || app.launching ? Theme.accent : Qt.alpha(Theme.text, 0.55)
                     Behavior on width { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                    SequentialAnimation on opacity {
+                        running: app.launching
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.3; duration: 320; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1; duration: 320; easing.type: Easing.InOutSine }
+                        onRunningChanged: if (!running) dash.opacity = 1
+                    }
                 }
                 Rectangle {
                     visible: app.containsMouse
@@ -158,9 +193,7 @@ Item {
             }
         }
 
-        Item { width: 4; height: 1 }
         Sep {}
-        Item { width: 2; height: 1 }
 
         // ── Status ────────────────────────────────────────────────────
         Repeater {
@@ -168,39 +201,46 @@ Item {
             Btn {
                 id: trayItem
                 required property SystemTrayItem modelData
-                width: 26; height: root.tile
+                width: root.tile
                 active: root.isOpen("tray") && Popouts.trayItem === modelData
                 onClicked: e => {
                     if (e.button === Qt.MiddleButton) modelData.secondaryActivate();
-                    else if (e.button === Qt.RightButton || modelData.onlyMenu) { if (modelData.hasMenu) { Popouts.trayItem = modelData; root.bar.openFrom("tray", trayItem, "right"); } }
+                    else if (e.button === Qt.RightButton || modelData.onlyMenu) { if (modelData.hasMenu) { Popouts.trayItem = modelData; root.bar.openFrom("tray", trayItem, "above"); } }
                     else modelData.activate();
                 }
                 Image {
                     anchors.centerIn: parent
-                    width: 16; height: 16
-                    sourceSize { width: 32; height: 32 }
+                    width: Math.round(root.tile * 0.5); height: width
+                    sourceSize { width: 64; height: 64 }
                     source: trayItem.modelData.icon
                     opacity: trayItem.modelData.status === Status.Passive ? 0.5 : 1
                     asynchronous: true
                 }
             }
         }
-        Glyph { id: wifi; text: Net.glyph; active: root.isOpen("network"); onClicked: root.bar.openFrom("network", wifi, "right") }
+        Glyph { id: wifi; text: Net.glyph; active: root.isOpen("network"); onClicked: root.bar.openFrom("network", wifi, "above") }
         Glyph {
             id: vol
             text: Audio.glyph
             active: root.isOpen("sound")
-            onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : root.bar.openFrom("sound", vol, "right")
+            onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : root.bar.openFrom("sound", vol, "above")
             WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
+        }
+        // Control Centre: the same toggles panel as the menu bar's, opening upwards from here.
+        Glyph {
+            id: cc
+            text: ""
+            active: root.isOpen("controls") || root.isOpen("media")
+            onClicked: root.bar.openFrom("controls", cc, "above")
         }
 
         // CPU / RAM, two lines (click: Control Centre)
         Btn {
             id: stats
             visible: root.s.compactStats ?? true
-            width: statsCol.width + 14; height: root.tile
-            active: root.isOpen("controls")
-            onClicked: root.bar.openFrom("controls", stats, "right")
+            width: statsCol.width + 14
+            active: false
+            onClicked: root.bar.openFrom("controls", cc, "above")
             Column {
                 id: statsCol
                 anchors.centerIn: parent
@@ -208,9 +248,9 @@ Item {
                 component Stat: Row {
                     property string label
                     property real value
-                    spacing: 5
-                    Text { width: 26; text: parent.label; color: Theme.textDim; font { family: root.family; pixelSize: 10; weight: Font.DemiBold } }
-                    Text { width: 28; horizontalAlignment: Text.AlignRight; text: Math.round(parent.value * 100) + "%"; color: Theme.text
+                    spacing: 6
+                    Text { text: parent.label; color: Theme.textDim; font { family: root.family; pixelSize: 10; weight: Font.DemiBold } }
+                    Text { width: 26; horizontalAlignment: Text.AlignRight; text: Math.round(parent.value * 100) + "%"; color: Theme.text
                         font { family: root.family; pixelSize: 10; features: { "tnum": 1 } } }
                 }
                 Stat { label: "CPU"; value: SysStats.cpu }
@@ -218,12 +258,12 @@ Item {
             }
         }
 
-        // Time over date (click: weather; middle-click: notifications)
+        // Time over date (click: notifications, like the clock on the other bars; right-click: weather)
         Btn {
             id: clock
-            width: clockCol.width + 16; height: root.tile
+            width: clockCol.width + 14
             active: root.isOpen("weather") || root.isOpen("notifs")
-            onClicked: e => e.button === Qt.MiddleButton || e.button === Qt.RightButton ? root.bar.openFrom("notifs", clock, "right") : root.bar.openFrom("weather", clock, "right")
+            onClicked: e => e.button === Qt.RightButton ? root.bar.openFrom("weather", clock, "above") : root.bar.openFrom("notifs", clock, "above")
             Column {
                 id: clockCol
                 anchors.centerIn: parent
@@ -241,13 +281,5 @@ Item {
             }
             SystemClock { id: clockSrc; precision: SystemClock.Minutes }
         }
-    }
-
-    FileView {
-        id: osInfo
-        path: "/etc/os-release"
-        readonly property string id_: (/^ID=("?)([^"\n]*)\1/m.exec(text() ?? "") ?? [])[2] ?? ""
-        readonly property string glyph: ({ fedora: "", arch: "", cachyos: "", endeavouros: "", manjaro: "",
-            debian: "", ubuntu: "", nixos: "", opensuse: "", "opensuse-tumbleweed": "", gentoo: "", void: "" })[id_] ?? ""
     }
 }

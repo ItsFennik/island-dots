@@ -15,15 +15,18 @@ It runs on **Hyprland, niri, Sway/SwayFX/Scroll and MangoWC**. Any other composi
 
 - **Menu bar**: distro logo menu, the focused app's name and menus, workspace indicator (numbers or dots), tray, Wi-Fi / Bluetooth / sound / battery, weather, clock. Menus drop down from the bar, and moving across menu titles switches between them, like macOS. Notification banners slide in at the top right.
 - **Dock**: pinned and running apps, magnification, bounce on launch, drag to reorder or pin, right-click menu, trash, optional autohide.
-- **Layouts**: menu bar + Dock, a floating bottom bar (with its own magnification and launch bounce), or a compact pill only as wide as its contents — start, search, apps, status, CPU/RAM and the clock.
+- **Layouts**: menu bar + Dock, a floating bottom bar (with its own magnification, launch bounce, and status menus for Bluetooth, Wi-Fi, sound, weather, notifications and Control Centre), or a compact pill only as wide as its contents — start, search, apps, status, CPU/RAM and the clock.
 - **Desktop widgets**: clock, weather, calendar, now playing (with cover art), system stats.
-- **Spotlight** (apps, calculator, `>` commands) and **Launchpad**.
+- **Spotlight** (apps, calculator, `>` commands, persistent Recently / Frequently used with pinned rows) and **Launchpad**.
 - **Control Centre**: Wi-Fi, Bluetooth, volume, brightness (DDC/CI), media, Do Not Disturb, caffeine.
+- **Sound menu**: output and input devices, plus a volume slider and mute toggle for each app playing audio.
 - **Notifications**: the notification daemon, history, Do Not Disturb.
 - **Clipboard history** (cliphist), **wallpaper picker** (images and video), **Wallhaven** browser.
-- **Themes**: Catppuccin, Nord, Gruvbox, Rosé Pine, Tokyo Night, Kanagawa, Everforest, monochrome, or Material You from your wallpaper via matugen. A theme also recolours GTK 3/4, Qt (Kvantum), compositor borders, Foot, Vesktop and Herdr.
+- **Wallpaper folders**: subfolders of the wallpaper folder show as folder cards in the picker (a folder named after a theme id shows the theme's name); Enter opens one, Backspace/Esc goes back.
+- **Theme wallpapers**: each theme can have wallpapers paired with it (`~/.config/island/theme-walls.json`). Pick a theme in the picker and its wallpapers show up underneath; press P on a wallpaper to pair or unpair it with the current theme.
+- **Themes**: Catppuccin, Nord, Gruvbox, Rosé Pine, Tokyo Night, Kanagawa, Everforest, monochrome, or Material You from your wallpaper via matugen. A theme also recolours GTK 3/4, Qt (Kvantum), compositor borders, Foot, kitty, btop, cava, Vesktop, Herdr and hyprlock.
 - **System Settings**: a macOS-style settings app. Changes apply live to the shell, the compositor (gaps, borders, input, cursor, animations), GTK and Foot.
-- **Lock screen**: big clock over your wallpaper, picture, name and a password pill. Built on ext-session-lock, so it works on every compositor above.
+- **Lock screen**: big clock over your wallpaper, picture, name and a password pill. Built on ext-session-lock, so it works on every compositor above. Choose hyprlock in Settings if you prefer it; its config is generated with the palette.
 - **SDDM theme**: the same look for the login screen, with Sleep / Restart / Shut Down and a session picker.
 
 ## Compositor support
@@ -47,7 +50,7 @@ All of this lives in [`services/Compositor.qml`](services/Compositor.qml). The c
 - `jq`, `curl`, `gdbus` (glib2), `gio`, `notify-send`
 - NetworkManager, BlueZ, PipeWire, UPower (for the Control Centre)
 - Fonts: **Adwaita Sans** (UI) and **JetBrainsMono Nerd Font** (glyphs). Icons: WhiteSur (any icon theme works)
-- Optional: `cliphist` + `wl-clipboard` (clipboard history), `awww` or `swww` (wallpapers), `mpvpaper` + `ffmpeg` (video wallpapers and thumbnails), `matugen` (Material You colours), `ddcutil` (monitor brightness), `foot`, `sddm` (login theme)
+- Optional: `cliphist` + `wl-clipboard` (clipboard history), `awww` or `swww` (wallpapers), `mpvpaper` + `ffmpeg` (video wallpapers and thumbnails), `matugen` (Material You colours), `ddcutil` (monitor brightness), `hyprlock` (optional lock screen), `foot`, `sddm` (login theme)
 
 ## Install
 
@@ -67,7 +70,7 @@ Settings live in `~/.config/island/settings.json`, written by System Settings (<
 
 ### Lock screen
 
-Built in, nothing to install. It locks on any of these:
+Island's own lock screen is built in, nothing to install. It is the default; Settings → Desktop & Widgets → Lock Screen → Locker can hand locking to **hyprlock** instead. `apply-theme.sh` writes `~/.config/hypr/hyprlock.conf` from the palette, so it follows your theme; the verse setting only applies to Island's locker. It locks on any of these:
 
 - the logo menu → Lock Screen, or the Power menu
 - `qs -c island ipc call lock lock` (bind it, e.g. <kbd>Super</kbd>+<kbd>Ctrl</kbd>+<kbd>Q</kbd>)
@@ -91,7 +94,7 @@ Everything can be driven from keybinds or scripts:
 ```
 qs -c island ipc call launcher toggle              # Spotlight
 qs -c island ipc call launchpad toggle
-qs -c island ipc call menu <system|app|notifs|controls|media|clipboard|power|close>
+qs -c island ipc call menu <system|app|notifs|controls|media|clipboard|power|sound|bluetooth|network|close>
 qs -c island ipc call picker <wallpapers|wallhaven|themes|toggle|close>
 qs -c island ipc call settings <toggle|open|close|page NAME|set KEY VALUE|get KEY>
 qs -c island ipc call notifs <toggle|dnd|clear|dismiss>
@@ -117,7 +120,7 @@ components/          shared controls (switches, sliders, menus, …)
 themes/              colour palettes (one JSON each)
 scripts/             wallpaper, Wallhaven, matugen helpers
 apply-settings.sh    pushes settings to the compositor, GTK and Foot
-apply-theme.sh       pushes a theme to GTK, compositor borders, Foot and Vesktop
+apply-theme.sh       pushes a theme to GTK/Qt, compositor borders, terminals, btop, cava, Vesktop, Herdr, hyprlock
 sddm/                login theme + installer
 examples/            compositor glue
 ```

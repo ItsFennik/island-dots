@@ -1,0 +1,7 @@
+{
+  "name": "Aurora", "dark": true,
+  "bg": "#0a0f14", "bg_alt": "#0f151c", "surface": "#161f28", "overlay": "#212c37",
+  "fg": "#e2ecf0", "fg_dim": "#96a8b3", "fg_faint": "#566673",
+  "accent": "#5ef0a8", "accent_fg": "#04170e",
+  "red": "#ff7a85", "green": "#5ef0a8", "yellow": "#f0d97a", "blue": "#6fb6ff", "magenta": "#b98cff", "cyan": "#6be3e0"
+}

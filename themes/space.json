@@ -1,0 +1,7 @@
+{
+  "name": "Space", "dark": true,
+  "bg": "#0b0e15", "bg_alt": "#10141d", "surface": "#181e2a", "overlay": "#232b3a",
+  "fg": "#dde4ef", "fg_dim": "#93a0b5", "fg_faint": "#566175",
+  "accent": "#6aaeff", "accent_fg": "#07101c",
+  "red": "#ff7a6b", "green": "#7fd1a6", "yellow": "#ffc66b", "blue": "#6aaeff", "magenta": "#b49bff", "cyan": "#6fd3e8"
+}

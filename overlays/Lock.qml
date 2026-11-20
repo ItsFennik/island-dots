@@ -31,7 +31,11 @@ Scope {
         watchChanges: true
         onFileChanged: reload()
     }
-    readonly property string wallpaper: (wallState.text() ?? "").trim()
+    readonly property string wallFile: (wallState.text() ?? "").trim()
+    // A video wallpaper shows its poster frame (wallpaper-set.sh caches it as md5(path).jpg).
+    readonly property string wallpaper: /\.(mp4|webm|mkv|mov|m4v|avi)$/i.test(wallFile)
+        ? (Quickshell.env("XDG_CACHE_HOME") || home + "/.cache") + "/island/video-thumbs/" + Qt.md5(wallFile) + ".jpg"
+        : wallFile
 
     Process {
         running: root.user !== ""
@@ -76,7 +80,7 @@ Scope {
         stdout: SplitParser {
             onRead: line => {
                 if (!/\.Session\.Lock \(\)/.test(line)) return;
-                if (root.sessionPath === "" || line.startsWith(root.sessionPath + ":")) LockState.lock();
+                if (root.sessionPath === "" || line.startsWith(root.sessionPath + ":")) Compositor.lock();
             }
         }
         onExited: relisten.restart()

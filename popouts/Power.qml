@@ -208,11 +208,6 @@ Item {
             }
             Text { anchors.verticalCenter: parent.verticalCenter; width: 40; horizontalAlignment: Text.AlignRight
                 text: display.bright + "%"; color: Theme.textDim; font { family: Theme.font; pixelSize: 12 } }
-            Process {
-                running: Popouts.ddc === -2                // only probe until we know
-                command: ["timeout", "4", "ddcutil", "getvcp", "10", "--brief"]
-                stdout: StdioCollector { onStreamFinished: { const m = /C\s+(\d+)\s+(\d+)/.exec(text); Popouts.ddc = m ? Math.round(100 * Number(m[1]) / Math.max(1, Number(m[2]))) : -1; } }
-            }
             Timer { id: setBright; interval: 350; onTriggered: { Popouts.ddc = display.bright; Quickshell.execDetached(["ddcutil", "setvcp", "10", String(display.bright), "--noverify"]); } }
         }
 

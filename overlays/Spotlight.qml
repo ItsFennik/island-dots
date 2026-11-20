@@ -11,7 +11,9 @@ import qs.components
 // screen. Empty: Recently Used + Frequently Used (services/SpotHistory.qml). Typing searches
 // apps, system actions (Lock, Sleep…), files in ~ (3+ letters), math, "> cmd" / "$ cmd" for a
 // shell command, and the web. "?" lists the prefixes. Only exists while open.
-//   ↑/↓ pick · Enter open · Ctrl+1-9 quick select · Shift+Del remove from history
+// Every app launch (from here, Launchpad, the Dock, the bar…) feeds the history, and Ctrl+F
+// pins the selected row so it stays at the top of Frequently used across restarts.
+//   ↑/↓ pick · Enter open · Ctrl+1-9 quick select · Shift+Del remove · Ctrl+F pin/unpin
 //   Ctrl+Enter / right-click: Keep in Dock · Esc clear, then close
 PanelWindow {
     id: win
@@ -34,7 +36,7 @@ PanelWindow {
     implicitWidth: w + 40
     implicitHeight: fieldH + maxRows * rowH + 4 * headH + footH + 40
     color: "transparent"
-    mask: Region { item: card; Region { item: win.catchAll ? catcher : null } }
+    mask: Region { item: card; Region { item: win.catchAll ? catcher : null } Region { item: ctx.visible ? ctx : null } }
 
     WlrLayershell.namespace: "island-spotlight"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -66,7 +68,8 @@ PanelWindow {
         { kind: "help", fill: "> ", title: "> command", sub: "Run a shell command ($ works too)", glyph: "" },
         { kind: "help", fill: "", title: "Math", sub: "2*(3+4), 15% of 80 → type it, Enter copies the result", glyph: "󰃬" },
         { kind: "help", fill: "", title: "Files", sub: "3+ letters also search your home folder", glyph: "" },
-        { kind: "help", fill: "", title: "Web", sub: "Anything else: last row searches DuckDuckGo", glyph: "󰖟" }
+        { kind: "help", fill: "", title: "Web", sub: "Anything else: last row searches DuckDuckGo", glyph: "󰖟" },
+        { kind: "help", fill: "", title: "Frequently used", sub: "Ctrl+F pins the selected row so it stays at the top", glyph: "󰐃" }
     ]
 
     // A history key back to a row (null when the app is gone).
@@ -128,9 +131,10 @@ PanelWindow {
         const out = [];
         const add = (list, section) => list.forEach((r, i) => out.length < maxRows && out.push(Object.assign({}, r, { section: i === 0 ? section : "" })));
         if (q === "") {
-            const rec = SpotHistory.recent.map(fromKey).filter(r => r).slice(0, 3);
+            // Pinned rows live in Frequently used, so keep them out of Recently used.
+            const rec = SpotHistory.recent.filter(k => !SpotHistory.isPinned(k)).map(fromKey).filter(r => r).slice(0, 3);
             const seen = rec.map(r => r.key);
-            const freq = SpotHistory.frequent().filter(k => !seen.includes(k)).map(fromKey).filter(r => r).slice(0, 8 - rec.length);
+            const freq = SpotHistory.frequentOrdered().filter(k => !seen.includes(k)).map(fromKey).filter(r => r).slice(0, 8 - rec.length);
             add(rec, "Recently used");
             add(freq, "Frequently used");
             if (!out.length) add(Apps.search("").slice(0, 8).map(appRow), "Applications");
@@ -159,14 +163,17 @@ PanelWindow {
     onRowsChanged: { index = Math.min(index, Math.max(0, rows.length - 1)); if (!rows.some(r => r.key === confirmKey)) confirmKey = ""; }
     onQueryChanged: { index = 0; confirmKey = ""; }
 
-    function inHistory(r) { return !!r?.key && (SpotHistory.count[r.key] !== undefined || SpotHistory.recent.includes(r.key)); }
+    function inHistory(r) {
+        return !!r?.key && (SpotHistory.count[r.key] !== undefined || SpotHistory.recent.includes(r.key) || SpotHistory.isPinned(r.key));
+    }
 
     function run(r) {
         if (!r) return;
         if (r.kind === "help") { input.text = r.fill; return; }
         if (r.kind === "cmd" && !r.cmd) return;
         if (r.confirm && confirmKey !== r.key) { confirmKey = r.key; return; }
-        if (r.key) SpotHistory.record(r.key);
+        // Apps are recorded by Apps.launch() so Dock/Launchpad launches count too.
+        if (r.key && r.kind !== "app") SpotHistory.record(r.key);
         Popouts.closeOverlays();
         if (r.kind === "app") Apps.launch(r.entry, r.entry.id);
         else if (r.kind === "sys") { if (r.f) r.f(); else Quickshell.execDetached(r.cmd); }
@@ -174,6 +181,94 @@ PanelWindow {
         else if (r.kind === "calc") Quickshell.execDetached(["wl-copy", r.title]);
         else if (r.kind === "file") Quickshell.execDetached(["xdg-open", r.path]);
         else if (r.kind === "web") Quickshell.execDetached(["xdg-open", "https://duckduckgo.com/?q=" + encodeURIComponent(q)]);
+    }
+
+    // ── Right-click menu ──────────────────────────────────────────────
+    property var ctxRow: null
+    function openCtx(r, p) {
+        if (!ctxItems(r).length) return;
+        ctx.px = p.x; ctx.py = p.y;
+        ctxRow = r;
+    }
+    function closeCtx() { ctxRow = null; input.forceActiveFocus(); }
+    function ctxItems(r) {
+        if (!r) return [];
+        const out = [], hist = () => {
+            if (!r.key) return;
+            out.push({ sep: true });
+            out.push({ text: SpotHistory.isPinned(r.key) ? "Unpin from Top" : "Pin to Top", shortcut: "⌃F", f: () => SpotHistory.togglePin(r.key) });
+            if (win.inHistory(r)) out.push({ text: "Remove from Recents", shortcut: "⇧⌦", f: () => SpotHistory.forget(r.key) });
+        };
+        if (r.kind === "app") {
+            out.push({ header: true, text: r.title });
+            out.push({ text: "Open", f: () => win.run(r) });
+            const acts = r.entry?.actions ?? [];
+            if (acts.length) out.push({ sep: true });
+            for (const a of acts) out.push({ text: a.name, f: () => { Popouts.closeOverlays(); a.execute(); } });
+            out.push({ sep: true });
+            out.push({ text: DockPins.has(r.entry.id) ? "Unpin from Taskbar" : "Pin to Taskbar", shortcut: "⌃↵", f: () => DockPins.toggle(r.entry.id) });
+            hist();
+        } else if (r.kind === "file") {
+            const dir = r.path.replace(/\/[^/]*$/, "");
+            out.push({ header: true, text: r.title });
+            out.push({ text: "Open", f: () => win.run(r) });
+            out.push({ text: "Open Containing Folder", f: () => { Popouts.closeOverlays(); Quickshell.execDetached(["xdg-open", dir]); } });
+            out.push({ sep: true });
+            out.push({ text: "Copy Path", f: () => Quickshell.execDetached(["wl-copy", r.path]) });
+            out.push({ text: "Copy Name", f: () => Quickshell.execDetached(["wl-copy", r.title]) });
+        } else if (r.kind === "cmd" && r.cmd) {
+            out.push({ text: "Run", f: () => win.run(r) });
+            out.push({ text: "Copy Command", f: () => Quickshell.execDetached(["wl-copy", r.cmd]) });
+            hist();
+        } else if (r.kind === "calc") {
+            out.push({ text: "Copy Result", f: () => win.run(r) });
+            out.push({ text: "Copy Expression", f: () => Quickshell.execDetached(["wl-copy", win.query.replace(/^=/, "")]) });
+        } else if (r.kind === "web") {
+            out.push({ text: "Search the Web", f: () => win.run(r) });
+            out.push({ text: "Copy Search Text", f: () => Quickshell.execDetached(["wl-copy", win.query]) });
+        } else if (r.kind === "sys") {
+            out.push({ header: true, text: r.title });
+            out.push({ text: r.confirm ? r.title + "…" : r.title, f: () => win.run(r) });
+            hist();
+        }
+        return out;
+    }
+    // A click anywhere else while the menu is open just closes the menu.
+    MouseArea {
+        anchors.fill: parent
+        z: 9
+        visible: win.ctxRow !== null
+        acceptedButtons: Qt.AllButtons
+        onPressed: win.closeCtx()
+    }
+    Rectangle {
+        id: ctx
+        z: 10
+        property real px: 0
+        property real py: 0
+        // at the pointer, kept on screen (the size follows the items, so bind rather than set once)
+        x: Math.round(Math.max(8, Math.min(win.width - width - 8, px)))
+        y: Math.round(Math.max(8, Math.min(win.height - height - 8, py)))
+        visible: win.ctxRow !== null
+        width: (ctxLoader.item?.implicitWidth ?? 0) + 10
+        height: (ctxLoader.item?.implicitHeight ?? 0) + 10
+        radius: 10
+        color: Theme.menuBg
+        border { width: 1; color: Theme.menuEdge }
+        // Created only while open: MenuList takes keyboard focus when it's created, and a hidden
+        // one made with the window stole it from the search field (Super+D couldn't type).
+        Loader {
+            id: ctxLoader
+            x: 5; y: 5
+            active: win.ctxRow !== null
+            sourceComponent: MenuList {
+                minWidth: 190
+                items: win.ctxItems(win.ctxRow)
+                onDone: win.closeCtx()
+                Keys.onEscapePressed: win.closeCtx()
+                Keys.onLeftPressed: win.closeCtx()
+            }
+        }
     }
 
     // ── Card ──────────────────────────────────────────────────────────
@@ -231,6 +326,8 @@ PanelWindow {
                     else if (e.key === Qt.Key_Down || e.key === Qt.Key_Tab || (ctrl && (e.key === Qt.Key_J || e.key === Qt.Key_N))) { if (n) win.index = (win.index + 1) % n; }
                     else if (e.key === Qt.Key_Up || e.key === Qt.Key_Backtab || (ctrl && (e.key === Qt.Key_K || e.key === Qt.Key_P))) { if (n) win.index = (win.index + n - 1) % n; }
                     else if (ctrl && e.key >= Qt.Key_1 && e.key <= Qt.Key_9) win.run(win.rows[e.key - Qt.Key_1]);
+                    else if (ctrl && e.key === Qt.Key_F) { if (r?.key) SpotHistory.togglePin(r.key); }
+                    else if (e.key === Qt.Key_Menu || (shift && e.key === Qt.Key_F10)) win.openCtx(r, card.mapToItem(win.contentItem, 60, win.fieldH + 30));
                     else if (shift && e.key === Qt.Key_Delete) { if (win.inHistory(r)) SpotHistory.forget(r.key); }
                     else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && ctrl) { if (r?.kind === "app") DockPins.toggle(r.entry.id); }
                     else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) win.run(r);
@@ -276,7 +373,7 @@ PanelWindow {
                         cursorShape: Qt.PointingHandCursor
                         onEntered: win.index = rowCol.index
                         onClicked: e => {
-                            if (e.button === Qt.RightButton) { if (rowCol.r.kind === "app") DockPins.toggle(rowCol.r.entry.id); }
+                            if (e.button === Qt.RightButton) win.openCtx(rowCol.r, row.mapToItem(win.contentItem, e.x, e.y));
                             else win.run(rowCol.r);
                         }
                         Rectangle { anchors.fill: parent; radius: 8; color: row.hot ? win.sel : "transparent" }
@@ -331,6 +428,13 @@ PanelWindow {
                             spacing: 8
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
+                                visible: SpotHistory.isPinned(rowCol.r.key)
+                                text: "Pinned"
+                                color: Theme.textFaint
+                                font { family: win.family; pixelSize: 10 }
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
                                 visible: rowCol.r.kind === "app" && DockPins.has(rowCol.r.entry.id)
                                 text: "In Dock"
                                 color: Theme.textFaint
@@ -370,7 +474,7 @@ PanelWindow {
             }
             Row {
                 anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-                spacing: 14
+                spacing: 10
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: foot.history ? "History" : win.q === "?" ? "Help" : "Results"
@@ -379,11 +483,15 @@ PanelWindow {
                 }
                 Key { keys: "↑↓"; label: "Navigate" }
                 Key { keys: "↵"; label: "Open" }
-                Key { keys: "Ctrl 1-9"; label: "Quick select" }
+                Key { keys: "Ctrl 1-9"; label: "Jump" }
                 Key {
                     id: forget
                     visible: win.inHistory(win.rows[win.index])
-                    keys: "⇧ Del"; label: "Remove from history"
+                    keys: "⇧ Del"; label: "Remove"
+                }
+                Key {
+                    visible: !!win.rows[win.index]?.key
+                    keys: "Ctrl F"; label: SpotHistory.isPinned(win.rows[win.index]?.key) ? "Unpin" : "Pin"
                 }
                 Key {
                     visible: !forget.visible && win.rows[win.index]?.kind === "app"

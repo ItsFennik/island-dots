@@ -1,0 +1,7 @@
+{
+  "name": "Abyss", "dark": true,
+  "bg": "#071216", "bg_alt": "#0b181d", "surface": "#112229", "overlay": "#1a2f37",
+  "fg": "#d8eef0", "fg_dim": "#8fb0b5", "fg_faint": "#4f6a70",
+  "accent": "#3fd6c6", "accent_fg": "#03191a",
+  "red": "#ff7b7b", "green": "#6fdc9c", "yellow": "#f2d47a", "blue": "#5fb3ff", "magenta": "#b79cff", "cyan": "#3fd6c6"
+}

@@ -37,7 +37,7 @@ PanelWindow {
     readonly property bool mine: Popouts.current !== "" && Popouts.screen === screen.name
     property string shown: ""
     property bool expanded: false
-    readonly property var menus: ["system", "app", "go", "window", "help", "tray", "sound", "network"]
+    readonly property var menus: ["system", "app", "go", "window", "help", "tray", "sound", "bluetooth", "network", "appctx"]
     readonly property bool isMenu: menus.includes(shown)
 
     // Where the open popout hangs from (window x), and which edge it lines up with.
@@ -45,8 +45,8 @@ PanelWindow {
     property real anchorR: width - 8
     property string align: "right"
     property bool anchored: false           // set by a click; IPC opens fall back to defaults
-    readonly property var defaultAlign: ({ system: "left", app: "left", go: "left", window: "left", help: "left", notifs: "right", controls: "right", sound: "right", network: "right", media: "right", weather: "right",
-                                           tray: "right", power: "right", clipboard: "center", wallpapers: "center", wallhaven: "center", themes: "center" })
+    readonly property var defaultAlign: ({ system: "left", app: "left", go: "left", window: "left", help: "left", notifs: "right", controls: "right", sound: "right", bluetooth: "right", network: "right", media: "right", weather: "right",
+                                           tray: "right", appctx: "center", power: "right", clipboard: "center", wallpapers: "center", wallhaven: "center", themes: "center" })
 
     function openFrom(name, item, how) {
         const p = item.mapToItem(null, 0, 0);
@@ -55,9 +55,18 @@ PanelWindow {
     }
     // macOS: with a menu open, moving across the menu titles switches menus.
     function slide(name, item) { if (expanded && isMenu && shown !== name && shown !== "tray") openFrom(name, item, "left"); }
+    // Runs from both onMineChanged and onCurrentChanged, so it must be idempotent: a second call
+    // for the same popout used to see `anchored` already spent and snap it to the screen edge.
     function sync() {
         if (mine) {
-            if (!anchored) { align = defaultAlign[Popouts.current] ?? "center"; anchorL = 8; anchorR = width - 8; }
+            if (expanded && shown === Popouts.current) { anchored = false; return; }
+            // Not opened by a click (IPC, keys, or a popout opening another, like Control Centre
+            // → Sound): stay where the open one was; from closed, use the bar's own edges
+            // (the compact pill's, not the screen's).
+            if (!anchored && !expanded) {
+                align = defaultAlign[Popouts.current] ?? "center";
+                anchorL = bar.x + 8; anchorR = bar.x + bar.width - 8;
+            }
             anchored = false;
             shown = Popouts.current; expanded = true;
         } else if (expanded) { expanded = false; shown = ""; reclaim.restart(); }
@@ -328,7 +337,9 @@ PanelWindow {
     Component { id: cWeather; Forecast {} }
     Component { id: cTray; TrayMenu {} }
     Component { id: cSound; SoundMenu {} }
+    Component { id: cBluetooth; BluetoothMenu {} }
     Component { id: cNetwork; NetworkMenu {} }
+    Component { id: cAppCtx; AppContext {} }
 
     // The dropdown: a separate layer surface that only exists while a menu is open, at a fixed
     // size so switching menus doesn't resize it either. Hyprland fades it in/out on the GPU
@@ -395,6 +406,7 @@ PanelWindow {
 
                 x: win.align === "left" ? Math.max(6, Math.min(menuWin.width - pw - 6, win.anchorL - 2))
                  : win.align === "right" ? Math.max(6, Math.min(menuWin.width - pw - 6, win.anchorR - pw + 2))
+                 : win.align === "above" ? Math.max(6, Math.min(menuWin.width - pw - 6, Math.round((win.anchorL + win.anchorR - pw) / 2)))
                  : (menuWin.width - pw) / 2
                 y: win.taskbar ? menuWin.height - win.barH - height - (bare ? 8 : 6)
                               : win.barH + (bare ? 8 : win.isMenu ? 1 : 4)
@@ -428,7 +440,7 @@ PanelWindow {
                 Loader {
                     id: pop
                     readonly property var map: ({ system: cSystem, app: cApp, go: cGo, window: cWindow, help: cHelp, controls: cControls, clipboard: cClipboard, power: cPower,
-                                                  wallpapers: cPicker, wallhaven: cPicker, themes: cPicker, notifs: cNotifs, media: cMedia, weather: cWeather, tray: cTray, sound: cSound, network: cNetwork })
+                                                  wallpapers: cPicker, wallhaven: cPicker, themes: cPicker, notifs: cNotifs, media: cMedia, weather: cWeather, tray: cTray, sound: cSound, bluetooth: cBluetooth, network: cNetwork, appctx: cAppCtx })
                     active: win.shown !== ""
                     sourceComponent: map[win.shown] ?? null
                     focus: true

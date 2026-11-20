@@ -1,0 +1,7 @@
+{
+  "name": "Orchid", "dark": true,
+  "bg": "#16151b", "bg_alt": "#1d1c23", "surface": "#26242e", "overlay": "#34313f",
+  "fg": "#ecebf2", "fg_dim": "#a09dab", "fg_faint": "#625f6e",
+  "accent": "#c2a4ff", "accent_fg": "#17131f",
+  "red": "#ff6b81", "green": "#6fd6a8", "yellow": "#f4c97a", "blue": "#83aaff", "magenta": "#d8a1ff", "cyan": "#75d7e6"
+}

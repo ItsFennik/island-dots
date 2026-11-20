@@ -216,14 +216,7 @@ Item {
                 value: display.bright / 100
                 onMoved: v => { display.bright = Math.round(v * 100); setBright.restart(); }
             }
-            // Probe once per session (ddcutil talks I2C over the GPU; on NVIDIA every call stalls
-            // the display for a moment, which stuttered the cursor each time the menu opened).
-            // After that the cached value is used; drags write it a moment after the last move.
-            Process {
-                running: Popouts.ddc === -2         // only probe until we know
-                command: ["timeout", "4", "ddcutil", "getvcp", "10", "--brief"]
-                stdout: StdioCollector { onStreamFinished: { const m = /C\s+(\d+)\s+(\d+)/.exec(text); Popouts.ddc = m ? Math.round(100 * Number(m[1]) / Math.max(1, Number(m[2]))) : -1; display.bright = Popouts.ddc; } }
-            }
+            // Popouts probes ddcutil once at start; drags write it a moment after the last move.
             Timer { id: setBright; interval: 350; onTriggered: { Popouts.ddc = display.bright; Quickshell.execDetached(["ddcutil", "setvcp", "10", String(display.bright), "--noverify"]); } }
         }
 

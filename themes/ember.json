@@ -1,0 +1,7 @@
+{
+  "name": "Ember", "dark": true,
+  "bg": "#14100e", "bg_alt": "#1a1512", "surface": "#241d19", "overlay": "#322822",
+  "fg": "#f1e6dc", "fg_dim": "#b3a194", "fg_faint": "#6e6058",
+  "accent": "#ff8a4c", "accent_fg": "#1a0d05",
+  "red": "#ff6b5b", "green": "#a9d18e", "yellow": "#ffc66b", "blue": "#7fb0e0", "magenta": "#e29bc0", "cyan": "#7fd0c4"
+}

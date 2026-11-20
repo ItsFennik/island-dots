@@ -44,7 +44,7 @@ make_thumb() {
 
 list_videos() {
   [ -d "$VDIR" ] || return 0
-  find "$VDIR" -maxdepth 1 -type f \( -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' \
+  find "$VDIR" -maxdepth 2 -type f \( -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' \
     -o -iname '*.mov' -o -iname '*.m4v' -o -iname '*.avi' \) 2>/dev/null
 }
 
@@ -127,13 +127,16 @@ if is_video "$img"; then
   # Let the poster transition finish, then swap in the video on top of it.
   [ "$mode" = "restore" ] || sleep "$DURATION"
   stop_video
-  mpvpaper -f -p -a FULL -o "$MPV_OPTS" ALL "$img" >/dev/null 2>&1
+  # IPC socket: ~/.config/mango/scripts/wallpaper-autopause.py pauses the video while windows cover it.
+  mpvpaper -f -p -a FULL -o "$MPV_OPTS input-ipc-server=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/mpvpaper.sock" ALL "$img" >/dev/null 2>&1
 else
   # Kill the video once the new image is underneath, so the switch doesn't flash.
   stop_video
 fi
 
 printf '%s\n' "$img" > "$STATE_FILE"
+# hyprlock's background (~/.config/hypr/hyprlock.conf): the image, or a video's poster frame.
+[ -f "$still" ] && ln -sfn "$still" "${XDG_CACHE_HOME:-$HOME/.cache}/island/lock-wallpaper"
 
 # Wallpaper colours: rebuild the matugen theme for the new image (or video poster).
 if [ "$mode" != restore ] && [ "$(setting matugen false)" = true ] && [ -f "$still" ]; then

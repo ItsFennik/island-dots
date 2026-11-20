@@ -23,7 +23,7 @@ import qs.overlays
 //   qs -c island ipc call launcher toggle      (Spotlight)
 //   qs -c island ipc call launchpad toggle
 //   qs -c island ipc call overview toggle     (niri-style workspace overview)
-//   qs -c island ipc call menu <system|app|notifs|controls|clipboard|power|close>
+//   qs -c island ipc call menu <system|app|notifs|controls|clipboard|power|sound|bluetooth|network|close>
 //   qs -c island ipc call picker <wallpapers|wallhaven|themes|toggle|close>
 //   qs -c island ipc call settings toggle
 //   qs -c island ipc call notifs <toggle|dnd|clear|dismiss>
@@ -36,6 +36,9 @@ import qs.overlays
 // Popout contents only exist while open, so the idle cost is the bar itself.
 ShellRoot {
     id: root
+
+    // Drives (automount / mount at login) has to exist from the start; it idles while both are off.
+    readonly property bool drivesWatching: Drives.watching
 
     Variants {
         model: Quickshell.screens
@@ -109,7 +112,7 @@ ShellRoot {
     Lock { id: lock }
     IpcHandler {
         target: "lock"
-        function lock(): void { LockState.lock(); }
+        function lock(): void { Compositor.lock(); }
         function preview(): void { lock.previewing = !lock.previewing; }
         function status(): string { return LockState.locked ? "locked" : "unlocked"; }
     }
@@ -134,6 +137,7 @@ ShellRoot {
         function clipboard(): void { Popouts.toggle("clipboard"); }
         function power(): void { Popouts.toggle("power"); }
         function sound(): void { Popouts.toggle("sound"); }
+        function bluetooth(): void { Popouts.toggle("bluetooth"); }
         function network(): void { Popouts.toggle("network"); }
         function close(): void { Popouts.close(); }
     }

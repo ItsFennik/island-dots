@@ -25,7 +25,7 @@ Item {
     property int thumbRev: 0
 
     implicitWidth: Math.min(Screen.width - 120, 1400)
-    implicitHeight: tabs.height + 14 + searchBar.height + band.height + 14 + hints.implicitHeight + 6
+    implicitHeight: tabs.height + 14 + searchBar.height + band.height + strip.height + strip.anchors.topMargin + 14 + hints.implicitHeight + 6
 
     focus: true
     Component.onCompleted: { Theme.rescan(); thumbs.running = true; if (onHaven) havenStart(); }
@@ -125,10 +125,56 @@ Item {
         onExited: root.thumbRev++
     }
 
+    // ── Theme → paired wallpapers (services/ThemeWalls.qml) ────────────
+    // Enter on a theme applies it and drops into the wallpaper row below; Enter there sets the
+    // wallpaper and closes. ↓/↑ move between the rows.
+    readonly property bool onThemes: tab === "themes"
+    readonly property var centredTheme: Theme.themes[themeView.currentIndex] ?? null
+    readonly property var themeWalls: onThemes && centredTheme ? ThemeWalls.forTheme(centredTheme.id) : []
+    property bool stripFocus: false
+    property int stripIndex: 0
+    onThemeWallsChanged: { stripFocus = false; stripIndex = Math.max(0, themeWalls.indexOf(currentWall)); }
+
+    function isVideo(p) { return /\.(mp4|webm|mkv|mov|m4v|avi)$/i.test(p); }
+
+    // A hand-picked theme replaces wallpaper colours (same as Settings' theme cards). Returns true
+    // if matugen was on, so the caller can hold the wallpaper back until that setting is saved
+    // (otherwise wallpaper-set.sh would rebuild matugen and re-apply it over this theme).
+    function applyTheme(id) {
+        const wasMatugen = id !== "matugen" && (Config.saved.matugen || Config.values.matugen);
+        if (wasMatugen) Config.commit("matugen", false);
+        if (id !== Theme.current) Theme.apply(id);
+        return wasMatugen;
+    }
+    property string lastRandom: ""         // set by themeRandom(); not yet in the state file
+    function applyThemeWall() {
+        const t = centredTheme, w = themeWalls[stripIndex];
+        if (!t || !w) return;
+        const wait = applyTheme(t.id);
+        if (w === currentWall || w === lastRandom) return;
+        lastRandom = "";
+        ThemeWalls.setWall(w, wait);
+    }
+    // Apply the centred theme plus a random wallpaper of its own; highlight that one in the row.
+    function themeRandom() {
+        if (!centredTheme) return "";
+        const w = ThemeWalls.applyRandom(centredTheme.id, applyTheme(centredTheme.id));
+        lastRandom = w;
+        if (w) stripIndex = Math.max(0, themeWalls.indexOf(w));
+        return w;
+    }
+    function themeEnter() {
+        if (stripFocus) { applyThemeWall(); Popouts.close(); return; }
+        if (themeRandom()) stripFocus = true;
+        else Popouts.close();
+    }
+
     function apply() {
         const i = view.currentIndex;
         if (i < 0) return;
-        if (onWalls) Quickshell.execDetached([wallSetter, walls.get(i).filePath]);
+        if (onThemes && stripFocus) { applyThemeWall(); return; }
+        if (onWalls && walls.get(i).isDir) openFolder(walls.get(i).fileBaseName);
+        else if (onWalls) Quickshell.execDetached([wallSetter, walls.get(i).filePath]);
         else if (onHaven) {
             const it = haven.get(i);
             if (it.file === currentWall) return;
@@ -136,7 +182,7 @@ Item {
             // Detached: the download keeps going after the picker closes.
             Quickshell.execDetached([Wallhaven.script, "set", it.wid, it.full]);
         }
-        else Theme.apply(Theme.themes[i].id);
+        else themeRandom();                 // Space again re-rolls the wallpaper
     }
     function switchTab(back) {
         const n = tabOrder.length, i = tabOrder.indexOf(tab);
@@ -172,14 +218,46 @@ Item {
             event.accepted = true;
             return;
         }
+        // Wallpaper row under the theme carousel.
+        if (onThemes && stripFocus) {
+            const n = themeWalls.length;
+            switch (event.key) {
+            case Qt.Key_Left: case Qt.Key_H: stripIndex = Math.max(0, stripIndex - 1); break;
+            case Qt.Key_Right: case Qt.Key_L: stripIndex = Math.min(n - 1, stripIndex + 1); break;
+            case Qt.Key_Home: stripIndex = 0; break;
+            case Qt.Key_End: stripIndex = n - 1; break;
+            case Qt.Key_Up: case Qt.Key_K: stripFocus = false; break;
+            case Qt.Key_Escape: stripFocus = false; break;
+            case Qt.Key_Space: applyThemeWall(); break;
+            case Qt.Key_Return: case Qt.Key_Enter: themeEnter(); break;
+            case Qt.Key_Tab: case Qt.Key_Backtab: switchTab(event.key === Qt.Key_Backtab); break;
+            default: return;
+            }
+            event.accepted = true;
+            return;
+        }
         switch (event.key) {
         case Qt.Key_Tab: case Qt.Key_Backtab: switchTab(event.key === Qt.Key_Backtab); break;
         case Qt.Key_Left: case Qt.Key_H: view.decrementCurrentIndex(); break;
         case Qt.Key_Right: case Qt.Key_L: view.incrementCurrentIndex(); break;
         case Qt.Key_Home: view.currentIndex = 0; break;
         case Qt.Key_End: view.currentIndex = view.count - 1; break;
+        case Qt.Key_Down: case Qt.Key_J:
+            if (!onThemes || !themeWalls.length) return;
+            stripFocus = true; break;
+        case Qt.Key_P:
+            // Pair / unpair the highlighted wallpaper with the current theme.
+            if (!onWalls || wallView.currentIndex < 0 || walls.get(wallView.currentIndex).isDir) return;
+            ThemeWalls.toggle(Theme.current, walls.get(wallView.currentIndex).filePath); break;
+        case Qt.Key_Backspace: case Qt.Key_Escape:
+            if (!onWalls || !inFolder) return;
+            closeFolder(); break;
         case Qt.Key_Space: apply(); break;
-        case Qt.Key_Return: case Qt.Key_Enter: apply(); Popouts.close(); break;
+        case Qt.Key_Return: case Qt.Key_Enter:
+            if (onThemes) themeEnter();
+            else if (onWalls && wallView.currentIndex >= 0 && walls.get(wallView.currentIndex)?.isDir) apply();
+            else { apply(); Popouts.close(); }
+            break;
         default: return;
         }
         event.accepted = true;
@@ -193,11 +271,21 @@ Item {
         onLoaded: root.currentWall = text().trim()
     }
 
-    // Images (wallDir) followed by videos (videoDir, played with mpvpaper).
+    // Subfolders of wallDir / videoDir show as folder cards (named after the theme when the folder
+    // is a theme id); Enter opens one, Backspace/Esc goes back. Loose files sit after the folders.
+    // Inside a folder: its images (wallDir/<folder>) followed by its videos (videoDir/<folder>).
+    readonly property var imageFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.avif", "*.JPG", "*.JPEG", "*.PNG", "*.WEBP"]
+    property string wallFolder: ""         // "" = top level
+    property string wantSel: ""            // path to select once the model is rebuilt
+    readonly property bool inFolder: wallFolder !== ""
+    function folderName(n) { return Theme.themes.find(t => t.id === n)?.name ?? n; }
+    function openFolder(n) { wantSel = ""; wallFolder = n; }
+    function closeFolder() { wantSel = Config.wallDir + "/" + wallFolder; wallFolder = ""; }
+
     FolderListModel {
         id: imgs
-        folder: "file://" + Config.wallDir
-        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.avif", "*.JPG", "*.JPEG", "*.PNG", "*.WEBP"]
+        folder: "file://" + Config.wallDir + (root.inFolder ? "/" + root.wallFolder : "")
+        nameFilters: root.imageFilters
         showDirs: false
         sortField: FolderListModel.Name
         onStatusChanged: Qt.callLater(root.rebuild)
@@ -205,24 +293,59 @@ Item {
     }
     FolderListModel {
         id: vids
-        folder: "file://" + Config.videoDir
+        folder: "file://" + Config.videoDir + (root.inFolder ? "/" + root.wallFolder : "")
         nameFilters: ["*.mp4", "*.webm", "*.mkv", "*.mov", "*.m4v", "*.avi", "*.MP4", "*.WEBM", "*.MKV", "*.MOV"]
         showDirs: false
         sortField: FolderListModel.Name
         onStatusChanged: Qt.callLater(root.rebuild)
         onCountChanged: Qt.callLater(root.rebuild)
     }
+    FolderListModel {
+        id: imgDirs
+        folder: "file://" + Config.wallDir
+        showFiles: false
+        sortField: FolderListModel.Name
+        onStatusChanged: Qt.callLater(root.rebuild)
+        onCountChanged: Qt.callLater(root.rebuild)
+    }
+    FolderListModel {
+        id: vidDirs
+        folder: "file://" + Config.videoDir
+        showFiles: false
+        sortField: FolderListModel.Name
+        onStatusChanged: Qt.callLater(root.rebuild)
+        onCountChanged: Qt.callLater(root.rebuild)
+    }
     ListModel { id: walls }
     function rebuild() {
-        if (imgs.status !== FolderListModel.Ready || vids.status !== FolderListModel.Ready) return;
+        if ([imgs, vids, imgDirs, vidDirs].some(m => m.status === FolderListModel.Loading)) return;
         const items = [];
+        if (!inFolder) {
+            // Folders from both roots, merged by name; the card opens wallDir/<name> + videoDir/<name>.
+            const names = [];
+            for (const m of [imgDirs, vidDirs])
+                for (let i = 0; i < m.count; i++) { const n = m.get(i, "fileName"); if (!names.includes(n)) names.push(n); }
+            names.sort((a, b) => folderName(a).localeCompare(folderName(b)));
+            for (const n of names)
+                items.push({ filePath: Config.wallDir + "/" + n, fileBaseName: n, video: false, isDir: true });
+        }
         for (let i = 0; i < imgs.count; i++)
-            items.push({ filePath: imgs.get(i, "filePath"), fileBaseName: imgs.get(i, "fileBaseName"), video: false });
+            items.push({ filePath: imgs.get(i, "filePath"), fileBaseName: imgs.get(i, "fileBaseName"), video: false, isDir: false });
         for (let i = 0; i < vids.count; i++)
-            items.push({ filePath: vids.get(i, "filePath"), fileBaseName: vids.get(i, "fileBaseName"), video: true });
-        if (items.length === walls.count && items.every((it, i) => walls.get(i).filePath === it.filePath)) return;
-        walls.clear();
-        for (const it of items) walls.append(it);
+            items.push({ filePath: vids.get(i, "filePath"), fileBaseName: vids.get(i, "fileBaseName"), video: true, isDir: false });
+        if (items.length !== walls.count || !items.every((it, i) => walls.get(i).filePath === it.filePath)) {
+            walls.clear();
+            for (const it of items) walls.append(it);
+        }
+        // Select what we came back from, else the current wallpaper (or its folder), else the first.
+        let sel = items.findIndex(it => it.filePath === wantSel);
+        if (sel < 0) sel = items.findIndex(it => it.isDir ? wallInDir(it.fileBaseName) : it.filePath === currentWall);
+        wantSel = "";
+        wallView.currentIndex = Math.max(0, sel);
+        wallView.positionViewAtIndex(wallView.currentIndex, ListView.Center);
+    }
+    function wallInDir(n) {
+        return currentWall.startsWith(Config.wallDir + "/" + n + "/") || currentWall.startsWith(Config.videoDir + "/" + n + "/");
     }
 
     // ── Tabs ──────────────────────────────────────────────────────────
@@ -300,25 +423,40 @@ Item {
             visible: root.onWalls
             itemWidth: Math.round(height * 16 / 9 * 0.9)
             model: walls
-            onActivated: { root.apply(); Popouts.close(); }
+            onActivated: { const it = walls.get(currentIndex); root.apply(); if (!it?.isDir) Popouts.close(); }
             initialIndex: {
-                for (let i = 0; i < walls.count; i++)
-                    if (walls.get(i).filePath === root.currentWall) return i;
+                for (let i = 0; i < walls.count; i++) {
+                    const it = walls.get(i);
+                    if (it.isDir ? root.wallInDir(it.fileBaseName) : it.filePath === root.currentWall) return i;
+                }
                 return 0;
             }
 
             delegate: CarouselItem {
                 id: wd
                 required property string filePath
+                required property string fileBaseName
                 required property bool video
+                required property bool isDir
                 carousel: wallView
                 accent: Theme.accent
-                selected: filePath === root.currentWall
+                selected: isDir ? root.wallInDir(fileBaseName) : filePath === root.currentWall
+
+                // A folder's cover is its first image (only listed while the card exists).
+                FolderListModel {
+                    id: cover
+                    folder: wd.isDir ? "file://" + wd.filePath : ""
+                    nameFilters: root.imageFilters
+                    showDirs: false
+                    sortField: FolderListModel.Name
+                }
+                readonly property string coverPath: isDir && cover.count > 0 ? cover.get(0, "filePath") : ""
 
                 Image {
                     id: wimg
                     anchors.fill: parent
-                    source: "file://" + (wd.video ? root.thumbDir + "/" + Qt.md5(wd.filePath) + ".jpg" : wd.filePath)
+                    source: wd.isDir ? (wd.coverPath ? "file://" + wd.coverPath : "")
+                        : "file://" + (wd.video ? root.thumbDir + "/" + Qt.md5(wd.filePath) + ".jpg" : wd.filePath)
                     // Decoded at the centre card's exact size (side cards are scaled down), off the GUI thread.
                     sourceSize { width: wd.width * Screen.devicePixelRatio; height: wd.height * Screen.devicePixelRatio }
                     fillMode: Image.PreserveAspectCrop
@@ -333,6 +471,36 @@ Item {
                             if (wd.video && wimg.status !== Image.Ready) { const s = wimg.source; wimg.source = ""; wimg.source = s; }
                         }
                     }
+                }
+
+                // Folder: dark band along the bottom with the theme's name and item count.
+                Rectangle {
+                    visible: wd.isDir
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: 54
+                    color: Qt.rgba(0, 0, 0, 0.6)
+                    Row {
+                        anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
+                        spacing: 10
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "📁"; font.pixelSize: 20 }
+                        Column {
+                            anchors.verticalCenter: parent.verticalCenter
+                            Text { text: wd.isDir ? root.folderName(wd.fileBaseName) : ""; color: "white"
+                                font { family: Theme.font; pixelSize: 16; weight: Font.DemiBold } }
+                            Text { text: cover.count + (cover.count === 1 ? " picture" : " pictures"); color: Qt.rgba(1, 1, 1, 0.7)
+                                font { family: Theme.font; pixelSize: 11 } }
+                        }
+                    }
+                }
+
+                // Paired with the current theme (P toggles)
+                Rectangle {
+                    visible: !wd.isDir && ThemeWalls.has(Theme.current, wd.filePath)
+                    anchors { left: parent.left; top: parent.top; margins: 10 }
+                    width: pairText.implicitWidth + 16; height: 22; radius: 11
+                    color: Qt.rgba(0, 0, 0, 0.55)
+                    Text { id: pairText; anchors.centerIn: parent; text: "♥ " + (Theme.pal.name ?? Theme.current); color: "white"
+                        font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold } }
                 }
 
                 // Video badge
@@ -416,7 +584,7 @@ Item {
             visible: root.tab === "themes"
             itemWidth: Math.round(height * 1.25)
             model: Theme.themes
-            onActivated: root.apply()
+            onActivated: root.themeEnter()
             initialIndex: Math.max(0, Theme.themes.findIndex(t => t.id === Theme.current))
 
             delegate: CarouselItem {
@@ -484,15 +652,101 @@ Item {
         }
     }
 
+    // ── Wallpapers paired with the centred theme ──────────────────────
+    Item {
+        id: strip
+        anchors { top: band.bottom; topMargin: root.onThemes ? 10 : 0 }
+        width: parent.width
+        height: root.onThemes ? 84 : 0
+        visible: root.onThemes
+
+        ListView {
+            id: stripView
+            anchors { horizontalCenter: parent.horizontalCenter; verticalCenter: parent.verticalCenter }
+            width: Math.min(contentWidth, parent.width - 40)
+            height: 78
+            orientation: ListView.Horizontal
+            spacing: 10
+            clip: true
+            interactive: contentWidth > width
+            boundsBehavior: Flickable.StopAtBounds
+            model: root.themeWalls
+            currentIndex: root.stripIndex
+            highlightFollowsCurrentItem: false
+            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+
+            delegate: Item {
+                id: sw
+                required property string modelData
+                required property int index
+                readonly property bool focused: root.stripFocus && root.stripIndex === index
+                readonly property bool applied: modelData === root.currentWall
+                width: 128; height: 78
+
+                Rectangle {
+                    id: frame
+                    anchors { fill: parent; margins: 3 }
+                    radius: 7
+                    color: Theme.control
+                    clip: true
+                    Image {
+                        anchors.fill: parent
+                        source: "file://" + (root.isVideo(sw.modelData) ? root.thumbDir + "/" + Qt.md5(sw.modelData) + ".jpg" : sw.modelData)
+                        sourceSize { width: 122 * Screen.devicePixelRatio; height: 72 * Screen.devicePixelRatio }
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: false
+                        opacity: status === Image.Ready ? (root.stripFocus || sw.applied ? 1 : 0.75) : 0
+                        Behavior on opacity { NumberAnimation { duration: 160 } }
+                    }
+                    Text {
+                        visible: root.isVideo(sw.modelData)
+                        anchors { left: parent.left; bottom: parent.bottom; margins: 5 }
+                        text: "▶"; color: "white"; font.pixelSize: 10
+                        style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.5)
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 10
+                    color: "transparent"
+                    border.width: sw.focused ? 3 : (sw.applied ? 1 : 0)
+                    border.color: root.centredTheme?.accent ?? Theme.accent
+                    Behavior on border.width { NumberAnimation { duration: 120 } }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        const again = root.stripFocus && root.stripIndex === sw.index;
+                        root.stripIndex = sw.index; root.stripFocus = true;
+                        if (again) { root.applyThemeWall(); Popouts.close(); } else root.applyThemeWall();
+                    }
+                }
+            }
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: root.themeWalls.length === 0
+            text: "No wallpapers paired with this theme. Press P on one in the Wallpapers tab to pair it."
+            color: Theme.textDim
+            font { family: Theme.font; pixelSize: 11 }
+        }
+    }
+
     // ── Caption + hints ───────────────────────────────────────────────
     Column {
         id: hints
-        anchors { horizontalCenter: parent.horizontalCenter; top: band.bottom; topMargin: 14 }
+        anchors { horizontalCenter: parent.horizontalCenter; top: strip.bottom; topMargin: 14 }
         spacing: 4
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.onWalls
-                ? (wallView.currentIndex >= 0 && walls.count ? walls.get(wallView.currentIndex).fileBaseName + (walls.get(wallView.currentIndex).video ? "  ·  video" : "") : "No images in " + Config.wallDir.replace(root.home, "~"))
+                ? (wallView.currentIndex >= 0 && walls.count ? (() => { const it = walls.get(wallView.currentIndex);
+                      if (!it) return " ";
+                      if (it.isDir) return root.folderName(it.fileBaseName);
+                      return (root.inFolder ? root.folderName(root.wallFolder) + "  /  " : "") + it.fileBaseName + (it.video ? "  ·  video" : ""); })()
+                   : "No images in " + Config.wallDir.replace(root.home, "~") + (root.inFolder ? "/" + root.wallFolder : ""))
                 : root.onHaven
                 ? (havenView.currentIndex >= 0 && haven.count ? (() => { const it = haven.get(havenView.currentIndex);
                       if (!it) return " ";
@@ -500,7 +754,9 @@ Item {
                            + "  ·  ♥ " + it.favs + "      " + (havenView.currentIndex + 1) + " / " + root.havenTotal
                            + (root.havenError !== "" ? "      " + root.havenError : ""); })()
                    : " ")
-                : (Theme.themes[themeView.currentIndex]?.name ?? "")
+                : root.stripFocus && root.themeWalls[root.stripIndex]
+                ? (root.centredTheme?.name ?? "") + "  ·  " + root.themeWalls[root.stripIndex].split("/").pop().replace(/\.[^.]+$/, "")
+                : (root.centredTheme?.name ?? "")
             color: Theme.text
             font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold }
         }
@@ -508,7 +764,13 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.onHaven
                 ? "←/→ browse   enter download + apply   space preview   / search   tab switch   esc close"
-                : "←/→ browse   enter apply   space preview   tab switch   esc close"
+                : root.onThemes
+                ? (root.stripFocus
+                    ? "←/→ wallpaper   enter apply + close   space preview   ↑ back to themes   esc close"
+                    : "←/→ browse   enter apply + random wallpaper   space re-roll   ↓ wallpapers   tab switch   esc close")
+                : root.inFolder
+                ? "←/→ browse   enter apply   space preview   p pair with current theme   backspace/esc back to folders"
+                : "←/→ browse   enter open folder   tab switch   esc close"
             color: Theme.textDim
             font { family: Theme.font; pixelSize: 10 }
         }

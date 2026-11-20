@@ -1,0 +1,7 @@
+{
+  "name": "Sakura", "dark": false,
+  "bg": "#fbf4f4", "bg_alt": "#f4eaeb", "surface": "#ecdfe1", "overlay": "#e0d0d3",
+  "fg": "#3a2a30", "fg_dim": "#7a6168", "fg_faint": "#b29ca2",
+  "accent": "#d9567f", "accent_fg": "#ffffff",
+  "red": "#d64545", "green": "#4f9a6a", "yellow": "#b9822a", "blue": "#4a78c2", "magenta": "#b0569e", "cyan": "#2f8f96"
+}

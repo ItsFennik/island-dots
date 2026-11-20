@@ -13,6 +13,12 @@ Item {
     property real radius: 5
     property real glyphSize: 12
 
+    // Composite through a texture: the software renderer draws Shapes outside any clip and
+    // above later siblings, so a header icon scrolled up used to paint over the toolbar.
+    // A layer is a plain texture node, which clips and stacks normally.
+    layer.enabled: true
+    layer.smooth: true
+
     Shape {
         anchors.fill: parent
         ShapePath {

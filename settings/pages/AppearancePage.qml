@@ -113,6 +113,7 @@ Column {
         Setting { spec: ({ key: "taskbarMagnify", type: "switch", label: "Magnification", sub: "Bottom bar icons grow under the pointer" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
         Setting { spec: ({ key: "taskbarMagnifySize", type: "slider", label: "Magnified size", from: 1.1, to: 2.5, step: 0.05, decimals: 2, suffix: "×", minText: "Small", maxText: "Large", when: "taskbarMagnify" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
         Setting { spec: ({ key: "taskbarBounce", type: "switch", label: "Animate opening applications", sub: "Bottom bar icons bounce while an app starts" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
+        Setting { spec: ({ key: "compactIconSize", type: "slider", label: "Icon size", from: 16, to: 44, suffix: " px", minText: "Small", maxText: "Large" }); visible: (Config.values.shellLayout ?? "menubar") === "compact" }
         Setting { spec: ({ key: "compactStats", type: "switch", label: "Show CPU and memory", sub: "In the compact bar, next to the clock" }); visible: (Config.values.shellLayout ?? "menubar") === "compact" }
         Setting { spec: ({ key: "desktopIcons", type: "switch", label: "Desktop icons", sub: "Trash and mounted drives" }) }
         Setting { spec: ({ key: "desktopIconsApps", type: "switch", label: "Show Dock apps on the desktop" }); visible: Config.values.desktopIcons === true }

@@ -14,8 +14,11 @@ MouseArea {
     onClicked: {
         // A hand-picked theme replaces wallpaper colours.
         // Only this key is saved; other unsaved edits stay staged.
-        if (theme.id !== "matugen" && (Config.saved.matugen || Config.values.matugen)) Config.commit("matugen", false);
+        const wasMatugen = theme.id !== "matugen" && (Config.saved.matugen || Config.values.matugen);
+        if (wasMatugen) Config.commit("matugen", false);
         Theme.apply(theme.id);
+        // …and one of the theme's paired wallpapers at random (services/ThemeWalls.qml).
+        ThemeWalls.applyRandom(theme.id, wasMatugen);
     }
 
     Rectangle {

@@ -79,8 +79,8 @@ Scope {
                 { key: "barFontSize", type: "slider", label: "Text size", from: 10, to: 18, suffix: " px" },
                 { key: "barWeather", type: "switch", label: "Show the weather", sub: "Click it for the forecast; location is set under Desktop & Widgets" } ] },
             { title: "Workspaces", footer: "Click to switch, scroll to step through, right-click for the Overview.", rows: [
-                { key: "barWorkspaces", type: "switch", label: "Show workspaces", sub: "Centred in the menu bar" },
-                { key: "barWorkspaceStyle", type: "wsstyle", label: "Style", when: "barWorkspaces", options: [["numbers", "Numbers"], ["dots", "Dots"]] },
+                { key: "barWorkspaces", type: "switch", label: "Show workspaces", sub: "In the menu bar, bottom bar and compact bar" },
+                { key: "barWorkspaceStyle", type: "wsstyle", label: "Style", when: "barWorkspaces", options: [["numbers", "Numbers"], ["dots", "Dots"], ["pill", "Pill"], ["glide", "Glide"], ["line", "Line"], ["activity", "Activity"], ["kanji", "Kanji"], ["roman", "Roman"]] },
                 { key: "barWorkspaceCount", type: "slider", label: "Always show", from: 1, to: 10, suffix: "", minText: "1", maxText: "10", when: "barWorkspaces" } ] },
             { title: "Clock", rows: [
                 { key: "clock24h", type: "switch", label: "Use a 24-hour clock" },
@@ -102,7 +102,7 @@ Scope {
                 { key: "dockMargin", type: "slider", label: "Distance from the edge", from: 0, to: 30, suffix: " px", when: "dock" } ] } ] },
         { id: "desktop", section: 2, text: "Desktop & Widgets", glyph: "", tint: "#30d158",
           about: "Widgets sit on the desktop under your windows. Drag one anywhere, or right-click it to change its size.",
-          keywords: "widgets clock weather location city country units celsius fahrenheit calendar music now playing system cpu verse bible esv scripture lock screen style tahoe classic opacity corner colours colors wallpaper tint accent matugen",
+          keywords: "widgets clock weather location city country units celsius fahrenheit calendar music now playing system cpu verse bible esv scripture lock screen locker hyprlock style tahoe classic opacity corner colours colors wallpaper tint accent matugen",
           groups: [
             { title: "", rows: [
                 { key: "widgets", type: "switch", label: "Show widgets" },
@@ -116,8 +116,10 @@ Scope {
                 { key: "widgetCalendar", type: "switch", label: "Calendar", when: "widgets" },
                 { key: "widgetMusic", type: "switch", label: "Now Playing", when: "widgets" },
                 { key: "widgetSystem", type: "switch", label: "System", sub: "CPU, memory, temperature and disk", when: "widgets" },
-                { key: "widgetVerse", type: "switch", label: "Verse of the Day", sub: "ESV, from Bible Gateway", when: "widgets" },
-                { key: "lockVerse", type: "switch", label: "Verse on the lock screen", sub: "The same verse under the clock" } ] },
+                { key: "widgetVerse", type: "switch", label: "Verse of the Day", sub: "ESV, from Bible Gateway", when: "widgets" } ] },
+            { title: "Lock Screen", footer: "hyprlock reads ~/.config/hypr/hyprlock.conf, which apply-theme.sh keeps in the current palette.", rows: [
+                { key: "lockScreen", type: "choice", label: "Locker", options: [["island", "Island"], ["hyprlock", "hyprlock"]] },
+                { key: "lockVerse", type: "switch", label: "Verse on the lock screen", sub: "Island's lock screen only; it sits under the clock" } ] },
             { title: "Arrangement", footer: "Widgets you haven't moved stack in the chosen corner.", rows: [
                 { type: "button", label: "Arrange widgets", sub: "Or just drag a widget on the desktop", text: "Edit Widgets…", f: () => WidgetLayout.edit("") },
                 { type: "button", label: "Widget positions", sub: "Stack them in the corner again", text: "Reset", f: () => WidgetLayout.reset() },
@@ -159,6 +161,7 @@ Scope {
                 { key: "workspaceAnim", type: "choice", label: "Workspaces", options: [["slide", "Slide"], ["slidevert", "Vertical"], ["fade", "Fade"], ["slidefade", "Slide & Fade"]], when: "animations" } ] } ] },
         { id: "defaultapps", section: 2, text: "Default Apps", glyph: "\uf00a", tint: "#5856d6", about: "The apps that open links, mail, folders and files.", custom: "DefaultAppsPage",
           keywords: "default browser web mail email file manager folder text editor image viewer video player music pdf archive open with xdg mime handler" },
+        { id: "drives", section: 2, text: "Drives", glyph: "󰋊", tint: "#636366", about: "Mount drives automatically when they're plugged in or when you log in, and mount, unmount or eject them here.", custom: "DrivesPage", keywords: "automount mount unmount eject usb stick disk drive external sd card storage udisks login partition" },
         { id: "displays", section: 2, text: "Displays", glyph: "", tint: "#0a84ff", about: "Resolution, refresh rate, scale and rotation. Changes revert after 15 seconds unless you keep them.", custom: "DisplaysPage", keywords: "monitor resolution refresh rate hz scale rotation rotate screen vrr adaptive sync" },
         { id: "wallpaper", section: 2, text: "Wallpaper", glyph: "", tint: "#32ade6",
           about: "Pick a picture or a video from your wallpaper folders. Super+W opens the picker.",

@@ -1,0 +1,7 @@
+{
+  "name": "Neon Dusk", "dark": true,
+  "bg": "#120d1c", "bg_alt": "#181124", "surface": "#22192f", "overlay": "#30243f",
+  "fg": "#f0e6fa", "fg_dim": "#a998bf", "fg_faint": "#65577a",
+  "accent": "#ff5fa8", "accent_fg": "#1e0614",
+  "red": "#ff5c7a", "green": "#63e6b0", "yellow": "#ffcf5c", "blue": "#6e9bff", "magenta": "#ff5fa8", "cyan": "#5ce1ff"
+}
