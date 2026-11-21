@@ -14,7 +14,9 @@ For any visual change, read `DESIGN.md` first: palette roles, type, shape and mo
 | What | Command |
 |---|---|
 | Start / restart | `setsid -f qs -c island -n -d` |
-| Logs (check after every edit) | `qs log -c island` |
+| Session start | `scripts/island-startup` (runtime dir, dbus, PipeWire, clipboard, wallpaper, shell) |
+| Power / session | `scripts/island-power <lock|logout|suspend|hibernate|reboot|poweroff>` |
+| Logs (check after every edit) | `qs log -c island`; startup helpers log to `~/.local/state/island/logs/startup.log` |
 | Drive it | `qs -c island ipc call <target> <fn> [args]` (targets: see `shell.qml` / README) |
 | Screenshot to check a change | `grim out.png` (whole desktop) |
 
@@ -37,10 +39,13 @@ services/          singletons (pragma Singleton): Config, Theme, Compositor, Pop
                    Notifs, Weather, SysStats, WallColors, WidgetLayout, … imported as `qs.services`
 components/        shared controls (Switch, Slider, Segmented, MenuList, GlassSheen, …)
 themes/*.json      colour palettes, one file each (themes/matugen.json is generated)
-scripts/           wallpaper-set.sh, matugen-theme.sh, wallhaven.sh, screenshot.sh, …
+scripts/           wallpaper-set.sh, matugen-theme.sh, wallhaven.sh, screenshot.sh, island-* helpers, …
 apply-settings.sh  pushes settings to the compositor, GTK, Foot (runs after every settings save)
 apply-theme.sh     pushes a theme to GTK/Kvantum, compositor borders, terminals, btop, cava, Vesktop, hyprlock
+install.sh         deploys the checkout (symlink or copy), optional systemd unit, backup and rollback
 examples/<wm>/     compositor glue (autostart, keybinds, layer rules) for hyprland, niri, sway, mango
+services/systemd/  optional island.service user unit; other inits use the compositor startup
+docs/              user documentation and real screenshots
 sddm/              login theme + install.sh
 ```
 
@@ -125,6 +130,14 @@ hardcodes it, and it should be fixed rather than copied.
 - Two widget styles: **Tahoe** (frosted, white monochrome, no shadow, because a shadow turns
   into a grey smudge under Hyprland's blur) and **Classic** (material, shadow, colour accents).
   Check both.
+
+## Session, power and non-systemd
+
+- The default autostart is one compositor line: `scripts/island-startup`. It is idempotent and creates `XDG_RUNTIME_DIR`, a dbus session bus and (without a systemd user manager) PipeWire/WirePlumber.
+- Power and logout go through `scripts/island-power`. The shell, Spotlight, the power menu and external keybinds must not call `systemctl` or `loginctl` directly.
+- The optional systemd unit runs `island-startup --foreground --no-pipewire`. Remove the compositor startup line when using it.
+- OpenRC, runit, s6 and dinit do not need service files; the compositor owns the session. See `docs/non-systemd.md`.
+- Keep `scripts/island-power` and `scripts/island-startup` shellcheck clean and test them with `--dry-run`.
 
 ## Compositors
 
