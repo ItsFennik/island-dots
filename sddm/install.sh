@@ -5,8 +5,8 @@
 #   ./sddm/install.sh --theme    only (re)install the theme, e.g. after changing wallpaper
 #
 # Re-runs itself with sudo. Takes effect at the next boot (switching display managers
-# from inside a running session would end it). To go back, e.g. to greetd:
-#   sudo systemctl enable --force greetd.service
+# from inside a running session would end it). The display manager is enabled through
+# systemd, OpenRC, runit or dinit, whichever this system uses.
 set -euo pipefail
 
 [ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
@@ -65,15 +65,25 @@ echo "Theme installed to $DEST"
 [ "${1:-}" = "--theme" ] && exit 0
 
 # Display manager
-if command -v systemctl >/dev/null 2>&1; then
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
   current="$(basename "$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null)" 2>/dev/null || true)"
   if [ "$current" = "sddm.service" ]; then
     echo "SDDM is already the display manager."
   else
-    echo "Switching display manager: ${current:-none} → sddm.service"
+    echo "Switching display manager: ${current:-none} -> sddm.service"
     systemctl enable --force sddm.service
     echo "Done. SDDM takes over at the next boot. (Undo: sudo systemctl enable --force ${current:-greetd.service})"
   fi
+elif command -v rc-update >/dev/null 2>&1 && [ -f /etc/init.d/sddm ]; then
+  rc-update add sddm default
+  echo "SDDM enabled in the OpenRC default runlevel. Undo: rc-update del sddm default"
+elif [ -d /etc/sv/sddm ] && [ -d /etc/runit/runsvdir/default ]; then
+  ln -sfn /etc/sv/sddm /etc/runit/runsvdir/default/sddm
+  echo "SDDM linked into the runit default runlevel. Undo: rm /etc/runit/runsvdir/default/sddm"
+elif command -v dinitctl >/dev/null 2>&1; then
+  dinitctl enable sddm
+  echo "SDDM enabled with dinit. Undo: dinitctl disable sddm"
 else
-  echo "systemctl not found; enable SDDM with your init system/service manager."
+  echo "Could not detect how to enable SDDM."
+  echo "Enable the sddm service with your init system, or start it from your display-manager setup."
 fi
