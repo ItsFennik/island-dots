@@ -1,5 +1,10 @@
 # island-dots
 
+[![Quickshell](https://img.shields.io/badge/quickshell-%E2%89%A5%200.3-a7c080?style=for-the-badge&labelColor=343f44)](https://quickshell.org)
+[![QML](https://img.shields.io/badge/qml-qt%206-7fbbb3?style=for-the-badge&logo=qt&logoColor=white&labelColor=343f44)](https://doc.qt.io/qt-6/qmlapplications.html)
+[![Wayland](https://img.shields.io/badge/wayland-layer--shell-dbbc7f?style=for-the-badge&logo=wayland&logoColor=white&labelColor=343f44)](#compositor-support)
+[![Compositors](https://img.shields.io/badge/runs%20on-hyprland%20%C2%B7%20niri%20%C2%B7%20sway%20%C2%B7%20mango-d699b6?style=for-the-badge&labelColor=343f44)](#compositor-support)
+
 > [!WARNING]
 > **This is HEAVILY vibecoded, and it's my personal setup.** I built it for me, my machine and how I like things. You're welcome to use it, fork it or take bits of it, but expect hardcoded paths, my own preferences baked in, rough edges, and features that only got tested on my own setup. Issues and PRs are fine, but I'm not maintaining this for anyone else, so no promises.
 
