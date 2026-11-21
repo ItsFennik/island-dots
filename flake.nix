@@ -28,8 +28,15 @@
               cp -r . $out/share/island-dots
               mkdir -p $out/bin
               cat > $out/bin/island <<WRAP
-              #!/usr/bin/env bash
-              exec ${pkgs.quickshell}/bin/qs -p "$out/share/island-dots" "\$@"
+              #!/bin/sh
+              cfg="\${XDG_CONFIG_HOME:-\$HOME/.config}/quickshell"
+              mkdir -p "\$cfg"
+              if [ -e "\$cfg/island" ] && [ ! -L "\$cfg/island" ]; then
+                echo "island: \$cfg/island exists and is not a symlink; move it away first" >&2
+                exit 1
+              fi
+              ln -sfn "$out/share/island-dots" "\$cfg/island"
+              exec ${pkgs.quickshell}/bin/qs -c island "\$@"
               WRAP
               chmod +x $out/bin/island
               runHook postInstall
