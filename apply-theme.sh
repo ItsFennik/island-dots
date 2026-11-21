@@ -733,10 +733,12 @@ done
 # GTK 3 never re-reads ~/.config/gtk-3.0/gtk.css after start-up, but it does re-read the theme's
 # own files when the theme name changes. So the GTK 3 colours live in a generated theme, "Island"
 # (adw-gtk3 + our block), and the blip below makes running GTK 3 apps, Brave included, recolour live.
-adw="/usr/share/themes/adw-gtk3$($dark && echo -dark)"
+variant=""
+[ "$dark" = true ] && variant="-dark"
+adw="/usr/share/themes/adw-gtk3$variant"
 # Named "Island-dark" for dark palettes: Chromium (Brave, Helium) decides light/dark partly from a
 # "-dark" suffix on the GTK theme name, and went light under plain "Island".
-island_name="Island$($dark && echo -dark)"
+island_name="Island$variant"
 island_theme="${XDG_DATA_HOME:-$HOME/.local/share}/themes/$island_name"
 rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/themes/Island$($dark || echo -dark)"   # the other variant
 mkdir -p "$island_theme/gtk-3.0" "$island_theme/gtk-4.0"
