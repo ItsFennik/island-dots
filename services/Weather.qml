@@ -46,7 +46,7 @@ Singleton {
         return h.length ? Math.max(...h.map(x => Number(x.chanceofrain ?? 0))) : 0;
     }
     // Settings subtitle for the location field
-    readonly property string status: badLocation ? "Couldn't find \"" + location + "\" — try \"City, Country\""
+    readonly property string status: badLocation ? "Couldn't find \"" + location + "\". Try \"City, Country\""
                                    : loading && fetchedFor !== location ? "Looking up…"
                                    : resolved ? (location ? "Showing " : "Detected: ") + resolved
                                    : "Empty to use your approximate location"

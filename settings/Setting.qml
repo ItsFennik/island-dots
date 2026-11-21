@@ -11,7 +11,7 @@ import qs.bar
 //   list     options or source: "gtk" | "icons" | "cursors"   (pop-up button)
 //   font                         searchable list of installed fonts (expands inline)
 //   text     placeholder
-//   secret   placeholder — the Wallhaven API key (masked; stored in its own file)
+//   secret   placeholder: the Wallhaven API key (masked; stored in its own file)
 SettingRow {
     id: root
     required property var spec
@@ -91,7 +91,7 @@ SettingRow {
         onPicked: v => Config.set(root.spec.key, v) } }
     Component { id: tx; TextField {
         text: root.value ?? ""; placeholder: root.spec.placeholder ?? ""
-        // Save as you type (Config debounces the write) — not just on Enter, since closing
+        // Save as you type (Config debounces the write), not just on Enter, since closing
         // Settings or clicking elsewhere never takes focus away and the edit would be lost.
         onEdited: Config.set(root.spec.key, text)
         onAccepted: if (text !== root.value) Config.set(root.spec.key, text) } }

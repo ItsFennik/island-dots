@@ -16,7 +16,7 @@ Item {
     focus: true
     Keys.onPressed: e => { if (e.key === Qt.Key_R) { Weather.refresh(); e.accepted = true; } }
 
-    // ── Loading / offline ─────────────────────────────────────────────
+    // Loading / offline
     Column {
         id: empty
         visible: !Weather.ok
@@ -26,7 +26,7 @@ Item {
         Text { anchors.horizontalCenter: parent.horizontalCenter; text: Weather.failed ? "\u{f0599}" : "\u{f0590}"
             color: Theme.textFaint; font { family: Theme.mono; pixelSize: 30 } }
         Text { anchors.horizontalCenter: parent.horizontalCenter; width: parent.width - 40; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-            text: Weather.failed ? (Weather.badLocation ? Weather.status : "Weather unavailable — are you online?") : "Loading…"
+            text: Weather.failed ? (Weather.badLocation ? Weather.status : "Weather unavailable. Check your connection.") : "Loading…"
             color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } }
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -43,7 +43,7 @@ Item {
         width: parent.width
         spacing: 10
 
-        // ── Now ──
+        // Now
         Rectangle {
             width: parent.width
             height: 132
@@ -80,7 +80,7 @@ Item {
             }
         }
 
-        // ── Next hours ──
+        // Next hours
         Rectangle {
             width: parent.width
             height: 84
@@ -107,7 +107,7 @@ Item {
             }
         }
 
-        // ── Details ──
+        // Details
         Grid {
             width: parent.width
             columns: 3
@@ -144,7 +144,7 @@ Item {
             }
         }
 
-        // ── Next days ──
+        // Next days
         Rectangle {
             id: days
             width: parent.width
@@ -197,7 +197,7 @@ Item {
             }
         }
 
-        // ── Footer ──
+        // Footer
         Item {
             width: parent.width; height: 26
             Text {
@@ -217,7 +217,7 @@ Item {
     // wttr.in gives "06:12 AM"; follow the 24-hour clock setting.
     function clock(t) {
         const m = Weather.parseClock(t);
-        if (m < 0) return t || "—";
+        if (m < 0) return t || "--:--";
         const d = new Date(2000, 0, 1, Math.floor(m / 60), m % 60);
         return Qt.formatTime(d, (Config.saved.clock24h ?? true) ? "HH:mm" : "h:mm AP");
     }

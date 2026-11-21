@@ -111,7 +111,7 @@ Item {
         width: root.w
         spacing: 12
 
-        // ── Who + uptime | settings ───────────────────────────────────
+        // Who + uptime | settings
         Item {
             width: root.w; height: 40
             Rectangle {
@@ -132,7 +132,7 @@ Item {
 
         Rule {}
 
-        // ── Sound ─────────────────────────────────────────────────────
+        // Sound
         Item {
             width: root.w; height: 16
             Section { text: "Sound" }
@@ -181,7 +181,7 @@ Item {
             }
         }
 
-        // ── Microphone ────────────────────────────────────────────────
+        // Microphone
         Section { visible: !!Audio.source; text: "Microphone" }
         Level {
             visible: !!Audio.source
@@ -191,7 +191,7 @@ Item {
             onChanged: v => Audio.setMic(v)
         }
 
-        // ── Display brightness (DDC/CI, shared cache with Control Center) ──
+        // Display brightness (DDC/CI, shared cache with Control Center)
         Section { visible: display.bright >= 0; text: "Display" }
         Row {
             id: display
@@ -213,7 +213,7 @@ Item {
 
         Rule {}
 
-        // ── Quick toggles ─────────────────────────────────────────────
+        // Quick toggles
         Row {
             id: toggles
             readonly property var adapter: Bluetooth.defaultAdapter
@@ -253,7 +253,7 @@ Item {
 
         Rule {}
 
-        // ── Power actions ─────────────────────────────────────────────
+        // Power actions
         Row {
             width: root.w
             spacing: (root.w - 5 * 62) / 4

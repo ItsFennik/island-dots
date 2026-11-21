@@ -72,7 +72,7 @@ PanelWindow {
             spacing: 10
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Drag widgets anywhere — you can also drag them straight on the desktop · Shift to skip snapping"
+                text: "Drag widgets anywhere. You can also drag them straight on the desktop · Shift to skip snapping"
                 color: Theme.textDim
                 font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
             }

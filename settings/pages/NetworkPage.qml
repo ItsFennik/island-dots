@@ -41,7 +41,7 @@ Column {
         }
     }
 
-    // ── VPN ───────────────────────────────────────────────────────────
+    // VPN
     property var vpns: []             // { name, uuid, type, active }
     property string vpnError: ""
     property string busy: ""          // uuid being switched

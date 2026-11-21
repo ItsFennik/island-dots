@@ -2,13 +2,8 @@ import QtQuick
 import qs.services
 import qs.components
 
-// One widget tile. Two designs (Settings → Widgets → Style):
-//  · Tahoe: a pale frosted pane (Hyprland blurs what's behind it), a thin bright rim, all
-//    content in white monochrome. No drop shadow — a faint shadow counts as "opaque" to
-//    Hyprland's blur and turns into a grey smudge around the card.
-//  · Classic (Sequoia): graphite / frosted-white material in the theme's colours, a light
-//    inner edge, a soft shadow, colour accents.
-// Small is one unit; medium is two units plus the gap wide; large is that, square.
+// One widget tile. Tahoe: pale frosted pane, no shadow (Hyprland's blur turns one into a grey smudge).
+// Classic: theme-coloured material with a soft shadow. Medium = two units + gap wide; large is square.
 Rectangle {
     id: card
     // "s" 1×1 · "m" 2×1 · "l" 2×2 (WidgetLayout.size)

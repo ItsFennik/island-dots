@@ -2,7 +2,7 @@ import QtQuick
 import qs.services
 
 // A macOS menu (Sonoma/Sequoia metrics): 22 px rows, a selection inset 5 px with 4 px corners,
-// a check column, hairline separators inset to the text, and shortcuts laid out like AppKit —
+// a check column, hairline separators inset to the text, and shortcuts laid out like AppKit,
 // modifiers right-aligned, the key in its own column. Arrow keys / Return work too.
 // items: [{ text, shortcut?, f, off?, check?, header? } | { sep: true }]
 Item {

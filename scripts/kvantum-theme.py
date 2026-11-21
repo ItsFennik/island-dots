@@ -132,7 +132,7 @@ else:
 put(main, txt)
 
 
-# ── KDE apps (Dolphin, Kate…) read colours from kdeglobals, not the Qt palette ──
+# KDE apps (Dolphin, Kate…) read colours from kdeglobals, not the Qt palette
 def kc(h):
     return ",".join(str(v) for v in rgb(h))
 

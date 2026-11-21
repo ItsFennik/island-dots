@@ -2,11 +2,8 @@ import QtQuick
 import Quickshell
 import qs.services
 
-// Desktop widgets (macOS style) on the layer just above the wallpaper, below windows.
-// Each widget is its own small layer surface (so they can sit anywhere without a full-screen
-// window). Right-click any widget — or `qs -c island ipc call widgets edit` — to drag them
-// around; see WidgetLayout for where positions live.
-//   qs -c island ipc call widgets toggle
+// Desktop widgets, each in its own small layer surface above the wallpaper.
+// Right-click one (or `ipc call widgets edit`) to move them; positions live in WidgetLayout.
 Scope {
     id: root
 

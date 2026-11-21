@@ -2,13 +2,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Where each desktop widget sits, and which design it's drawn in.
-//
-// Until you move one, widgets stack in the corner picked in Settings (auto layout, each
-// widget anchored to that corner). Once you drag them in Edit Widgets mode, every widget's
-// top-left point is saved in `widgetPos` ({ id: [x, y] }), in pixels from the top-left of
-// the desktop area the bar leaves free. While editing, `live` holds the positions being
-// dragged; the widget windows follow it, and Done writes it to the settings file.
+// Desktop widget positions and design. Until moved, widgets stack in the Settings corner; after a drag
+// `widgetPos` holds { id: [x, y] } from the free area's top-left. `live` holds positions mid-edit.
 Singleton {
     id: root
 
@@ -43,7 +38,7 @@ Singleton {
         if (id === "weather") return !on.clock;
         return id === "calendar";
     }
-    // Size per widget: "s" (1×1), "m" (2×1), "l" (2×2) — right-click a widget to pick.
+    // Size per widget: "s" (1×1), "m" (2×1), "l" (2×2); right-click a widget to pick.
     // Not picked yet → the auto rule above (wide → medium).
     readonly property var sizes: s.widgetSize ?? ({})
     function size(id) { return sizes[id] ?? (wide(id) ? "m" : "s"); }

@@ -2,10 +2,8 @@ import QtQuick
 import QtQuick.Shapes
 import qs.services
 
-// Liquid glass highlight: a soft white sheen over the top of a glass panel, fading out by the
-// middle. Only exists while "Liquid glass" is on. A Shape, not a gradient Rectangle — the
-// software renderer leaves gradient+radius Rectangles jagged. Rasterised once; it only
-// redraws when the panel changes size.
+// Liquid glass sheen over the top half of a panel. A Shape because the software renderer
+// draws gradient + radius Rectangles jagged; rasterised once, redrawn only on resize.
 Loader {
     id: root
     property real radius: 0

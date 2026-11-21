@@ -36,7 +36,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    // ── Drives + Trash (polled; cheap, and only while the icons are on) ──
+    // Drives + Trash (polled; cheap, and only while the icons are on)
     property var drives: []
     property bool trashFull: false
     Process {

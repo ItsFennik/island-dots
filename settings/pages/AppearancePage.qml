@@ -16,7 +16,7 @@ Column {
     Group {
         SettingRow {
             title: "Appearance"
-            subtitle: root.twin === "" ? "This theme has no light/dark twin — pick one below" : ""
+            subtitle: root.twin === "" ? "This theme has no light/dark twin. Pick one below" : ""
             Row {
                 spacing: 14
                 Repeater {
@@ -106,8 +106,8 @@ Column {
 
     Group {
         title: "Layout"
-        footer: "Bottom bar: one floating bar with your apps, now playing, status and the clock, in place of the menu bar and Dock. Compact bar: a smaller pill only as wide as its contents — start, search, apps, status, CPU/RAM and the clock. Desktop icons: Trash, mounted drives and (optionally) your Dock apps; double-click to open, right-click a USB drive to eject."
-        Setting { spec: ({ key: "liquidGlass", type: "switch", label: "Liquid glass", sub: "Clearer panels with a glass rim and sheen — no extra GPU" }) }
+        footer: "Bottom bar: one floating bar with your apps, now playing, status and the clock, in place of the menu bar and Dock. Compact bar: a smaller pill only as wide as its contents: start, search, apps, status, CPU/RAM and the clock. Desktop icons: Trash, mounted drives and (optionally) your Dock apps; double-click to open, right-click a USB drive to eject."
+        Setting { spec: ({ key: "liquidGlass", type: "switch", label: "Liquid glass", sub: "Clearer panels with a glass rim and sheen. No extra GPU cost" }) }
         Setting { spec: ({ key: "shellLayout", type: "choice", label: "Layout", options: [["menubar", "Menu bar + Dock"], ["taskbar", "Bottom bar"], ["compact", "Compact bar"]] }) }
         Setting { spec: ({ key: "taskbarHeight", type: "slider", label: "Bottom bar height", from: 40, to: 72, suffix: " px" }); visible: ["taskbar", "compact"].includes(Config.values.shellLayout ?? "menubar") }
         Setting { spec: ({ key: "taskbarMagnify", type: "switch", label: "Magnification", sub: "Bottom bar icons grow under the pointer" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Minimal Brave new-tab page in the current Island theme colour: a solid background, all widgets hidden.
-# Brave keeps its settings in memory and writes them back on exit, so this only edits profiles of a
-# Brave that isn't running. Called by apply-theme.sh and by the ~/.local/bin/brave-origin launcher
-# (just before Brave starts), so the colour follows the theme from the next launch.
+# Minimal Brave new-tab page in the theme colour. Only edits profiles of a Brave that isn't running,
+# since Brave writes its prefs back on exit. Run by apply-theme.sh and the brave-origin launcher.
 
 set -uo pipefail
 

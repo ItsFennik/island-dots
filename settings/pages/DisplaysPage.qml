@@ -66,7 +66,7 @@ Column {
         }
     }
 
-    // ── Changing modes (Hyprland) ─────────────────────────────────────
+    // Changing modes (Hyprland)
     readonly property bool editable: Compositor.hyprland && !!m && m.modes.length > 0
     readonly property string script: Quickshell.shellDir + "/scripts/displays.sh"
     // availableModes look like "1920x1080@180.00Hz"

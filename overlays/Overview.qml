@@ -10,10 +10,8 @@ import qs.services
 //   drag a window          drop it on another workspace to move it there
 //   click a workspace      go to it                           wheel / ↑↓      scroll workspaces
 //   ←→ pick a window, Enter go, 1–9 jump, Esc / click the backdrop to close
-// Windows are live (ext-image-capture) on the visible cards — the selected workspace and the
-// ones peeking in above and below; the rest keep a still from opening. A window the
-// compositor can't capture shows its app icon instead.
-// Only exists while open. Open/close fade is the compositor's (layer rule island-overview).
+// Visible cards show live windows (ext-image-capture), the rest a still; uncapturable windows show their icon.
+// Only exists while open; the fade is the compositor's (layer rule island-overview).
 PanelWindow {
     id: win
 
@@ -51,7 +49,7 @@ PanelWindow {
         winSel = -1;
     }
 
-    // ── Data ──────────────────────────────────────────────────────────
+    // Data
     // Mango: mmsg; Hyprland: hyprctl. Anything else: every window on one card, in a grid.
     Process {
         id: query
@@ -136,7 +134,7 @@ PanelWindow {
         ready = true;
     }
 
-    // ── Wallpaper inside every card (video wallpapers use their cached poster) ──
+    // Wallpaper inside every card (video wallpapers use their cached poster)
     FileView {
         id: wpState
         path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/island/wallpaper"
@@ -149,7 +147,7 @@ PanelWindow {
         return "file://" + p;
     }
 
-    // ── Backdrop ──────────────────────────────────────────────────────
+    // Backdrop
     Rectangle { anchors.fill: parent; color: Qt.rgba(0.07, 0.07, 0.08, 0.92) }
     MouseArea {
         anchors.fill: parent
@@ -169,7 +167,7 @@ PanelWindow {
         }
     }
 
-    // ── Keyboard ──────────────────────────────────────────────────────
+    // Keyboard
     Item {
         anchors.fill: parent
         focus: true
@@ -194,7 +192,7 @@ PanelWindow {
         }
     }
 
-    // ── Workspace strip ───────────────────────────────────────────────
+    // Workspace strip
     Item {
         id: stack
         x: (win.sw - win.cardW) / 2

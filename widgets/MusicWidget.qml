@@ -179,7 +179,7 @@ Card {
         }
     }
 
-    // ── Small: play/pause beside the art, title + artist along the bottom ──
+    // Small: play/pause beside the art, title + artist along the bottom
     MouseArea {
         visible: root.size === "s" && !!root.p
         anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 14 }

@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Shapes
 import qs.services
 
-// Weather, Apple style: place, big temperature, condition, high/low — on the frosted card (Tahoe)
+// Weather, Apple style: place, big temperature, condition, high/low, on the frosted card (Tahoe)
 // or a sky gradient (Classic). Medium: plus the next few hours. Large: plus the next days. Click for the forecast,
 // middle-click to refresh (right-click is Edit Widgets, like every widget).
 Card {
@@ -38,7 +38,7 @@ Card {
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         onClicked: e => e.button === Qt.LeftButton && Weather.ok ? Popouts.toggle("weather") : Weather.refresh() }
 
-    // ── Loading / offline ──
+    // Loading / offline
     Column {
         visible: !Weather.ok
         anchors.centerIn: parent

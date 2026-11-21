@@ -33,7 +33,7 @@ PanelWindow {
     readonly property int fontPx: s.barFontSize ?? 13
     readonly property int anim: 180
 
-    // ── Popout state ──────────────────────────────────────────────────
+    // Popout state
     readonly property bool mine: Popouts.current !== "" && Popouts.screen === screen.name
     property string shown: ""
     property bool expanded: false
@@ -75,19 +75,17 @@ PanelWindow {
     Connections { target: Popouts; function onCurrentChanged() { win.sync(); } }
     Timer { id: reclaim; interval: 500; onTriggered: gc() }
 
-    // ── Banners ───────────────────────────────────────────────────────
+    // Banners
     readonly property var toast: !mine && shown === "" && Notifs.screen === screen.name ? Notifs.current : null
     property var toastShown: null
     onToastChanged: { if (toast) { toastHold.stop(); toastShown = toast; } else toastHold.restart(); }
     Timer { id: toastHold; interval: win.anim + 40; onTriggered: if (!win.toast) win.toastShown = null }
 
-    // ── Surface ───────────────────────────────────────────────────────
+    // Surface
     anchors { top: !win.taskbar; bottom: win.taskbar; left: true; right: true }
     exclusiveZone: barH
-    // Menus live in their own surface (below), so opening/closing one never resizes the bar —
-    // a layer-surface resize shows a half-drawn frame, which was the flicker.
-    // Never resized to full screen (the click-catcher lives in the menu surface below); where
-    // resizes smear (Compositor.smoothResize false) the banner room is kept permanently too.
+    // Menus live in their own surface, so the bar never resizes (a layer resize flickers a half-drawn frame).
+    // Where resizes smear (Compositor.smoothResize false) the banner room is kept permanently.
     implicitHeight: barH + Math.max(tbHead, toastShown || !Compositor.smoothResize ? 200 : 0)
     color: "transparent"
     mask: Region { item: bar; Region { item: banner } Region { item: tbLoader.item ? tbLoader.item.magHit : null } }
@@ -150,7 +148,7 @@ PanelWindow {
         }
     }
 
-    // ── The bar ───────────────────────────────────────────────────────
+    // The bar
     Rectangle {
         id: bar
         x: win.compact ? Math.round((parent.width - width) / 2) : win.taskbar ? win.tbGap : 0
@@ -177,7 +175,7 @@ PanelWindow {
         Zone { ids: BarLayout.layout.right; anchors { right: parent.right; rightMargin: 8 } }
     }
 
-    // ── Bar items, by id ──────────────────────────────────────────────
+    // Bar items, by id
     readonly property var items: ({ logo: iLogo, appmenus: iAppMenus, workspaces: iWorkspaces, tray: iTray, battery: iBattery,
                                     sound: iSound, network: iNetwork, spotlight: iSpotlight, weather: iWeather,
                                     controls: iControls, clock: iClock, power: iPower })
@@ -376,7 +374,7 @@ PanelWindow {
         }
     }
 
-    // ── Dropdown ──────────────────────────────────────────────────────
+    // Dropdown
     Component { id: cSystem; SystemMenu {} }
     Component { id: cApp; AppMenu {} }
     Component { id: cGo; GoMenu {} }
@@ -395,12 +393,8 @@ PanelWindow {
     Component { id: cNetwork; NetworkMenu {} }
     Component { id: cAppCtx; AppContext {} }
 
-    // The dropdown: a separate layer surface that only exists while a menu is open, at a fixed
-    // size so switching menus doesn't resize it either. Hyprland fades it in/out on the GPU
-    // (layer rule island-menu in hypr/island.lua), so Qt draws no fade frames.
-    // Without focus grabs: a separate full-screen, invisible surface catches clicks everywhere
-    // except the bar while a popout is open. The menu surface sits a layer above it (Overlay), so
-    // the two never race for stacking order, and neither ever resizes (resizes smear on Mango).
+    // The dropdown: its own fixed-size layer surface, only while a menu is open; the compositor fades it.
+    // Without focus grabs, a full-screen invisible surface one layer below catches outside clicks.
     LazyLoader {
         active: win.catchAll && win.shown !== ""
         PanelWindow {
@@ -508,7 +502,7 @@ PanelWindow {
         }
     }
 
-    // ── Notification banner (top right) ───────────────────────────────
+    // Notification banner (top right)
     Rectangle {
         id: banner
         readonly property bool on: win.toast !== null

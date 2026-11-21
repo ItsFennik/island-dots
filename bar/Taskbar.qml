@@ -9,11 +9,8 @@ import Quickshell.Bluetooth
 import qs.services
 import qs.components
 
-// "Bottom bar" layout (setting shellLayout = "taskbar"): one floating glass bar along the bottom.
-// Left: logo menu + now playing. Middle: the Dock's apps. Right: tray, Bluetooth / Wi-Fi / sound /
-// weather, Spotlight, notifications, Control Centre (a battery ring on laptops) and the clock —
-// each opens its own menu and has a hover label. Lives inside Bar.qml's surface, so every popout
-// opens (upwards) from here as usual.
+// Bottom bar (shellLayout "taskbar"): logo + now playing, the Dock's apps, then status items and the clock.
+// Every item opens its own menu upwards and has a hover label. Lives in Bar.qml's surface.
 Item {
     id: root
     required property var bar                     // the Bar window (openFrom, shown, expanded)
@@ -25,7 +22,7 @@ Item {
     function isOpen(name) { return bar.expanded && bar.shown === name; }
 
     // A round-cornered hover/press highlight used by every button here. Set `tip` (and
-    // optionally `tipSub`) to show a small label above the bar on hover — the right-hand status
+    // optionally `tipSub`) to show a small label above the bar on hover. The right-hand status
     // icons use it to say what they are and what state they're in.
     component Btn: MouseArea {
         id: b
@@ -87,7 +84,7 @@ Item {
         Text { id: g; anchors.centerIn: parent; color: Theme.text; font { family: root.glyphs; pixelSize: parent.px; hintingPreference: Font.PreferNoHinting } }
     }
 
-    // ── Left: logo + now playing ──────────────────────────────────────
+    // Left: logo + now playing
     Row {
         id: left
         anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
@@ -178,7 +175,7 @@ Item {
         }
     }
 
-    // ── Middle: the Dock's apps ───────────────────────────────────────
+    // Middle: the Dock's apps
     readonly property var parked: Hyprland.toplevels.values
         .filter(h => h.workspace?.name === "special:browser" && h.wayland).map(h => h.wayland)
     readonly property var apps: {
@@ -318,7 +315,7 @@ Item {
     }
     }
 
-    // ── Right: tray, status, Spotlight, clock ────────────────────────
+    // Right: tray, status, Spotlight, clock
     Row {
         id: right
         anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
@@ -495,7 +492,7 @@ Item {
         }
     }
 
-    // ── Sources ───────────────────────────────────────────────────────
+    // Sources
     FileView {
         id: osInfo
         path: "/etc/os-release"

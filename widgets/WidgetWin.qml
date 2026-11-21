@@ -5,14 +5,8 @@ import Quickshell.Hyprland
 import qs.services
 import qs.components
 
-// One desktop widget in its own layer surface, only as big as the card (plus room for the
-// Classic shadow). Auto layout: anchored to the corner from Settings. Moved: anchored
-// top-left at the saved position.
-//
-// Drag a widget straight on the desktop to move it (a plain click still does the widget's
-// own thing). The surface never resizes while dragging — only its margins change, and the
-// pointer position comes from Hyprland (HyprCursor), since the surface moves under it.
-// (Resizing the surface mid-drag made Hyprland drop the pointer grab.)
+// One desktop widget in its own card-sized layer surface, anchored to the corner or its saved spot.
+// Dragging moves margins only, never the size: resizing mid-drag made Hyprland drop the pointer grab.
 PanelWindow {
     id: win
 
@@ -52,7 +46,7 @@ PanelWindow {
     Region { id: none }
     Region { id: cardRegion; item: card }
 
-    // ── direct drag ──
+    // direct drag
     // Desktop area in Hyprland's global coordinates: monitor minus the bar/dock reserved space.
     property real ox: 0
     property real oy: 0
@@ -130,7 +124,7 @@ PanelWindow {
         }
     }
 
-    // ── right-click menu (a popup on this surface; exists only while open) ──
+    // right-click menu (a popup on this surface; exists only while open)
     property point menuAt
     readonly property var sizeNames: [["s", "Small"], ["m", "Medium"], ["l", "Large"]]
     LazyLoader {

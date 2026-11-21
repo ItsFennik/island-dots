@@ -7,6 +7,7 @@ It's a personal setup that's also public (github.com/ItsFennik/island-dots), so 
 for the owner first. Don't strip their preferences to make it more generic.
 
 Read `README.md` for the user-facing feature list, requirements and IPC list.
+For any visual change, read `DESIGN.md` first: palette roles, type, shape and motion rules.
 
 ## Running it
 

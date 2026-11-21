@@ -6,7 +6,7 @@ import qs.services
 import qs.components
 
 // Control Centre (the toggles icon in the menu bar), laid out like macOS Sequoia: one glass
-// panel (drawn by the bar, menu material) holding lighter modules on a 4-column grid —
+// panel (drawn by the bar, menu material) holding lighter modules on a 4-column grid:
 // connectivity and Focus up top, the thick white Display and Sound sliders, Now Playing,
 // then small tiles (Keep Awake, Dark Mode, Clipboard, Screenshot).
 Item {
@@ -139,7 +139,7 @@ Item {
         width: root.w
         spacing: root.g
 
-        // ── Connectivity | Focus + two small tiles ────────────────────
+        // Connectivity | Focus + two small tiles
         Row {
             spacing: root.g
             Module {
@@ -203,7 +203,7 @@ Item {
             }
         }
 
-        // ── Display (external monitor brightness over DDC/CI) ─────────
+        // Display (external monitor brightness over DDC/CI)
         Module {
             id: display
             visible: bright >= 0
@@ -220,7 +220,7 @@ Item {
             Timer { id: setBright; interval: 350; onTriggered: { Popouts.ddc = display.bright; Quickshell.execDetached(["ddcutil", "setvcp", "10", String(display.bright), "--noverify"]); } }
         }
 
-        // ── Sound ─────────────────────────────────────────────────────
+        // Sound
         Module {
             width: root.w; height: 62
             Text { x: 12; y: 9; text: "Sound"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
@@ -247,7 +247,7 @@ Item {
             }
         }
 
-        // ── Now Playing ───────────────────────────────────────────────
+        // Now Playing
         Module {
             visible: !!Media.player
             width: root.w; height: 62
@@ -285,7 +285,7 @@ Item {
             }
         }
 
-        // ── Small tiles ───────────────────────────────────────────────
+        // Small tiles
         Row {
             spacing: root.g
             Small { glyph: ""; tip: "Wallpaper"; onClicked: Popouts.open("wallpapers", root.screenName) }

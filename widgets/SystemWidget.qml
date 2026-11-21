@@ -86,7 +86,7 @@ Card {
         }
     }
 
-    // ── Large: details under the rings ──
+    // Large: details under the rings
     Column {
         visible: root.large
         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: root.unit + 2; leftMargin: 18; rightMargin: 18 }
@@ -95,7 +95,7 @@ Card {
             model: root.large ? [
                 ["Processor", Math.round(SysStats.cpu * 100) + "% used"],
                 ["Memory", (SysStats.memUsed / 1048576).toFixed(1) + " of " + (SysStats.memTotal / 1048576).toFixed(1) + " GB"],
-                ["Temperature", SysStats.temp >= 0 ? SysStats.temp + " °C" : "—"],
+                ["Temperature", SysStats.temp >= 0 ? SysStats.temp + " °C" : "n/a"],
                 root.hasBat ? ["Battery", root.batPct + "%"] : ["Disk", SysStats.diskFree ? SysStats.diskFree + " free" : Math.round(SysStats.disk * 100) + "% used"]
             ] : []
             Item {

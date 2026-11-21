@@ -21,7 +21,7 @@ Scope {
     Timer { id: unload; interval: 20000; onTriggered: if (!root.open) { root.loaded = false; reclaim.restart(); } }
     Timer { id: reclaim; interval: 500; onTriggered: gc() }
 
-    // ── Navigation (with back / forward like macOS) ───────────────────
+    // Navigation (with back / forward like macOS)
     property string page: "general"
     property var back: []
     property var forward: []
@@ -34,7 +34,7 @@ Scope {
 
     readonly property var transitions: [["fade", "Fade"], ["wipe", "Wipe"], ["wave", "Wave"], ["grow", "Grow"], ["cursor", "Grow from Cursor"], ["any", "Grow from Random Spot"], ["outer", "Outer"], ["simple", "Cut"], ["random", "Random"]]
 
-    // ── Every pane, as data. section: sidebar group. custom: settings/pages/<name>.qml ──
+    // Every pane, as data. section: sidebar group. custom: settings/pages/<name>.qml
     readonly property var pages: [
         { id: "wifi", section: 0, text: "Wi-Fi", glyph: "", tint: "#0a84ff", about: "Join wireless networks. Networks you've used before connect on their own.", custom: "WifiPage", keywords: "wireless network wlan ssid password join" },
         { id: "bluetooth", section: 0, text: "Bluetooth", glyph: "", tint: "#0a84ff", about: "Pair and connect headphones, mice, keyboards and other devices.", custom: "BluetoothPage", keywords: "devices pair headphones mouse keyboard" },
@@ -129,7 +129,7 @@ Scope {
                 { key: "widgetsMargin", type: "slider", label: "Distance from the edge", from: 0, to: 120, suffix: " px", when: "widgets" },
                 { key: "widgetsAllScreens", type: "switch", label: "Show on every display", when: "widgets" } ] },
             { title: "Weather", footer: "Used by the weather widget, the menu bar and the forecast.", rows: [
-                { key: "weatherLocation", type: "text", label: "Location", sub: "Empty to use your approximate location", live: "weather", placeholder: "City, Country — or empty for automatic" },
+                { key: "weatherLocation", type: "text", label: "Location", sub: "Empty to use your approximate location", live: "weather", placeholder: "City, Country, or empty for automatic" },
                 { key: "weatherUnits", type: "choice", label: "Units", sub: "Temperature and wind speed", options: [["c", "Celsius · km/h"], ["f", "Fahrenheit · mph"]] } ] } ] },
         { id: "windows", section: 2, text: "Windows", glyph: "", tint: "#30b0c7",
           about: "How " + Compositor.displayName + " tiles, spaces and rounds your windows, and the blur behind translucent ones.",
@@ -228,7 +228,7 @@ Scope {
     ]
     readonly property var current: pages.find(p => p.id === page) ?? pages[0]
 
-    // ── Search ────────────────────────────────────────────────────────
+    // Search
     property string query: ""                         // trimmed, lower-case
     function rowHit(r, q) { return (r.label + " " + (r.sub ?? "")).toLowerCase().includes(q); }
     function pageHit(p, q) {
@@ -283,7 +283,7 @@ Scope {
             }
             Connections { target: root; function onPageChanged() { scroller.contentY = 0; } }
 
-            // ── Sidebar ───────────────────────────────────────────────
+            // Sidebar
             Rectangle {
                 id: sidebar
                 anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: 8 }
@@ -447,7 +447,7 @@ Scope {
                 }
             }
 
-            // ── Content ───────────────────────────────────────────────
+            // Content
             Item {
                 anchors { left: sidebar.right; right: parent.right; top: parent.top; bottom: parent.bottom }
 

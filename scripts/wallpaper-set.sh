@@ -4,7 +4,7 @@
 # Usage:
 #   wallpaper-set.sh /path/to/image|video   set a specific image or video
 #   wallpaper-set.sh --random               pick a random image/video from wallDir + videoDir
-#   wallpaper-set.sh --restore              re-apply the last one (no animation) — use at login
+#   wallpaper-set.sh --restore              re-apply the last one (no animation), for login
 #   wallpaper-set.sh --thumbs               make picker posters for every video in videoDir
 #
 # Backends: awww (formerly swww; falls back to swww) for images, mpvpaper for videos.

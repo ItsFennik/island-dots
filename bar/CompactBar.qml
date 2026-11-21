@@ -7,10 +7,8 @@ import Quickshell.Services.SystemTray
 import qs.services
 import qs.components
 
-// "Compact bar" layout (setting shellLayout = "compact"): a floating pill along the bottom, only
-// as wide as what's in it — start, search, the Dock's apps, then tray, status, CPU/RAM and a
-// two-line clock. Lives inside Bar.qml's surface (Bar sizes and centres the pill from
-// implicitWidth), so popouts open upwards from here as usual.
+// Compact bar (shellLayout "compact"): a bottom pill only as wide as its contents.
+// Lives in Bar.qml's surface, which centres it from implicitWidth; popouts open upwards.
 Item {
     id: root
     required property var bar
@@ -55,7 +53,7 @@ Item {
         Rectangle { x: root.gap; width: 1; height: Math.round(root.tile * 0.6); anchors.verticalCenter: parent.verticalCenter; color: Qt.alpha(Theme.text, 0.15) }
     }
 
-    // ── Apps (pinned first, then everything else that's open) ─────────
+    // Apps (pinned first, then everything else that's open)
     readonly property var parked: Hyprland.toplevels.values
         .filter(h => h.workspace?.name === "special:browser" && h.wayland).map(h => h.wayland)
     readonly property var apps: {
@@ -195,7 +193,7 @@ Item {
 
         Sep {}
 
-        // ── Status ────────────────────────────────────────────────────
+        // Status
         Repeater {
             model: SystemTray.items
             Btn {

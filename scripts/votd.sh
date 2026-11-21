@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# ESV verse of the day → one line "text|reference" on stdout.
-# Source: Bible Gateway's free VOTD feed (no API key), cached per day in ~/.cache/island/votd-YYYY-MM-DD.
-# Fetched at most once a day (2 s cap); after a failure it retries no sooner than 10 min later
-# and prints a random verse from the ESV fallback pool meanwhile. Used by the Island lock screen,
-# the desktop Verse widget and ~/.config/fastfetch/fetch.sh.
+# ESV verse of the day as "text|reference", cached per day; on failure, a fallback verse
+# (retry after 10 min). Used by the lock screen, Verse widget and fastfetch.
 #   votd.sh            today's verse     votd.sh --random   a fallback-pool verse
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/island"
 pool=(

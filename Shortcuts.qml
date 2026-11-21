@@ -7,9 +7,8 @@ import qs.services
 // Named shortcuts, the same names on every compositor:
 //   Hyprland  hl.dsp.global("quickshell:launcher")              (hypr/island.lua, binds.lua)
 //   Mango     bind=SUPER,d,spawn,~/.config/mango/scripts/island launcher   (mango/island.conf)
-// Hyprland has a global-shortcuts protocol; Mango doesn't, so there the `island` helper writes the
-// name to $XDG_RUNTIME_DIR/island.sock — far lighter than starting `qs ipc call` (a Qt app) per
-// keypress. The IpcHandlers in shell.qml still work for scripts.
+// Mango has no global-shortcuts protocol, so its `island` helper writes the name to
+// $XDG_RUNTIME_DIR/island.sock instead of starting `qs ipc call` per keypress.
 Scope {
     id: root
     required property var settingsWin

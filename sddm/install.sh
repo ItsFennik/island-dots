@@ -20,7 +20,7 @@ STATE="$USER_HOME/.local/state/island"
 
 command -v sddm >/dev/null || { echo "SDDM isn't installed (e.g. sudo dnf install sddm / pacman -S sddm / apt install sddm)." >&2; exit 1; }
 
-# ── Theme ─────────────────────────────────────────────────────────────
+# Theme
 install -d "$DEST"
 install -m644 "$SRC/Main.qml" "$SRC/metadata.desktop" "$SRC/theme.conf" "$DEST/"
 [ -f "$SRC/preview.png" ] && install -m644 "$SRC/preview.png" "$DEST/"
@@ -64,7 +64,7 @@ echo "Theme installed to $DEST"
 
 [ "${1:-}" = "--theme" ] && exit 0
 
-# ── Display manager ───────────────────────────────────────────────────
+# Display manager
 current="$(basename "$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null)" 2>/dev/null || true)"
 if [ "$current" = "sddm.service" ]; then
   echo "SDDM is already the display manager."

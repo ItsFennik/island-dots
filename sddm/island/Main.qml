@@ -58,7 +58,7 @@ Rectangle {
         }
     }
 
-    // ── Wallpaper ─────────────────────────────────────────────────────
+    // Wallpaper
     // Rendered into a layer first, so the effect gets the cropped, screen-sized picture.
     Item {
         id: wallBox
@@ -94,7 +94,7 @@ Rectangle {
         }
     }
 
-    // ── Date and time ─────────────────────────────────────────────────
+    // Date and time
     property date now: new Date()
     Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
     Column {
@@ -115,7 +115,7 @@ Rectangle {
         }
     }
 
-    // ── Users, password ───────────────────────────────────────────────
+    // Users, password
     Column {
         id: login
         visible: root.primary
@@ -219,7 +219,7 @@ Rectangle {
         }
     }
 
-    // ── Sleep / Restart / Shut Down ───────────────────────────────────
+    // Sleep / Restart / Shut Down
     Row {
         visible: root.primary
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: Math.round(root.height * 0.04) }
@@ -229,7 +229,7 @@ Rectangle {
         PowerButton { label: "Shut Down"; kind: "off"; visible: sddm.canPowerOff; onClicked: sddm.powerOff() }
     }
 
-    // ── Session (bottom left): click to cycle ─────────────────────────
+    // Session (bottom left): click to cycle
     MouseArea {
         visible: root.primary && root.sessions.length > 1
         anchors { left: parent.left; bottom: parent.bottom; margins: 24 }
@@ -247,7 +247,7 @@ Rectangle {
         }
     }
 
-    // ── Components ────────────────────────────────────────────────────
+    // Components
     // Round picture with a grey initial when there isn't one.
     component Avatar: Item {
         id: av

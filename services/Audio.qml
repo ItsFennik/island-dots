@@ -3,7 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
 
-// Default output (Pipewire, event driven — no wpctl polling).
+// Default output (Pipewire, event driven, no wpctl polling).
 Singleton {
     id: root
     readonly property PwNode sink: Pipewire.defaultAudioSink

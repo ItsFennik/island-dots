@@ -51,7 +51,7 @@ Singleton {
     function zoneOf(id) { return zones.find(z => layout[z].includes(id)) ?? ""; }
     function shown(id) { return zoneOf(id) !== ""; }
 
-    // ── Editing (Settings → Menu Bar) ─────────────────────────────────
+    // Editing (Settings → Menu Bar)
     function copy() { return { left: layout.left.slice(), center: layout.center.slice(), right: layout.right.slice() }; }
     function write(l) { Config.commit("barItems", l); }
 

@@ -99,7 +99,7 @@ def save(img, name):
     print(path)
 
 
-# ── Ember: dusk dunes under a low sun, rising embers ────────────────────
+# Ember: dusk dunes under a low sun, rising embers
 def ember():
     rnd = random.Random(11)
     img = vgrad([(0, "#120c0b"), (0.30, "#3a1812"), (0.52, "#8a3520"), (0.64, "#e8743f"), (0.70, "#ffb070"), (1, "#ffb070")])
@@ -129,7 +129,7 @@ def ember():
     save(img, "ember-dunes-sunset.jpg")
 
 
-# ── Abyss: deep water with light shafts, kelp and glowing plankton ──────
+# Abyss: deep water with light shafts, kelp and glowing plankton
 def abyss():
     rnd = random.Random(23)
     img = vgrad([(0, "#2a8a8c"), (0.18, "#11505a"), (0.50, "#0a2a32"), (1, "#050d10")])
@@ -177,7 +177,7 @@ def abyss():
     save(img, "abyss-light-rays.jpg")
 
 
-# ── Sakura: cherry branch over pale hills, drifting petals ──────────────
+# Sakura: cherry branch over pale hills, drifting petals
 def sakura():
     rnd = random.Random(7)
     img = vgrad([(0, "#f9dfe6"), (0.45, "#fcf1f2"), (0.7, "#fbf4f4"), (1, "#f3dde2")])
@@ -248,7 +248,7 @@ def sakura():
     save(img, "sakura-branch-petals.jpg")
 
 
-# ── Aurora: northern lights over mountains, mirrored in a lake ──────────
+# Aurora: northern lights over mountains, mirrored in a lake
 def aurora():
     rnd = random.Random(42)
     hor = int(H * 0.70)
@@ -305,7 +305,7 @@ def aurora():
     save(img, "aurora-mountain-lake.jpg")
 
 
-# ── Neon Dusk: striped sun over a glowing perspective grid ──────────────
+# Neon Dusk: striped sun over a glowing perspective grid
 def neon_dusk():
     rnd = random.Random(99)
     hor = int(H * 0.62)

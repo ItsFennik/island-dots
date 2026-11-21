@@ -5,7 +5,7 @@ import qs.components
 
 // Right-click menu for an app on the bottom bar / compact bar (Popouts.ctxApp, set by the
 // bar before opening): its windows, the desktop file's actions (New Private Window…), open or
-// new window, pin to the taskbar, and close / quit — like the Dock's menu, macOS style.
+// new window, pin to the taskbar, and close / quit, like the Dock's menu, macOS style.
 Item {
     id: root
     readonly property bool closeOnLeave: true

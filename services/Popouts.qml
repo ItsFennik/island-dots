@@ -17,10 +17,8 @@ Singleton {
     signal settingsRequested()
     property string settingsPage: ""      // page for the next settingsRequested ("" = keep)
     function openSettings(page) { settingsPage = page || ""; settingsRequested(); }
-    // Monitor brightness via ddcutil: -2 unknown, -1 unsupported. Probed once, a few seconds after
-    // start, never from a menu: ddcutil talks I2C over the GPU and on NVIDIA each call stalls the
-    // display ~0.5 s, which made Control Centre lag on open (and re-probe if closed mid-probe).
-    // Kept across Quickshell reloads so saving a file doesn't stall the screen again.
+    // ddcutil brightness (-2 unknown, -1 unsupported), probed once after start and kept across reloads:
+    // each call stalls the display ~0.5 s on NVIDIA, so menus never probe.
     property alias ddc: persist.ddc
     PersistentProperties { id: persist; reloadableId: "popouts-ddc"; property int ddc: -2 }
     Timer { interval: 4000; running: true; onTriggered: if (root.ddc === -2) ddcProbe.running = true }

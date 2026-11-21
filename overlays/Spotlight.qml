@@ -7,12 +7,8 @@ import Quickshell.Hyprland
 import qs.services
 import qs.components
 
-// Spotlight (Super+D, the bar's search icon). A dark glass card in the upper middle of the
-// screen. Empty: Recently Used + Frequently Used (services/SpotHistory.qml). Typing searches
-// apps, system actions (Lock, Sleep…), files in ~ (3+ letters), math, "> cmd" / "$ cmd" for a
-// shell command, and the web. "?" lists the prefixes. Only exists while open.
-// Every app launch (from here, Launchpad, the Dock, the bar…) feeds the history, and Ctrl+F
-// pins the selected row so it stays at the top of Frequently used across restarts.
+// Spotlight (Super+D): apps, system actions, files in ~ (3+ letters), math, "> cmd", and the web.
+// Empty shows Recently / Frequently used (SpotHistory); "?" lists prefixes. Only exists while open.
 //   ↑/↓ pick · Enter open · Ctrl+1-9 quick select · Shift+Del remove · Ctrl+F pin/unpin
 //   Ctrl+Enter / right-click: Keep in Dock · Esc clear, then close
 PanelWindow {
@@ -54,7 +50,7 @@ PanelWindow {
         onPressed: Popouts.closeOverlays()
     }
 
-    // ── Sources ───────────────────────────────────────────────────────
+    // Sources
     readonly property var system: [
         { key: "sys:lock", title: "Lock", sub: "Lock the screen", glyph: "", words: "lock screen", f: () => Compositor.lock() },
         { key: "sys:sleep", title: "Sleep", sub: "Suspend to RAM", glyph: "󰒲", words: "sleep suspend", cmd: ["systemctl", "suspend"] },
@@ -64,7 +60,7 @@ PanelWindow {
         { key: "sys:settings", title: "System Settings", sub: "Island settings", glyph: "", words: "settings preferences island", f: () => Popouts.openSettings("") }
     ]
     readonly property var help: [
-        { kind: "help", fill: "", title: "Apps & actions", sub: "Just type a name — Firefox, Lock, Sleep, Restart…", glyph: "" },
+        { kind: "help", fill: "", title: "Apps & actions", sub: "Type a name: Firefox, Lock, Sleep, Restart…", glyph: "" },
         { kind: "help", fill: "> ", title: "> command", sub: "Run a shell command ($ works too)", glyph: "" },
         { kind: "help", fill: "", title: "Math", sub: "2*(3+4), 15% of 80 → type it, Enter copies the result", glyph: "󰃬" },
         { kind: "help", fill: "", title: "Files", sub: "3+ letters also search your home folder", glyph: "" },
@@ -84,7 +80,7 @@ PanelWindow {
     }
     function appRow(e) { return { kind: "app", key: "app:" + e.id, entry: e, title: e.name, sub: e.comment || e.genericName || "", icon: e.icon }; }
 
-    // ── Search ────────────────────────────────────────────────────────
+    // Search
     property string query: ""
     property int index: 0
     property string confirmKey: ""
@@ -183,7 +179,7 @@ PanelWindow {
         else if (r.kind === "web") Quickshell.execDetached(["xdg-open", "https://duckduckgo.com/?q=" + encodeURIComponent(q)]);
     }
 
-    // ── Right-click menu ──────────────────────────────────────────────
+    // Right-click menu
     property var ctxRow: null
     function openCtx(r, p) {
         if (!ctxItems(r).length) return;
@@ -271,7 +267,7 @@ PanelWindow {
         }
     }
 
-    // ── Card ──────────────────────────────────────────────────────────
+    // Card
     readonly property color sel: Qt.alpha(Theme.text, 0.10)
     readonly property color chip: Qt.alpha(Theme.text, 0.10)
 

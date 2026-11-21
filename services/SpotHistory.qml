@@ -3,12 +3,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Spotlight's memory: what was opened recently, how often, and what's pinned to the top of
-// "Frequently used" — keyed "app:<desktop id>", "sys:<action>" or "cmd:<shell command>" and
-// stored in ~/.local/state/island/spotlight.json. Every app launch counts, whichever surface
-// started it (Spotlight, Launchpad, Dock, menu bar, desktop icons), because Apps.launch()
-// records here. The launcher's counts (Apps.usage) are merged in with max(), so history from
-// before this file existed still ranks apps without double counting.
+// Spotlight history in ~/.local/state/island/spotlight.json, keyed app:/sys:/cmd:. Apps.launch()
+// records every launch from any surface; old Apps.usage counts merge in with max().
 Singleton {
     id: root
 

@@ -52,7 +52,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    // ── Items ─────────────────────────────────────────────────────────
+    // Items
     readonly property var pinned: DockPins.ids
     // Windows parked on special:browser (the warm hidden LibreWolf, see hypr/startup.lua)
     // don't count as running.
@@ -115,7 +115,7 @@ PanelWindow {
     }
     Timer { interval: 30000; running: win.wanted; repeat: true; triggeredOnStart: true; onTriggered: trashCheck.running = true }
 
-    // ── Hover / reveal ────────────────────────────────────────────────
+    // Hover / reveal
     readonly property bool hovering: dockHover.hovered
     readonly property bool revealed: !autohide || hovering || menu.open || hideDelay.running
     onHoveringChanged: { if (!hovering && autohide) hideDelay.restart(); if (hovering) trashCheck.running = true; }
@@ -138,10 +138,8 @@ PanelWindow {
         return base * (1 + (mag - 1) * f * hoverAmt);
     }
 
-    // ── Drag to reorder ───────────────────────────────────────────────
-    // Drag a pinned app to move it; drag a running (unpinned) app in among the pinned ones to pin
-    // it there. Magnification is off while dragging, so every slot is exactly base + spacing wide.
-    // Nothing is saved until the drop (one settings write).
+    // Drag to reorder: drag a running app among the pins to pin it. Magnification is off while
+    // dragging so every slot is base + spacing wide; one settings write on drop.
     property int dragFrom: -1
     property int dragTo: -1
     property real dragDx: 0
@@ -168,7 +166,7 @@ PanelWindow {
         Config.commit("dockPinned", order.concat(rest));
     }
 
-    // ── Hit area (input mask) ─────────────────────────────────────────
+    // Hit area (input mask)
     Item {
         id: hit
         anchors.horizontalCenter: parent.horizontalCenter
@@ -178,7 +176,7 @@ PanelWindow {
     }
     HoverHandler { id: dockHover; onPointChanged: win.px = point.position.x }
 
-    // ── Shelf ─────────────────────────────────────────────────────────
+    // Shelf
     Rectangle {
         id: shelf
         property real slide: win.revealed ? 0 : win.shelfH + win.edge + 4
@@ -337,7 +335,7 @@ PanelWindow {
         }
     }
 
-    // ── Right-click menu ──────────────────────────────────────────────
+    // Right-click menu
     Rectangle {
         id: menu
         property bool open: false

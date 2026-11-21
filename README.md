@@ -13,21 +13,39 @@ It runs on **Hyprland, niri, Sway/SwayFX/Scroll and MangoWC**. Any other composi
 
 ## Features
 
-- **Menu bar**: distro logo menu, the focused app's name and menus, workspace indicator (numbers or dots), tray, Wi-Fi / Bluetooth / sound / battery, weather, clock. Menus drop down from the bar, and moving across menu titles switches between them, like macOS. Notification banners slide in at the top right.
-- **Dock**: pinned and running apps, magnification, bounce on launch, drag to reorder or pin, right-click menu, trash, optional autohide.
-- **Layouts**: menu bar + Dock, a floating bottom bar (with its own magnification, launch bounce, and status menus for Bluetooth, Wi-Fi, sound, weather, notifications and Control Centre), or a compact pill only as wide as its contents — start, search, apps, status, CPU/RAM and the clock.
-- **Desktop widgets**: clock, weather, calendar, now playing (with cover art), system stats.
-- **Spotlight** (apps, calculator, `>` commands, persistent Recently / Frequently used with pinned rows) and **Launchpad**.
-- **Control Centre**: Wi-Fi, Bluetooth, volume, brightness (DDC/CI), media, Do Not Disturb, caffeine.
-- **Sound menu**: output and input devices, plus a volume slider and mute toggle for each app playing audio.
-- **Notifications**: the notification daemon, history, Do Not Disturb.
-- **Clipboard history** (cliphist), **wallpaper picker** (images and video), **Wallhaven** browser.
-- **Wallpaper folders**: subfolders of the wallpaper folder show as folder cards in the picker (a folder named after a theme id shows the theme's name); Enter opens one, Backspace/Esc goes back.
-- **Theme wallpapers**: each theme can have wallpapers paired with it (`~/.config/island/theme-walls.json`). Pick a theme in the picker and its wallpapers show up underneath; press P on a wallpaper to pair or unpair it with the current theme.
-- **Themes**: Catppuccin, Nord, Gruvbox, Rosé Pine, Tokyo Night, Kanagawa, Everforest, monochrome, or Material You from your wallpaper via matugen. A theme also recolours GTK 3/4, Qt (Kvantum), compositor borders, Foot, kitty, btop, cava, Vesktop, Herdr and hyprlock.
-- **System Settings**: a macOS-style settings app. Changes apply live to the shell, the compositor (gaps, borders, input, cursor, animations), GTK and Foot.
-- **Lock screen**: frosted wallpaper, a big animated clock, picture, name and a password field. Built on ext-session-lock, so it works on every compositor above. Choose hyprlock in Settings if you prefer it; its config is generated with the palette.
-- **SDDM theme**: the same look for the login screen, with Sleep / Restart / Shut Down and a session picker.
+### The shell
+
+- Menu bar with the distro logo menu, the focused app's menus, a workspace indicator (eight styles, from plain numbers to kanji), tray, status icons, weather and the clock. Moving across menu titles switches menus, like macOS.
+- Dock with magnification, a bounce on launch, drag to reorder or pin, a right-click menu, trash and optional autohide.
+- Two other layouts if you don't want a menu bar: a floating bottom bar, or a compact pill that's only as wide as its contents.
+- Spotlight for apps, files, math, `>` shell commands and the web, with Recently / Frequently used. Launchpad for the full app grid.
+- A niri-style Overview of your workspaces with live window previews; drag a window onto another workspace to move it.
+- Control Centre: Wi-Fi, Bluetooth, volume, brightness over DDC/CI, media, Do Not Disturb, keep awake.
+- A sound menu with every output and input, plus a volume slider for each app playing audio.
+- Notifications (Island is the daemon), clipboard history, and macOS-style screenshots with a floating thumbnail.
+- Desktop widgets: clock, weather, calendar, now playing, system stats and a verse of the day. Drag them anywhere.
+- System Settings, a macOS-style settings app. Changes apply as you make them, to the shell and to the compositor (gaps, borders, input, cursor, animations).
+- A lock screen that frosts the wallpaper, plus a matching SDDM login theme.
+
+### Wallpapers
+
+- Image and video wallpapers. Videos run one player per monitor and pause on any monitor that has a window on it, so an empty screen keeps moving and a covered one costs nothing.
+- A picker with folders, and a built-in Wallhaven browser.
+- Wallpapers can be paired with a theme: pick the theme and its wallpapers show up underneath (P pairs or unpairs).
+
+### Themes
+
+Catppuccin, Nord, Gruvbox, Rosé Pine, Tokyo Night, Kanagawa, Everforest and about a dozen more, or Material You colours from your wallpaper through matugen. Switching a theme recolours the rest of the desktop with it:
+
+| Follows the theme live | Follows on next start |
+|---|---|
+| GTK 3 and 4, Qt (Kvantum), compositor borders, Foot, kitty, btop, cava, Herdr, Vesktop, VSCodium, Steam (Millennium), Brave / Helium / Chromium (after a few seconds) | LibreWolf, the Brave new-tab page, Cider, hyprlock |
+
+Brave and Helium are themed through Chromium's `BrowserThemeColor` policy. The policy folders are root-owned, so make them yours once:
+
+```sh
+sudo install -d -o $USER /etc/chromium/policies/managed /etc/brave/policies/managed
+```
 
 ## Compositor support
 
@@ -78,12 +96,12 @@ Island's own lock screen is built in, nothing to install. It frosts the wallpape
 
 `qs -c island ipc call lock preview` shows the design without locking (click or <kbd>Esc</kbd> to close; `lock previewOff` closes it from a script). It authenticates through PAM's `login` stack, the same one hyprlock uses. Your picture comes from `~/.face.icon`, `~/.face` or AccountsService.
 
-Settings → Desktop & Widgets → Lock Screen → **Lock when the session starts** makes Island lock itself once after login. Combined with SDDM autologin that makes the lock screen your login: SDDM enters MangoWM, then Island asks for your password. Only the first Island start after a boot or a new login locks, so hot reloads and restarts don't send you back. Add the autologin drop-in yourself (it needs root):
+Settings → Desktop & Widgets → Lock Screen → **Lock when the session starts** makes Island lock itself once after login. Combined with SDDM autologin that makes the lock screen your login: SDDM starts your session, then Island asks for your password. Only the first Island start after a boot or a new login locks, so hot reloads and restarts don't send you back. Add the autologin drop-in yourself (it needs root):
 
 ```sh
 sudo tee /etc/sddm.conf.d/20-autologin.conf >/dev/null <<'EOF'
 [Autologin]
-User=fennik
+User=your-username
 Session=mango.desktop
 EOF
 ```
@@ -104,6 +122,8 @@ Everything can be driven from keybinds or scripts:
 ```
 qs -c island ipc call launcher toggle              # Spotlight
 qs -c island ipc call launchpad toggle
+qs -c island ipc call overview toggle
+qs -c island ipc call screenshot <toolbar|region|window|screen|all>
 qs -c island ipc call menu <system|app|notifs|controls|media|clipboard|power|sound|bluetooth|network|close>
 qs -c island ipc call picker <wallpapers|wallhaven|themes|toggle|close>
 qs -c island ipc call settings <toggle|open|close|page NAME|set KEY VALUE|get KEY>
@@ -130,9 +150,10 @@ components/          shared controls (switches, sliders, menus, …)
 themes/              colour palettes (one JSON each)
 scripts/             wallpaper, Wallhaven, matugen helpers
 apply-settings.sh    pushes settings to the compositor, GTK and Foot
-apply-theme.sh       pushes a theme to GTK/Qt, compositor borders, terminals, btop, cava, Vesktop, Herdr, hyprlock
+apply-theme.sh       pushes a theme to every app in the table above
 sddm/                login theme + installer
 examples/            compositor glue
+DESIGN.md            the look Island aims for (palette roles, type, motion)
 ```
 
 ## Notes

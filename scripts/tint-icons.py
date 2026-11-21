@@ -22,7 +22,7 @@ names = sys.argv[4:]
 tint = tuple(int(tint_hex[i:i + 2], 16) for i in (0, 2, 4))
 
 
-# ── icon lookup (freedesktop icon theme spec, simplified) ─────────────
+# icon lookup (freedesktop icon theme spec, simplified)
 def data_dirs():
     xs = [os.environ.get("XDG_DATA_HOME", HOME + "/.local/share")]
     xs += os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":")
@@ -146,7 +146,7 @@ def load(path):
     return canvas
 
 
-# ── drawing ───────────────────────────────────────────────────────────
+# drawing
 def lum(px):
     r, g, b = px[:3]
     return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255

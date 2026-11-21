@@ -62,7 +62,7 @@ PanelWindow {
         }
     }
 
-    // ── Options menu (opens upward from the Options button) ─────────────
+    // Options menu (opens upward from the Options button)
     Rectangle {
         id: menu
         visible: win.optionsOpen
@@ -101,7 +101,7 @@ PanelWindow {
         }
     }
 
-    // ── The strip ─────────────────────────────────────────────────────
+    // The strip
     Rectangle {
         id: bar
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: win.catchAll ? 60 : 4 }

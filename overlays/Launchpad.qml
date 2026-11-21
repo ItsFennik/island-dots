@@ -4,10 +4,8 @@ import Quickshell
 import Quickshell.Wayland
 import qs.services
 
-// Launchpad: every app in a full-screen paged grid over the blurred desktop, with a search
-// field on top and page dots below. Scroll, swipe or ←/→ to change page; type to filter;
-// click empty space or Esc to close; right-click an app to keep it in the Dock.
-// Only exists while open (it's a full-screen surface, so it's freed as soon as it closes).
+// Launchpad: every app in a full-screen paged grid. Scroll / swipe / arrows page, typing filters,
+// Esc or empty space closes, right-click keeps an app in the Dock. Only exists while open.
 PanelWindow {
     id: win
 

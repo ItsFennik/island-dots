@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Exit 0 (and record the stamp) on the first Island start since this login, 1 otherwise.
-# Keyed by boot id + session id, so hot reloads and `qs -c island -n` don't re-lock, while a
-# reboot or a new login does. Used by overlays/Lock.qml for Settings → Desktop & Widgets →
-# Lock Screen → "Lock when the session starts".
+# Exit 0 on the first Island start this boot + session (and record it), 1 otherwise.
+# Lets overlays/Lock.qml lock once at login without re-locking on hot reloads.
 set -u
 state="${XDG_STATE_HOME:-$HOME/.local/state}/island"
 boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) || boot=unknown

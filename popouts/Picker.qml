@@ -31,7 +31,7 @@ Item {
     Component.onCompleted: { Theme.rescan(); thumbs.running = true; if (onHaven) havenStart(); }
     onTabChanged: if (onHaven) havenStart(); else root.forceActiveFocus()
 
-    // ── Wallhaven ─────────────────────────────────────────────────────
+    // Wallhaven
     // Results come from scripts/wallhaven.sh (filters + API key handled there).
     ListModel { id: haven }
     property string havenQuery: ""
@@ -125,7 +125,7 @@ Item {
         onExited: root.thumbRev++
     }
 
-    // ── Theme → paired wallpapers (services/ThemeWalls.qml) ────────────
+    // Theme → paired wallpapers (services/ThemeWalls.qml)
     // Enter on a theme applies it and drops into the wallpaper row below; Enter there sets the
     // wallpaper and closes. ↓/↑ move between the rows.
     readonly property bool onThemes: tab === "themes"
@@ -348,7 +348,7 @@ Item {
         return currentWall.startsWith(Config.wallDir + "/" + n + "/") || currentWall.startsWith(Config.videoDir + "/" + n + "/");
     }
 
-    // ── Tabs ──────────────────────────────────────────────────────────
+    // Tabs
     Row {
         id: tabs
         anchors.horizontalCenter: parent.horizontalCenter
@@ -375,7 +375,7 @@ Item {
         }
     }
 
-    // ── Wallhaven search ──────────────────────────────────────────────
+    // Wallhaven search
     Item {
         id: searchBar
         anchors { top: tabs.bottom; topMargin: root.onHaven ? 12 : 0 }
@@ -387,7 +387,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: Math.min(420, parent.width - 40); height: 30
             text: root.havenQuery
-            placeholder: "Search Wallhaven — tags, +include -exclude, @user, id:37   (Enter)"
+            placeholder: "Search Wallhaven: tags, +include -exclude, @user, id:37   (Enter)"
             // Also fires on focus loss; only search when the text actually changed.
             onAccepted: {
                 if (text !== root.havenQuery || root.havenError !== "") root.havenSearch(text);
@@ -409,7 +409,7 @@ Item {
         }
     }
 
-    // ── Carousel band ─────────────────────────────────────────────────
+    // Carousel band
     Item {
         id: band
         anchors { top: searchBar.bottom; topMargin: 14 }
@@ -652,7 +652,7 @@ Item {
         }
     }
 
-    // ── Wallpapers paired with the centred theme ──────────────────────
+    // Wallpapers paired with the centred theme
     Item {
         id: strip
         anchors { top: band.bottom; topMargin: root.onThemes ? 10 : 0 }
@@ -734,7 +734,7 @@ Item {
         }
     }
 
-    // ── Caption + hints ───────────────────────────────────────────────
+    // Caption + hints
     Column {
         id: hints
         anchors { horizontalCenter: parent.horizontalCenter; top: strip.bottom; topMargin: 14 }

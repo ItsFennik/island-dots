@@ -2,13 +2,8 @@ import QtQuick
 import Quickshell
 import qs.services
 
-// What a lock surface shows (see Lock.qml). Separate so `ipc call lock preview` can show the
-// same thing in an ordinary window, without locking anything.
-//
-// The wallpaper frosts over, the date and clock settle in at the top, and the verse sits
-// quietly above the user's picture and password field. Typing deepens the frost and lets the
-// verse step back; a correct password melts the frost away over the sharp wallpaper before
-// the session is released.
+// What a lock surface shows. Separate so `ipc call lock preview` can show it in a normal window.
+// Typing deepens the frost; the right password melts it away before the session is released.
 Item {
     id: content
     required property var lock           // the Lock scope: password, pam, realName, …
@@ -29,7 +24,7 @@ Item {
     SystemClock { id: clock; precision: SystemClock.Minutes }
     readonly property var time: clockParts(clock.date)
 
-    // ── Entrance / exit animations ────────────────────────────────────
+    // Entrance / exit animations
     property real frost: 0               // frosted wallpaper fades in on lock
     property real clockIntro: 0
     property real loginIntro: 0
@@ -57,7 +52,7 @@ Item {
         NumberAnimation { target: content; property: "loginIntro"; from: 0; to: 1; duration: 650; easing.type: Easing.OutCubic }
     }
 
-    // ── Wallpaper ─────────────────────────────────────────────────────
+    // Wallpaper
     // Sharp copy underneath: the unlock animation fades the frost away to reveal exactly what
     // the desktop shows once the lock surface is gone.
     Image {
@@ -123,7 +118,7 @@ Item {
         }
     }
 
-    // ── Foreground ────────────────────────────────────────────────────
+    // Foreground
     Item {
         id: ui
         anchors.fill: parent
@@ -168,7 +163,7 @@ Item {
             }
         }
 
-        // ── Verse of the day (services/Verse, ESV) ───────────────────
+        // Verse of the day (services/Verse, ESV)
         Column {
             id: verse
             anchors.horizontalCenter: parent.horizontalCenter
@@ -201,7 +196,7 @@ Item {
             }
         }
 
-        // ── Picture, name, password ───────────────────────────────────
+        // Picture, name, password
         Column {
             id: login
             visible: content.main

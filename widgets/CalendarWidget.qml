@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 import qs.services
 
-// Calendar, Apple style. Small — Tahoe: the month grid; Classic: red weekday, big date, month.
+// Calendar, Apple style. Small, Tahoe: the month grid; Classic: red weekday, big date, month.
 // Medium: weekday, big date and month, plus the month grid with today circled. Large: the
 // date on top and a big month grid. Click opens Notification Center.
 Card {
@@ -27,7 +27,7 @@ Card {
 
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Popouts.toggle("notifs", root.screenName) }
 
-    // ── Small (Tahoe): macOS month widget ──
+    // Small (Tahoe): macOS month widget
     Column {
         visible: !root.wide && root.tahoe
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14; topMargin: 15 }
@@ -68,7 +68,7 @@ Card {
         }
     }
 
-    // ── Wide, and small Classic: weekday + big date on the left, month grid on the right ──
+    // Wide, and small Classic: weekday + big date on the left, month grid on the right
     Column {
         visible: root.med || (!root.wide && !root.tahoe)
         anchors { left: parent.left; top: parent.top; margins: 16 }
@@ -130,7 +130,7 @@ Card {
         }
     }
 
-    // ── Large: weekday + date + month on top, a big month grid below ──
+    // Large: weekday + date + month on top, a big month grid below
     Item {
         visible: root.large
         anchors { fill: parent; margins: 18 }

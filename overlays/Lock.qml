@@ -5,17 +5,9 @@ import Quickshell.Wayland
 import Quickshell.Services.Pam
 import qs.services
 
-// Lock screen, macOS style: the wallpaper frosts over, the date and a big clock settle in at
-// the top, and the user's picture, name and password field sit at the bottom of the main
-// display (see LockContent.qml). Typing deepens the frost; a wrong password shakes the field;
-// a correct one melts the frost away before the session is released.
-//
-// Uses ext-session-lock, so it works on every compositor Island supports (Hyprland, niri,
-// Sway, MangoWC, labwc, …). If Island crashes while locked, the compositor stays locked.
-// Locks on: LockState.lock(), `qs -c island ipc call lock lock`, or `loginctl lock-session`
-// (so idle daemons like hypridle / swayidle can just call loginctl). With Settings →
-// Desktop & Widgets → Lock Screen → "Lock when the session starts" it also locks once after
-// login, which turns an SDDM autologin into a lock-screen login.
+// Lock screen (ext-session-lock, so the compositor stays locked if Island crashes).
+// Locks on LockState.lock(), `ipc call lock lock`, `loginctl lock-session`, and optionally once at login.
+// What it draws is in LockContent.qml.
 Scope {
     id: root
 
@@ -29,7 +21,7 @@ Scope {
     property bool unlocking: false       // success: let the fade finish before releasing
     signal shake()
 
-    // ── Wallpaper, name, picture ──────────────────────────────────────
+    // Wallpaper, name, picture
     FileView {
         id: wallState
         path: (Quickshell.env("XDG_STATE_HOME") || root.home + "/.local/state") + "/island/wallpaper"
@@ -55,7 +47,7 @@ Scope {
     // Same places SDDM and GNOME look.
     readonly property var avatars: [home + "/.face.icon", home + "/.face", "/var/lib/AccountsService/icons/" + user]
 
-    // ── Locking ───────────────────────────────────────────────────────
+    // Locking
     Connections {
         target: LockState
         function onLockedChanged() {
@@ -71,10 +63,8 @@ Scope {
         }
     }
 
-    // ── Lock on login (Settings → Desktop & Widgets → Lock Screen → Lock when the session starts) ──
-    // The helper only succeeds on the first Island start after a boot/session, so hot
-    // reloads and `qs -c island -n` don't send you back to the lock screen. Wait a moment
-    // for Config's FileViews to load before reading the setting.
+    // Lock on login: session-stamp.sh succeeds only on the first start per boot/session, so hot
+    // reloads don't re-lock. Delayed so Config has loaded the setting.
     Process {
         id: sessionStamp
         command: [Quickshell.shellDir + "/scripts/session-stamp.sh"]
@@ -111,7 +101,7 @@ Scope {
     }
     Timer { id: relisten; interval: 5000; onTriggered: logind.running = true }
 
-    // ── Authentication ────────────────────────────────────────────────
+    // Authentication
     // Same PAM stack as hyprlock (/etc/pam.d/login).
     PamContext {
         id: pam
@@ -145,7 +135,7 @@ Scope {
         shake();
     }
 
-    // ── Surfaces (one per screen) ─────────────────────────────────────
+    // Surfaces (one per screen)
     WlSessionLock {
         locked: LockState.locked
 

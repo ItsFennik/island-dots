@@ -51,7 +51,7 @@ Item {
         id: col
         width: parent.width
 
-        // ── Wi-Fi ──
+        // Wi-Fi
         MenuRow {
             visible: !!root.wifiDev
             kind: "header"; text: "Wi-Fi"
@@ -71,7 +71,7 @@ Item {
         }
         MenuRow { visible: !!root.wifiDev; kind: "sep" }
 
-        // ── Ethernet ──
+        // Ethernet
         MenuRow { visible: root.wired.length > 0; kind: "header"; text: "Ethernet" }
         Repeater {
             model: root.wired
@@ -86,7 +86,7 @@ Item {
         }
         MenuRow { visible: root.wired.length > 0; kind: "sep" }
 
-        // ── VPN ──
+        // VPN
         MenuRow { visible: root.vpns.length > 0; kind: "header"; text: "VPN" }
         Repeater {
             model: root.vpns

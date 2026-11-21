@@ -19,7 +19,7 @@ import qs.widgets
 import qs.dock
 import qs.overlays
 
-// Island: macOS-style menu bar, dock, desktop widgets, Spotlight, Launchpad and Settings — one process.
+// Island: macOS-style menu bar, dock, desktop widgets, Spotlight, Launchpad and Settings, in one process.
 //   qs -c island ipc call launcher toggle      (Spotlight)
 //   qs -c island ipc call launchpad toggle
 //   qs -c island ipc call overview toggle     (niri-style workspace overview)
@@ -193,7 +193,7 @@ ShellRoot {
         function next(): void { Media.next(); }
         function previous(): void { Media.previous(); }
         function stop(): void { Media.stop(); }
-        function status(): string { return Media.player ? (Media.playing ? "playing: " : "paused: ") + Media.title + (Media.artist ? " — " + Media.artist : "") : "none"; }
+        function status(): string { return Media.player ? (Media.playing ? "playing: " : "paused: ") + Media.title + (Media.artist ? " - " + Media.artist : "") : "none"; }
     }
 
     // qs -c island ipc call weather location "Lisbon, Portugal"   ("" = automatic)

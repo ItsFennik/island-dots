@@ -168,7 +168,7 @@ MouseArea {
                 height: root.barH
                 Behavior on width { enabled: (root.dots || root.line) && !root.preview; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
-                // ── dots ── (active = wide capsule, occupied = solid, empty = hollow ring)
+                // dots (active = wide capsule, occupied = solid, empty = hollow ring)
                 Rectangle {
                     visible: root.dots
                     width: parent.width; height: root.pip
@@ -178,7 +178,7 @@ MouseArea {
                     border { width: cell.on || cell.occ ? 0 : 1.5; color: Qt.alpha(Theme.text, 0.6) }
                 }
 
-                // ── pill ── (dots under the gliding capsule; the active one is hidden by it)
+                // pill (dots under the gliding capsule; the active one is hidden by it)
                 Rectangle {
                     visible: root.pill && !cell.on
                     width: root.pip; height: root.pip
@@ -187,7 +187,7 @@ MouseArea {
                     color: cell.urgent ? "#ff453a" : Qt.alpha(Theme.text, cell.occ ? 0.75 : 0.25)
                 }
 
-                // ── glide / kanji / roman ── (label over the sliding box; dot under occupied ones)
+                // glide / kanji / roman (label over the sliding box; dot under occupied ones)
                 Text {
                     visible: root.glide
                     anchors.centerIn: parent
@@ -204,7 +204,7 @@ MouseArea {
                     color: Qt.alpha(Theme.text, 0.6)
                 }
 
-                // ── line ── (thin segments; active = long accent segment)
+                // line (thin segments; active = long accent segment)
                 Rectangle {
                     visible: root.line
                     width: parent.width; height: cell.on ? 4 : 3
@@ -213,7 +213,7 @@ MouseArea {
                     color: cell.urgent ? "#ff453a" : cell.on ? Theme.accent : Qt.alpha(Theme.text, cell.occ ? 0.6 : 0.18)
                 }
 
-                // ── activity ── (bar height follows the window count, 0…4+)
+                // activity (bar height follows the window count, 0…4+)
                 Rectangle {
                     visible: root.activity
                     readonly property int full: Math.round(Math.min(root.barH * 0.6, root.fontPx * 1.6))
@@ -226,7 +226,7 @@ MouseArea {
                     Behavior on height { enabled: !root.preview; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                 }
 
-                // ── numbers ──
+                // numbers
                 Rectangle {
                     id: box
                     visible: root.numbers

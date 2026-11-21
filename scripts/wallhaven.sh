@@ -11,7 +11,7 @@
 #   wallhaven.sh save-key                       store $WALLHAVEN_NEW_KEY as the API key (empty = remove)
 #
 # API key (only needed for NSFW, or to use your account's blacklist):
-#   ~/.config/island/wallhaven-api-key   (one line, chmod 600) — or set it in Island Settings → Wallpaper.
+#   ~/.config/island/wallhaven-api-key   (one line, chmod 600), or set it in Island Settings → Wallpaper.
 #   $WALLHAVEN_API_KEY overrides the file. Get a key at https://wallhaven.cc/settings/account
 #
 # Filters come from Island Settings (wallhaven* keys in ~/.config/island/settings.json).
@@ -58,7 +58,7 @@ api_get() {
 http_error() {
   case "$1" in
     401) printf 'API key rejected (or NSFW without a key)' ;;
-    429) printf 'Rate limited by Wallhaven — wait a minute' ;;
+    429) printf 'Rate limited by Wallhaven, try again in a minute' ;;
     000) printf "Can't reach wallhaven.cc" ;;
     *)   printf 'Wallhaven returned HTTP %s' "$1" ;;
   esac
@@ -175,7 +175,7 @@ case "${1:-}" in
     out="$(api_get /settings 2>/dev/null || printf '\n000')"
     case "${out##*$'\n'}" in
       200) notify "Wallhaven" "API key saved and working" ;;
-      401) notify "Wallhaven" "API key saved, but Wallhaven rejected it — check it on wallhaven.cc/settings/account" ;;
+      401) notify "Wallhaven" "API key saved, but Wallhaven rejected it. Check it on wallhaven.cc/settings/account" ;;
       *)   notify "Wallhaven" "API key saved (couldn't verify it right now)" ;;
     esac
     ;;

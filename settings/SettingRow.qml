@@ -2,7 +2,7 @@ import QtQuick
 import qs.services
 
 // One row in a group: label (and grey description) on the left, control on the right, a
-// hairline above every row but the first, inset to line up with the label — macOS layout.
+// hairline above every row but the first, inset to line up with the label (macOS layout).
 // Clickable rows (device lists) light up under the pointer.
 Item {
     id: root

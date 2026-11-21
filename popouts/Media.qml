@@ -49,7 +49,7 @@ Item {
     }
     Connections { target: root; function onPChanged() { if (root.p) root.p.positionChanged(); } }
 
-    // ── Nothing playing ───────────────────────────────────────────────
+    // Nothing playing
     Column {
         id: empty
         visible: !root.p
@@ -70,7 +70,7 @@ Item {
         }
     }
 
-    // ── Player ────────────────────────────────────────────────────────
+    // Player
     Column {
         id: body
         visible: !!root.p

@@ -21,7 +21,7 @@ Singleton {
         return out.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    // ── Search ────────────────────────────────────────────────────────
+    // Search
     // Returns a score for `q` in `text` (both lower-case), 0 when it doesn't match.
     function match(text, q) {
         if (!text) return 0;
@@ -81,10 +81,8 @@ Singleton {
         return out;
     }
 
-    // ── Launch ────────────────────────────────────────────────────────
-    // `id` (desktop id) is re-resolved on every launch: Quickshell replaces every DesktopEntry
-    // object when an applications dir is rescanned (Nightcap re-registers its .desktop file each
-    // run), and a list built earlier can still hold the destroyed one ("execute is not a function").
+    // Launch. `id` is re-resolved each time: Quickshell replaces DesktopEntry objects on rescan,
+    // so a stored one can be destroyed ("execute is not a function").
     function launch(e, id) {
         const fresh = id ? (DesktopEntries.byId(id) ?? DesktopEntries.heuristicLookup(id)) : null;
         if (fresh) e = fresh;

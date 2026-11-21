@@ -35,14 +35,12 @@ Singleton {
     readonly property bool focusGrab: hyprland
 
     // Hyprland swaps a layer surface's buffer cleanly when it is resized. Others (MangoWC, wlroots)
-    // show the old buffer stretched to the new size for a frame — a 30 px bar grown to full
+    // show the old buffer stretched to the new size for a frame: a 30 px bar grown to full
     // screen smeared into vertical streaks. Without this, surfaces keep a fixed size instead.
     readonly property bool smoothResize: hyprland
 
-    // ── Tiling layouts ────────────────────────────────────────────────
-    // What this compositor can tile with ([value, label]); Settings → Windows offers exactly these.
-    // The saved choice (setting `layout`) is shared, so one picked elsewhere is translated to the
-    // nearest one here by layoutHere(); apply-settings.sh does the same mapping per compositor.
+    // Tiling layouts this compositor offers ([value, label]). The saved `layout` is shared across
+    // compositors; layoutHere() maps it to the nearest one, as apply-settings.sh does.
     readonly property var layouts: hyprland ? [["dwindle", "Dwindle"], ["master", "Master"], ["scrolling", "Scrolling"], ["monocle", "Monocle"]]
         : mango ? [["dwindle", "Dwindle"], ["tile", "Master (left)"], ["right_tile", "Master (right)"], ["center_tile", "Master (centre)"],
                    ["vertical_tile", "Master (top)"], ["scroller", "Scrolling"], ["vertical_scroller", "Scrolling (vertical)"],
@@ -61,7 +59,7 @@ Singleton {
     }
     readonly property string displayName: ({ hyprland: "Hyprland", niri: "niri", mango: "MangoWC", sway: "Sway", scroll: "Scroll" })[name] ?? name
 
-    // ── Focused monitor ───────────────────────────────────────────────
+    // Focused monitor
     // Falls back to the monitor of the focused window, which works anywhere with
     // wlr-foreign-toplevel; callers fall back further to the first screen.
     readonly property string focusedScreen: (hyprland ? Hyprland.focusedMonitor?.name
@@ -70,7 +68,7 @@ Singleton {
                                            : mango ? mangoOutput : "")
                                          || ToplevelManager.activeToplevel?.screens?.[0]?.name || ""
     // The "main" monitor (Dock, widgets, overlays' fallback): setting mainScreen (output name),
-    // else whichever screen Quickshell lists first — that order isn't stable with several monitors.
+    // else whichever screen Quickshell lists first; that order isn't stable with several monitors.
     readonly property var mainScreen: Quickshell.screens.find(s => s.name === (Config.saved.mainScreen ?? ""))
                                       ?? Quickshell.screens[0] ?? null
     function screenName() { return focusedScreen || (mainScreen?.name ?? ""); }
@@ -101,7 +99,7 @@ Singleton {
         }
     }
 
-    // ── niri ──────────────────────────────────────────────────────────
+    // niri
     property string niriOutput: ""
     property int niriWorkspace: -1
     property var niriWorkspaces: []
@@ -130,7 +128,7 @@ Singleton {
         onExited: if (root.niri) retry.restart()
     }
 
-    // ── MangoWC ───────────────────────────────────────────────────────
+    // MangoWC
     // `mmsg watch all-monitors` streams one JSON line per change: every monitor with its tags
     // ({index, is_active, is_urgent, client_count}); "active" marks the focused monitor.
     property string mangoOutput: ""
@@ -157,7 +155,7 @@ Singleton {
     }
     function mangoActive(name) { return (mangoTags[name] ?? []).find(t => t.is_active)?.index ?? -1; }
 
-    // ── Workspaces per screen (menu-bar indicator) ────────────────────
+    // Workspaces per screen (menu-bar indicator)
     // [{ id, active, occupied, urgent }] for the workspaces that exist / are known on `screenName`,
     // sorted by id. Empty where the compositor doesn't say (the indicator hides itself).
     function workspaces(screenName) {
@@ -189,7 +187,7 @@ Singleton {
         }
     }
 
-    // ── Actions ───────────────────────────────────────────────────────
+    // Actions
     function run(cmd) { Quickshell.execDetached(cmd); }
     function sh(c) { Quickshell.execDetached(["sh", "-c", c]); }
     function hypr(d) { run(["hyprctl", "dispatch", d]); }
