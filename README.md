@@ -26,7 +26,7 @@ It runs on **Hyprland, niri, Sway/SwayFX/Scroll and MangoWC**. Any other composi
 - **Theme wallpapers**: each theme can have wallpapers paired with it (`~/.config/island/theme-walls.json`). Pick a theme in the picker and its wallpapers show up underneath; press P on a wallpaper to pair or unpair it with the current theme.
 - **Themes**: Catppuccin, Nord, Gruvbox, Rosé Pine, Tokyo Night, Kanagawa, Everforest, monochrome, or Material You from your wallpaper via matugen. A theme also recolours GTK 3/4, Qt (Kvantum), compositor borders, Foot, kitty, btop, cava, Vesktop, Herdr and hyprlock.
 - **System Settings**: a macOS-style settings app. Changes apply live to the shell, the compositor (gaps, borders, input, cursor, animations), GTK and Foot.
-- **Lock screen**: big clock over your wallpaper, picture, name and a password pill. Built on ext-session-lock, so it works on every compositor above. Choose hyprlock in Settings if you prefer it; its config is generated with the palette.
+- **Lock screen**: frosted wallpaper, a big animated clock, picture, name and a password field. Built on ext-session-lock, so it works on every compositor above. Choose hyprlock in Settings if you prefer it; its config is generated with the palette.
 - **SDDM theme**: the same look for the login screen, with Sleep / Restart / Shut Down and a session picker.
 
 ## Compositor support
@@ -70,13 +70,23 @@ Settings live in `~/.config/island/settings.json`, written by System Settings (<
 
 ### Lock screen
 
-Island's own lock screen is built in, nothing to install. It is the default; Settings → Desktop & Widgets → Lock Screen → Locker can hand locking to **hyprlock** instead. `apply-theme.sh` writes `~/.config/hypr/hyprlock.conf` from the palette, so it follows your theme; the verse setting only applies to Island's locker. It locks on any of these:
+Island's own lock screen is built in, nothing to install. It frosts the wallpaper, settles the clock and login in, shakes on a wrong password and melts back to the sharp wallpaper when unlocked. It is the default; Settings → Desktop & Widgets → Lock Screen → Locker can hand locking to **hyprlock** instead. `apply-theme.sh` writes `~/.config/hypr/hyprlock.conf` from the palette, so it follows your theme; the verse setting only applies to Island's locker. It locks on any of these:
 
 - the logo menu → Lock Screen, or the Power menu
 - `qs -c island ipc call lock lock` (bind it, e.g. <kbd>Super</kbd>+<kbd>Ctrl</kbd>+<kbd>Q</kbd>)
 - `loginctl lock-session`, so idle daemons work too, e.g. hypridle `lock_cmd = loginctl lock-session` or `swayidle timeout 300 'loginctl lock-session'`
 
-`qs -c island ipc call lock preview` shows the design without locking (click or <kbd>Esc</kbd> to close). It authenticates through PAM's `login` stack, the same one hyprlock uses. Your picture comes from `~/.face.icon`, `~/.face` or AccountsService.
+`qs -c island ipc call lock preview` shows the design without locking (click or <kbd>Esc</kbd> to close; `lock previewOff` closes it from a script). It authenticates through PAM's `login` stack, the same one hyprlock uses. Your picture comes from `~/.face.icon`, `~/.face` or AccountsService.
+
+Settings → Desktop & Widgets → Lock Screen → **Lock when the session starts** makes Island lock itself once after login. Combined with SDDM autologin that makes the lock screen your login: SDDM enters MangoWM, then Island asks for your password. Only the first Island start after a boot or a new login locks, so hot reloads and restarts don't send you back. Add the autologin drop-in yourself (it needs root):
+
+```sh
+sudo tee /etc/sddm.conf.d/20-autologin.conf >/dev/null <<'EOF'
+[Autologin]
+User=fennik
+Session=mango.desktop
+EOF
+```
 
 ### Login screen (SDDM)
 
@@ -85,7 +95,7 @@ Island's own lock screen is built in, nothing to install. It is the default; Set
 ./sddm/install.sh --theme   # just refresh the theme, e.g. after changing wallpaper
 ```
 
-The installer copies the theme to `/usr/share/sddm/themes/island`, uses your current Island wallpaper as the background, picks up your picture and clock format, and enables `sddm.service` (it takes over at the next boot). To go back, run `sudo systemctl enable --force greetd.service` (or gdm, lightdm, …).
+The installer copies the theme to `/usr/share/sddm/themes/island`, uses your current Island wallpaper as the background, picks up your picture and clock format, and enables `sddm.service` (it takes over at the next boot). To go back, run `sudo systemctl enable --force greetd.service` (or gdm, lightdm, …). To skip the greeter instead and log in through Island's lock screen, see **Lock when the session starts** above.
 
 ## IPC
 
@@ -103,7 +113,7 @@ qs -c island ipc call volume <up|down|mute>
 qs -c island ipc call weather <toggle|refresh|location PLACE|units c|f|status>
 qs -c island ipc call widgets <toggle|show|hide>
 qs -c island ipc call dock <toggle|autohide>
-qs -c island ipc call lock <lock|preview|status>
+qs -c island ipc call lock <lock|preview|previewOff|previewOpen|status>
 qs -c island ipc call tray <list|menu N>
 qs -c island ipc call caffeine toggle
 ```

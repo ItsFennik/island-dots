@@ -124,7 +124,7 @@ PanelWindow {
                 Rectangle {
                     anchors.centerIn: parent; width: 18; height: 18; radius: 9
                     color: Qt.alpha(Theme.text, parent.containsMouse ? 0.3 : 0.18)
-                    Text { anchors.centerIn: parent; text: "✕"; color: Theme.text; font { family: win.family; pixelSize: 10; weight: Font.Bold } }
+                    Text { anchors.centerIn: parent; text: "✕"; color: Theme.text; font { family: win.family; pixelSize: 10; weight: Theme.w(Font.Bold) } }
                 }
             }
             Divider {}
@@ -156,7 +156,7 @@ PanelWindow {
                     anchors.centerIn: parent
                     text: (Screenshot.delay ? Screenshot.delay + "s · " : "") + "Options  ⌄"
                     color: Theme.text
-                    font { family: win.family; pixelSize: 13 }
+                    font { family: win.family; weight: Theme.fontWeight; pixelSize: 13 }
                 }
             }
 
@@ -173,7 +173,7 @@ PanelWindow {
                     anchors.centerIn: parent
                     text: "Capture"
                     color: Theme.onAccent
-                    font { family: win.family; pixelSize: 13; weight: Font.DemiBold }
+                    font { family: win.family; pixelSize: 13; weight: Theme.w(Font.DemiBold) }
                 }
             }
         }
@@ -185,7 +185,7 @@ PanelWindow {
             width: tipText.implicitWidth + 16; height: 24; radius: 6
             color: Qt.alpha(Theme.bg, 0.92)
             border { width: 1; color: Qt.alpha(Theme.text, 0.12) }
-            Text { id: tipText; anchors.centerIn: parent; text: win.optionsOpen ? "" : win.tip; color: Theme.textDim; font { family: win.family; pixelSize: 12 } }
+            Text { id: tipText; anchors.centerIn: parent; text: win.optionsOpen ? "" : win.tip; color: Theme.textDim; font { family: win.family; weight: Theme.fontWeight; pixelSize: 12 } }
         }
 
         opacity: 0

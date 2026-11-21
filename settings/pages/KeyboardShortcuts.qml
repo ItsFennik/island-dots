@@ -16,12 +16,12 @@ Group {
             ["Close window", "⌘Q"], ["Full screen", "⌘F"], ["Float window", "⇧⌘T"], ["Pin window", "⌘P"],
             ["Go to desktop 1–9", "⌘1 – ⌘9"], ["Move window to desktop", "⇧⌘1 – ⇧⌘9"],
             ["Scratch desktop", "⌘Space"], ["Send window to scratch", "⇧⌘Space"],
-            ["Move focus", "⌘ arrows / H J K L"], ["Move window", "⇧⌘ arrows"]
+            ["Move focus", "⌘ arrows / H J K L"], ["Move window", "⇧⌘ arrows / H J K L"]
         ]
         delegate: SettingRow {
             required property var modelData
             title: modelData[0]
-            Text { text: modelData[1]; color: Theme.textDim; font { family: Theme.font; pixelSize: 13 } }
+            Text { text: modelData[1]; color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 } }
         }
     }
 }

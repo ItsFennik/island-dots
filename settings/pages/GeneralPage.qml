@@ -48,9 +48,9 @@ Column {
             tint: "#0a84ff"; topColor: "#5ac8fa"; glyph: root.logo
         }
         Text { anchors.horizontalCenter: parent.horizontalCenter; topPadding: 6; text: root.info.host ?? ""; color: Theme.text
-            font { family: Theme.font; pixelSize: 22; weight: Font.Bold } }
+            font { family: Theme.font; pixelSize: 22; weight: Theme.w(Font.Bold) } }
         Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.info.os ?? ""; color: Theme.textDim
-            font { family: Theme.font; pixelSize: 12 } }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } }
     }
 
     Group {
@@ -64,7 +64,7 @@ Column {
                 visible: !!modelData[1]
                 title: modelData[0]
                 Text { text: modelData[1] ?? ""; color: Theme.textDim; width: Math.min(implicitWidth, 340); elide: Text.ElideRight
-                    font { family: Theme.font; pixelSize: 13 } }
+                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 } }
             }
         }
     }

@@ -27,6 +27,6 @@ MouseArea {
         anchors.centerIn: parent
         text: root.text
         color: root.prominent ? Theme.onAccent : root.destructive ? Theme.pal.red : Theme.text
-        font { family: Theme.font; pixelSize: 13 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
     }
 }

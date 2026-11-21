@@ -13,7 +13,7 @@ Card {
         Text {
             text: "VERSE OF THE DAY"
             color: root.cOrange || root.fgDim
-            font { family: root.font; pixelSize: 11; weight: Font.Bold; letterSpacing: 0.6 }
+            font { family: root.font; pixelSize: 11; weight: Theme.w(Font.Bold); letterSpacing: 0.6 }
         }
         Text {
             width: parent.width
@@ -25,7 +25,7 @@ Card {
             minimumPixelSize: 9
             verticalAlignment: Text.AlignVCenter
             lineHeight: 1.08
-            font { family: root.font; pixelSize: root.large ? 26 : root.wide ? 18 : 15; weight: Font.DemiBold }
+            font { family: root.font; pixelSize: root.large ? 26 : root.wide ? 18 : 15; weight: Theme.w(Font.DemiBold) }
         }
         Text {
             id: refText
@@ -34,7 +34,7 @@ Card {
             text: Verse.ref
             elide: Text.ElideLeft
             color: root.fgDim
-            font { family: root.font; pixelSize: 12; weight: Font.DemiBold; italic: true }
+            font { family: root.font; pixelSize: 12; weight: Theme.w(Font.DemiBold); italic: true }
         }
     }
 

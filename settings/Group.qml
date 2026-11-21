@@ -16,7 +16,7 @@ Column {
         leftPadding: 12
         text: root.title.toUpperCase()
         color: Theme.textDim
-        font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold; letterSpacing: 0.6 }
+        font { family: Theme.font; pixelSize: 11; weight: Theme.w(Font.DemiBold); letterSpacing: 0.6 }
     }
     Rectangle {
         width: parent.width
@@ -34,7 +34,7 @@ Column {
         text: root.footer
         wrapMode: Text.WordWrap
         color: Theme.textDim
-        font { family: Theme.font; pixelSize: 11 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
         lineHeight: 1.15
     }
 }

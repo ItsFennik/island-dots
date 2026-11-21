@@ -78,9 +78,9 @@ Card {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: 0
                     Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.text; color: root.fg
-                        font { family: root.font; pixelSize: root.small ? 11 : 13; weight: Font.Bold } }
+                        font { family: root.font; pixelSize: root.small ? 11 : 13; weight: Theme.w(Font.Bold) } }
                     Text { visible: !root.small; anchors.horizontalCenter: parent.horizontalCenter; text: modelData.label; color: root.fgDim
-                        font { family: root.font; pixelSize: 10; weight: Font.Medium } }
+                        font { family: root.font; pixelSize: 10; weight: Theme.w(Font.Medium) } }
                 }
             }
         }
@@ -102,9 +102,9 @@ Card {
                 required property var modelData
                 width: parent.width; height: 40
                 Text { anchors.verticalCenter: parent.verticalCenter; text: modelData[0]; color: root.fgDim
-                    font { family: root.font; pixelSize: 13; weight: Font.Medium } }
+                    font { family: root.font; pixelSize: 13; weight: Theme.w(Font.Medium) } }
                 Text { anchors { right: parent.right; verticalCenter: parent.verticalCenter } text: modelData[1]; color: root.fg
-                    font { family: root.font; pixelSize: 13; weight: Font.DemiBold } }
+                    font { family: root.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) } }
             }
         }
     }

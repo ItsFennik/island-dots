@@ -50,7 +50,7 @@ Column {
                         visible: row.d.uuid !== ""
                         text: "At login"
                         color: Theme.textDim
-                        font { family: Theme.font; pixelSize: 11 }
+                        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
                     }
                     Switch {
                         anchors.verticalCenter: parent.verticalCenter

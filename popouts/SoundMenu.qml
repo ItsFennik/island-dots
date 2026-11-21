@@ -72,8 +72,13 @@ Item {
             }
         }
 
-        MenuRow { kind: "sep"; visible: Audio.apps.length > 0 }
-        MenuRow { kind: "section"; text: "Applications"; visible: Audio.apps.length > 0 }
+        MenuRow { kind: "sep" }
+        MenuRow { kind: "section"; text: "Applications" }
+        MenuRow {
+            visible: Audio.apps.length === 0
+            text: "No apps playing audio"
+            enabled: false
+        }
         Repeater {
             model: Audio.apps
             delegate: Item {
@@ -106,14 +111,14 @@ Item {
                     elide: Text.ElideRight
                     color: Theme.menuText
                     opacity: appRow.muted ? 0.5 : 1
-                    font { family: Theme.font; pixelSize: 13 }
+                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
                 }
                 Text {
                     id: appLevel
                     anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 6 }
                     text: appRow.muted ? "Muted" : Math.round(Math.min(1, appRow.vol) * 100) + "%"
                     color: Qt.alpha(Theme.menuText, 0.45)
-                    font { family: Theme.font; pixelSize: 11 }
+                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
                 }
                 Slider {
                     anchors { left: appTitle.left; right: parent.right; rightMargin: 12; top: parent.top; topMargin: 23 }

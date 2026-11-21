@@ -67,9 +67,9 @@ Item {
         Column {
             anchors { left: tg.right; leftMargin: 8; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
             Text { width: parent.width; text: cr.title; elide: Text.ElideRight; color: Theme.menuText
-                font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
+                font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
             Text { width: parent.width; text: cr.status; elide: Text.ElideRight; color: root.dim
-                font { family: Theme.font; pixelSize: 11 } }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
         }
     }
     // Square tile: a glyph, highlighted when on (like macOS's small modules).
@@ -85,7 +85,7 @@ Item {
         Module { anchors.fill: parent }
         Toggle { anchors.centerIn: parent; anchors.verticalCenterOffset: sm.tip ? -7 : 0; width: 34; height: 34; radius: 17; glyph: sm.glyph; on: sm.on }
         Text { visible: sm.tip !== ""; anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 6 }
-            text: sm.tip; color: root.dim; font { family: Theme.font; pixelSize: 10 } }
+            text: sm.tip; color: root.dim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 } }
         Rectangle { anchors.fill: parent; radius: 16; antialiasing: true
             color: sm.pressed ? Qt.rgba(0, 0, 0, 0.12) : sm.containsMouse ? Qt.alpha(Theme.menuText, 0.05) : "transparent"
             Behavior on color { ColorAnimation { duration: 100 } } }
@@ -185,8 +185,8 @@ Item {
                     Toggle { id: moon; x: 12; anchors.verticalCenter: parent.verticalCenter; glyph: ""; on: Notifs.dnd; onColor: "#5e5ce6" }
                     Column {
                         anchors { left: moon.right; leftMargin: 8; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                        Text { text: "Focus"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
-                        Text { text: Notifs.dnd ? "Do Not Disturb" : "Off"; color: root.dim; font { family: Theme.font; pixelSize: 11 } }
+                        Text { text: "Focus"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
+                        Text { text: Notifs.dnd ? "Do Not Disturb" : "Off"; color: root.dim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
                     }
                 }
                 Row {
@@ -209,7 +209,7 @@ Item {
             visible: bright >= 0
             width: root.w; height: 62
             property int bright: Popouts.ddc
-            Text { x: 12; y: 9; text: "Display"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
+            Text { x: 12; y: 9; text: "Display"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
             BigSlider {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10; bottomMargin: 10 }
                 glyph: ""
@@ -223,7 +223,7 @@ Item {
         // ── Sound ─────────────────────────────────────────────────────
         Module {
             width: root.w; height: 62
-            Text { x: 12; y: 9; text: "Sound"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
+            Text { x: 12; y: 9; text: "Sound"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
             MouseArea {
                 // the output list lives in the Sound menu (speaker icon), like macOS
                 anchors { right: parent.right; rightMargin: 8; top: parent.top; topMargin: 5 }
@@ -232,6 +232,12 @@ Item {
                 Rectangle { anchors.fill: parent; radius: 11; color: parent.containsMouse ? root.offBg : "transparent" }
                 hoverEnabled: true
                 Text { anchors.centerIn: parent; text: ""; color: root.dim; font { family: Theme.mono; pixelSize: 9 } }
+            }
+            MouseArea {
+                anchors { left: parent.left; right: parent.right; rightMargin: 36; top: parent.top }
+                height: 28
+                cursorShape: Qt.PointingHandCursor
+                onClicked: Popouts.open("sound", root.screenName)
             }
             BigSlider {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10; bottomMargin: 10 }
@@ -259,9 +265,9 @@ Item {
             Column {
                 anchors { left: art.right; leftMargin: 10; right: controls.left; rightMargin: 6; verticalCenter: parent.verticalCenter }
                 Text { width: parent.width; text: Media.label || "Not Playing"; elide: Text.ElideRight
-                    color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
+                    color: Theme.menuText; font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
                 Text { width: parent.width; visible: Media.artist !== ""; text: Media.artist; elide: Text.ElideRight
-                    color: root.dim; font { family: Theme.font; pixelSize: 11 } }
+                    color: root.dim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
             }
             Row {
                 id: controls

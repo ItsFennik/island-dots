@@ -188,7 +188,7 @@ Item {
                     width: nameText.implicitWidth + 16; height: 22; radius: 6
                     color: Theme.menuBg
                     border { width: 1; color: Theme.menuEdge }
-                    Text { id: nameText; anchors.centerIn: parent; text: app.modelData.name; color: Theme.menuText; font { family: root.family; pixelSize: 11 } }
+                    Text { id: nameText; anchors.centerIn: parent; text: app.modelData.name; color: Theme.menuText; font { family: root.family; weight: Theme.fontWeight; pixelSize: 11 } }
                 }
             }
         }
@@ -249,9 +249,9 @@ Item {
                     property string label
                     property real value
                     spacing: 6
-                    Text { text: parent.label; color: Theme.textDim; font { family: root.family; pixelSize: 10; weight: Font.DemiBold } }
+                    Text { text: parent.label; color: Theme.textDim; font { family: root.family; pixelSize: 10; weight: Theme.w(Font.DemiBold) } }
                     Text { width: 26; horizontalAlignment: Text.AlignRight; text: Math.round(parent.value * 100) + "%"; color: Theme.text
-                        font { family: root.family; pixelSize: 10; features: { "tnum": 1 } } }
+                        font { family: root.family; weight: Theme.fontWeight; pixelSize: 10; features: { "tnum": 1 } } }
                 }
                 Stat { label: "CPU"; value: SysStats.cpu }
                 Stat { label: "RAM"; value: SysStats.mem }
@@ -269,9 +269,9 @@ Item {
                 anchors.centerIn: parent
                 spacing: 0
                 Text { anchors.right: parent.right; text: Qt.formatDateTime(clockSrc.date, (root.s.clock24h ?? true) ? "HH:mm" : "h:mm AP"); color: Theme.text
-                    font { family: root.family; pixelSize: 11; weight: Font.Medium } }
+                    font { family: root.family; pixelSize: 11; weight: Theme.w(Font.Medium) } }
                 Text { anchors.right: parent.right; text: Qt.formatDate(clockSrc.date, Qt.locale().dateFormat(Locale.ShortFormat)); color: Theme.text
-                    font { family: root.family; pixelSize: 11 } }
+                    font { family: root.family; weight: Theme.fontWeight; pixelSize: 11 } }
             }
             Rectangle {
                 visible: Notifs.unread > 0

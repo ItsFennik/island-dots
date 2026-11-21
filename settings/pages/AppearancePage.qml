@@ -39,7 +39,7 @@ Column {
                             Rectangle { x: 8; y: 8; width: 30; height: 5; radius: 2; color: Theme.accent }
                         }
                         Text { anchors { horizontalCenter: parent.horizontalCenter; top: thumb.bottom; topMargin: 5 }
-                            text: mode.modelData[1]; color: Theme.text; font { family: Theme.font; pixelSize: 11; weight: mode.on ? Font.DemiBold : Font.Normal } }
+                            text: mode.modelData[1]; color: Theme.text; font { family: Theme.font; pixelSize: 11; weight: Theme.w(mode.on ? Font.DemiBold : Font.Normal) } }
                     }
                 }
             }

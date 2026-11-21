@@ -195,7 +195,7 @@ MouseArea {
                     color: cell.on || cell.urgent ? Theme.onAccent : cell.occ ? Theme.text : Qt.alpha(Theme.text, 0.4)
                     Behavior on color { enabled: !root.preview; ColorAnimation { duration: 160 } }
                     font { family: root.family; pixelSize: root.style === "roman" ? root.fontPx - 2 : root.fontPx - 1
-                        weight: cell.on ? Font.Bold : Font.Medium; features: { "tnum": 1 } }
+                        weight: Theme.w(cell.on ? Font.Bold : Font.Medium); features: { "tnum": 1 } }
                 }
                 Rectangle {
                     visible: root.glide && cell.occ && !cell.on
@@ -241,7 +241,7 @@ MouseArea {
                         anchors.centerIn: parent
                         text: cell.modelData.id
                         color: cell.on || cell.urgent ? Theme.bg : cell.occ ? Theme.text : Qt.alpha(Theme.text, 0.45)
-                        font { family: root.family; pixelSize: root.fontPx - 1; weight: cell.on ? Font.Bold : Font.Medium; features: { "tnum": 1 } }
+                        font { family: root.family; pixelSize: root.fontPx - 1; weight: Theme.w(cell.on ? Font.Bold : Font.Medium); features: { "tnum": 1 } }
                     }
                 }
 

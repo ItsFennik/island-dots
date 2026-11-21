@@ -33,6 +33,10 @@ Singleton {
     readonly property color hover: Qt.alpha(pal.fg, 0.06)
     readonly property color control: Qt.alpha(pal.fg, 0.12)
     readonly property string font: Config.saved.widgetFont || "Adwaita Sans"     // macOS-style UI text
+    // Base weight for UI text (setting widgetFontWeight, 100–900). Text that asks for more
+    // (bold titles, menu headers) keeps it: w() never goes lighter than the base.
+    readonly property int fontWeight: parseInt(Config.saved.widgetFontWeight ?? 400) || 400
+    function w(weight) { return Math.max(weight, fontWeight); }
     readonly property string mono: "JetBrainsMono Nerd Font"                      // glyphs / code
     readonly property bool dark: pal.dark ?? true
     // macOS control tokens

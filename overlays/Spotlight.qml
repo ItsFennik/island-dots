@@ -309,15 +309,15 @@ PanelWindow {
                 clip: true
                 color: Theme.text
                 selectionColor: Theme.accent; selectedTextColor: Theme.onAccent
-                font { family: win.family; pixelSize: 17 }
+                font { family: win.family; weight: Theme.fontWeight; pixelSize: 17 }
                 Component.onCompleted: forceActiveFocus()
                 onTextChanged: win.query = text
                 Row {
                     visible: !input.text
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 8
-                    Text { id: ph; text: "Apps, files, commands or math…"; color: Theme.textFaint; font: input.font }
-                    Text { text: "·  ? for help"; color: Qt.alpha(Theme.textFaint, 0.7); anchors.baseline: ph.baseline; font { family: win.family; pixelSize: 13 } }
+                    Text { id: ph; text: ">_ Search"; color: Theme.textFaint; font: input.font }
+                    Text { text: "·  ? for help"; color: Qt.alpha(Theme.textFaint, 0.7); anchors.baseline: ph.baseline; font { family: win.family; weight: Theme.fontWeight; pixelSize: 13 } }
                 }
                 Keys.onPressed: e => {
                     const n = win.rows.length, ctrl = e.modifiers & Qt.ControlModifier, shift = e.modifiers & Qt.ShiftModifier;
@@ -360,7 +360,7 @@ PanelWindow {
                         leftPadding: 12; topPadding: rowCol.index === 0 ? 6 : 10
                         text: (rowCol.r.section ?? "").toUpperCase()
                         color: Theme.textFaint
-                        font { family: win.family; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 0.8 }
+                        font { family: win.family; pixelSize: 10; weight: Theme.w(Font.DemiBold); letterSpacing: 0.8 }
                     }
                     MouseArea {
                         id: row
@@ -411,7 +411,7 @@ PanelWindow {
                                 text: row.asking ? "Press ↵ again to " + rowCol.r.title.toLowerCase() : rowCol.r.title
                                 elide: Text.ElideRight
                                 color: row.asking ? "#ff6961" : Theme.text
-                                font { family: win.family; pixelSize: rowCol.r.kind === "calc" ? 17 : 13; weight: Font.Medium }
+                                font { family: win.family; pixelSize: rowCol.r.kind === "calc" ? 17 : 13; weight: Theme.w(Font.Medium) }
                             }
                             Text {
                                 visible: text !== ""
@@ -419,7 +419,7 @@ PanelWindow {
                                 text: rowCol.r.sub ?? ""
                                 elide: rowCol.r.kind === "file" ? Text.ElideMiddle : Text.ElideRight
                                 color: Theme.textDim
-                                font { family: win.family; pixelSize: 11 }
+                                font { family: win.family; weight: Theme.fontWeight; pixelSize: 11 }
                             }
                         }
                         Row {
@@ -431,20 +431,20 @@ PanelWindow {
                                 visible: SpotHistory.isPinned(rowCol.r.key)
                                 text: "Pinned"
                                 color: Theme.textFaint
-                                font { family: win.family; pixelSize: 10 }
+                                font { family: win.family; weight: Theme.fontWeight; pixelSize: 10 }
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: rowCol.r.kind === "app" && DockPins.has(rowCol.r.entry.id)
                                 text: "In Dock"
                                 color: Theme.textFaint
-                                font { family: win.family; pixelSize: 10 }
+                                font { family: win.family; weight: Theme.fontWeight; pixelSize: 10 }
                             }
                             Rectangle {
                                 visible: row.hot
                                 width: 26; height: 20; radius: 5
                                 color: win.chip
-                                Text { anchors.centerIn: parent; text: "↵"; color: Theme.textDim; font { family: win.family; pixelSize: 12 } }
+                                Text { anchors.centerIn: parent; text: "↵"; color: Theme.textDim; font { family: win.family; weight: Theme.fontWeight; pixelSize: 12 } }
                             }
                         }
                     }
@@ -468,9 +468,9 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: kt.implicitWidth + 10; height: 17; radius: 4
                     color: win.chip
-                    Text { id: kt; anchors.centerIn: parent; text: keys; color: Theme.textDim; font { family: win.family; pixelSize: 10 } }
+                    Text { id: kt; anchors.centerIn: parent; text: keys; color: Theme.textDim; font { family: win.family; weight: Theme.fontWeight; pixelSize: 10 } }
                 }
-                Text { anchors.verticalCenter: parent.verticalCenter; text: label; color: Theme.textFaint; font { family: win.family; pixelSize: 11 } }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: label; color: Theme.textFaint; font { family: win.family; weight: Theme.fontWeight; pixelSize: 11 } }
             }
             Row {
                 anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
@@ -479,7 +479,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: foot.history ? "History" : win.q === "?" ? "Help" : "Results"
                     color: Theme.textDim
-                    font { family: win.family; pixelSize: 11; weight: Font.Medium }
+                    font { family: win.family; pixelSize: 11; weight: Theme.w(Font.Medium) }
                 }
                 Key { keys: "↑↓"; label: "Navigate" }
                 Key { keys: "↵"; label: "Open" }

@@ -65,7 +65,7 @@ Item {
                 color: Theme.text
                 selectionColor: Theme.accent
                 selectedTextColor: Theme.onAccent
-                font { family: Theme.font; pixelSize: 13 }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
                 onTextChanged: root.query = text
                 onAccepted: if (root.shown.length) root.copy(root.shown[root.index])
                 Keys.onPressed: e => {
@@ -84,7 +84,7 @@ Item {
                 anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
                 text: root.shown.length + (root.entries.length > root.shown.length ? "/" + root.entries.length : "")
                 color: Theme.textFaint
-                font { family: Theme.font; pixelSize: 11 }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
             }
         }
         Rectangle { width: parent.width; height: 1; color: Theme.hairline }
@@ -95,7 +95,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
             text: root.entries.length ? "No matches" : "Clipboard is empty"
             color: Theme.textFaint
-            font { family: Theme.font; pixelSize: 12 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
         }
 
         ListView {
@@ -124,7 +124,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: "type to filter · enter copy · shift+del remove"
             color: Theme.textFaint
-            font { family: Theme.font; pixelSize: 10 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
             bottomPadding: 2
         }
     }

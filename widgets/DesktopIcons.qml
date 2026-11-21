@@ -144,7 +144,7 @@ PanelWindow {
                     color: cell.sel ? Theme.onAccent : "white"
                     style: cell.sel ? Text.Normal : Text.Outline
                     styleColor: Qt.rgba(0, 0, 0, 0.4)
-                    font { family: Theme.font; pixelSize: 12; weight: Font.Bold }
+                    font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.Bold) }
                 }
 
                 // Eject (right-click on a removable drive)
@@ -154,7 +154,7 @@ PanelWindow {
                     width: ejectText.implicitWidth + 20; height: 24; radius: 7
                     color: Theme.menuBg
                     border { width: 1; color: Theme.menuEdge }
-                    Text { id: ejectText; anchors.centerIn: parent; text: "⏏  Eject"; color: Theme.menuText; font { family: Theme.font; pixelSize: 12 } }
+                    Text { id: ejectText; anchors.centerIn: parent; text: "⏏  Eject"; color: Theme.menuText; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.eject(cell.modelData) }
                 }
             }

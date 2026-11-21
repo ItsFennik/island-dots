@@ -82,14 +82,14 @@ Card {
         anchors { left: face.right; leftMargin: 18; right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
         spacing: -2
         Text { text: Qt.formatDate(clk.date, "dddd").toUpperCase(); color: root.cOrange || root.fgDim
-            font { family: root.font; pixelSize: 12; weight: Font.Bold; letterSpacing: 0.4 } }
+            font { family: root.font; pixelSize: 12; weight: Theme.w(Font.Bold); letterSpacing: 0.4 } }
         Text {
             readonly property bool h24: Config.saved.clock24h ?? true
             text: Qt.formatTime(clk.date, h24 ? "HH:mm" : "h:mm")
             color: root.fg
-            font { family: root.font; pixelSize: 46; weight: Font.Light }
+            font { family: root.font; pixelSize: 46; weight: Theme.w(Font.Light) }
         }
         Text { text: Qt.formatDate(clk.date, "d MMMM"); color: root.fgDim
-            font { family: root.font; pixelSize: 13; weight: Font.DemiBold } }
+            font { family: root.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) } }
     }
 }

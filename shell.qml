@@ -7,7 +7,7 @@
 // Fixed mmap threshold: big buffers (decoded images, the grown surface) get their own mapping
 // and go straight back to the system when freed, instead of glibc keeping them in the heap.
 //@ pragma DefaultEnv MALLOC_MMAP_THRESHOLD_=65536
-//@ pragma IconTheme WhiteSur-dark
+//@ pragma IconTheme MacTahoe
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -31,7 +31,7 @@ import qs.overlays
 //   qs -c island ipc call volume <up|down|mute>
 //   qs -c island ipc call widgets <toggle|show|hide>
 //   qs -c island ipc call dock <toggle|autohide>
-//   qs -c island ipc call lock <lock|preview|status>
+//   qs -c island ipc call lock <lock|preview|previewOff|previewOpen|status>
 //   qs -c island ipc call screenshot <toolbar|region|window|screen|all>
 // Popout contents only exist while open, so the idle cost is the bar itself.
 ShellRoot {
@@ -58,7 +58,7 @@ ShellRoot {
     }
 
     // Spotlight and Launchpad: created on open, destroyed (and collected) on close.
-    readonly property var overlayScreen: Quickshell.screens.find(s => s.name === Popouts.overlayScreen) ?? Quickshell.screens[0]
+    readonly property var overlayScreen: Quickshell.screens.find(s => s.name === Popouts.overlayScreen) ?? Compositor.mainScreen
     LazyLoader { active: Popouts.spotlight; Spotlight { screen: root.overlayScreen } }
     LazyLoader { active: Popouts.launchpad; Launchpad { screen: root.overlayScreen } }
     LazyLoader { active: Popouts.overview; Overview { screen: root.overlayScreen } }
@@ -71,8 +71,8 @@ ShellRoot {
     Timer { id: reclaim; interval: 500; onTriggered: gc() }
 
     // Screenshots: toolbar (⇧⌘S) and the floating thumbnail, each only alive while shown.
-    LazyLoader { active: Screenshot.toolbar; ScreenshotBar { screen: Quickshell.screens.find(s => s.name === Screenshot.toolbarScreen) ?? Quickshell.screens[0] } }
-    LazyLoader { active: Screenshot.shot !== ""; ScreenshotThumb { screen: Quickshell.screens.find(s => s.name === Screenshot.thumbScreen) ?? Quickshell.screens[0] } }
+    LazyLoader { active: Screenshot.toolbar; ScreenshotBar { screen: Quickshell.screens.find(s => s.name === Screenshot.toolbarScreen) ?? Compositor.mainScreen } }
+    LazyLoader { active: Screenshot.shot !== ""; ScreenshotThumb { screen: Quickshell.screens.find(s => s.name === Screenshot.thumbScreen) ?? Compositor.mainScreen } }
     Connections {
         target: Screenshot
         function onToolbarChanged() { if (!Screenshot.toolbar) reclaim.restart(); }
@@ -85,6 +85,13 @@ ShellRoot {
         function window(): void { Screenshot.capture("window"); }
         function screen(): void { Screenshot.capture("screen"); }
         function all(): void { Screenshot.capture("all"); }
+    }
+
+    // In-place reload: new code, same surfaces, so windows don't re-tile (no lag like kill + start).
+    // New fonts still need a full restart (Qt reads the font list once at launch).
+    IpcHandler {
+        target: "shell"
+        function reload(): void { Quickshell.reload(false); }
     }
 
     IpcHandler {
@@ -107,6 +114,8 @@ ShellRoot {
     }
 
     SettingsWindow { id: settings }
+    // Hyprland global shortcuts (quickshell:launcher, …), bound in hypr/island.lua
+    Shortcuts { settingsWin: settings }
 
     // Lock screen (ext-session-lock; any compositor). Also locks on `loginctl lock-session`.
     Lock { id: lock }
@@ -114,6 +123,8 @@ ShellRoot {
         target: "lock"
         function lock(): void { Compositor.lock(); }
         function preview(): void { lock.previewing = !lock.previewing; }
+        function previewOff(): void { lock.previewing = false; }
+        function previewOpen(): bool { return lock.previewing; }
         function status(): string { return LockState.locked ? "locked" : "unlocked"; }
     }
     Connections { target: Popouts; function onSettingsRequested() { if (Popouts.settingsPage) settings.page = Popouts.settingsPage; Popouts.settingsPage = ""; settings.open = true; } }

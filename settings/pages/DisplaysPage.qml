@@ -61,7 +61,7 @@ Column {
                     border { width: root.sel === index ? 3 : 0; color: Theme.text }
                 }
                 Rectangle { visible: modelData.focused; x: 0; y: 0; width: parent.width; height: 4; radius: 2; color: "white"; opacity: 0.8 }
-                Text { anchors.centerIn: parent; text: modelData.name; color: "white"; font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
+                Text { anchors.centerIn: parent; text: modelData.name; color: "white"; font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
             }
         }
     }
@@ -184,7 +184,7 @@ Column {
                 required property var modelData
                 visible: !!modelData[1]
                 title: modelData[0]
-                Text { text: modelData[1]; color: Theme.textDim; font { family: Theme.font; pixelSize: 13 } }
+                Text { text: modelData[1]; color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 } }
             }
         }
     }
@@ -193,7 +193,7 @@ Column {
         width: parent.width
         text: root.error
         color: "#ff453a"; wrapMode: Text.WordWrap
-        font { family: Theme.font; pixelSize: 11 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
     }
     Text {
         width: parent.width
@@ -202,6 +202,6 @@ Column {
               + ({ hyprland: " (~/.config/hypr, monitor rules).", niri: " (~/.config/niri/config.kdl, output blocks).",
                    sway: " (~/.config/sway/config, output lines).", mango: " (~/.config/mango/config.conf, monitorrule)." })[Compositor.name] ?? "."
         color: Theme.textDim; wrapMode: Text.WordWrap
-        font { family: Theme.font; pixelSize: 11 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
     }
 }

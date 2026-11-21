@@ -70,7 +70,7 @@ PanelWindow {
                 visible: !input.text
                 Text { text: ""; color: Qt.rgba(1, 1, 1, 0.6); anchors.verticalCenter: parent.verticalCenter
                     font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 } }
-                Text { text: "Search"; color: Qt.rgba(1, 1, 1, 0.6); font { family: win.family; pixelSize: 14 } }
+                Text { text: "Search"; color: Qt.rgba(1, 1, 1, 0.6); font { family: win.family; weight: Theme.fontWeight; pixelSize: 14 } }
             }
             TextInput {
                 id: input
@@ -80,7 +80,7 @@ PanelWindow {
                 clip: true
                 color: Theme.inkSet ? Theme.ink : "white"
                 selectionColor: Theme.accent; selectedTextColor: Theme.onAccent
-                font { family: win.family; pixelSize: 14 }
+                font { family: win.family; weight: Theme.fontWeight; pixelSize: 14 }
                 Component.onCompleted: forceActiveFocus()
                 onTextChanged: win.query = text
                 Keys.onPressed: e => {
@@ -169,7 +169,7 @@ PanelWindow {
                                 elide: Text.ElideRight
                                 color: Theme.inkSet ? Theme.ink : "white"
                                 style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
-                                font { family: win.family; pixelSize: 13; weight: Font.Medium }
+                                font { family: win.family; pixelSize: 13; weight: Theme.w(Font.Medium) }
                             }
                         }
                     }
@@ -190,7 +190,7 @@ PanelWindow {
             anchors.centerIn: pager
             text: "No Results"
             color: Qt.rgba(1, 1, 1, 0.7)
-            font { family: win.family; pixelSize: 22; weight: Font.Light }
+            font { family: win.family; pixelSize: 22; weight: Theme.w(Font.Light) }
         }
 
         // Page dots
@@ -239,7 +239,7 @@ PanelWindow {
                         Rectangle { anchors.fill: parent; radius: 6; color: mi.containsMouse ? Theme.accent : "transparent" }
                         Text { anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
                             text: mi.modelData.text; color: mi.containsMouse ? Theme.onAccent : Theme.text
-                            font { family: win.family; pixelSize: 13 } }
+                            font { family: win.family; weight: Theme.fontWeight; pixelSize: 13 } }
                     }
                 }
             }

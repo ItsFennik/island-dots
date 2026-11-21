@@ -23,7 +23,7 @@ Rectangle {
         color: Theme.text
         selectionColor: Theme.selection
         selectedTextColor: Theme.onAccent
-        font { family: Theme.font; pixelSize: 13 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
         onAccepted: root.accepted()
         onTextEdited: root.edited()
         onActiveFocusChanged: if (!activeFocus) root.accepted()

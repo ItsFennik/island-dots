@@ -59,7 +59,7 @@ Item {
 
     component Section: Text {
         color: Theme.textDim
-        font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold; letterSpacing: 0.6; capitalization: Font.AllUppercase }
+        font { family: Theme.font; pixelSize: 11; weight: Theme.w(Font.DemiBold); letterSpacing: 0.6; capitalization: Font.AllUppercase }
     }
     // Glyph button (round), accent when on.
     component Round: MouseArea {
@@ -101,7 +101,7 @@ Item {
             width: 40; horizontalAlignment: Text.AlignRight
             text: lv.muted ? "Muted" : Math.round(lv.value * 100) + "%"
             color: Theme.textDim
-            font { family: Theme.font; pixelSize: 12; features: { "tnum": 1 } }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12; features: { "tnum": 1 } }
         }
     }
     component Rule: Rectangle { width: root.w; height: 1; color: Theme.hairline }
@@ -119,12 +119,12 @@ Item {
                 width: 40; height: 40; radius: 20
                 color: Theme.accent
                 Text { anchors.centerIn: parent; text: root.user.charAt(0).toUpperCase(); color: Theme.onAccent
-                    font { family: Theme.font; pixelSize: 18; weight: Font.Bold } }
+                    font { family: Theme.font; pixelSize: 18; weight: Theme.w(Font.Bold) } }
             }
             Column {
                 anchors { left: avatar.right; leftMargin: 10; verticalCenter: parent.verticalCenter }
-                Text { text: root.user; color: Theme.text; font { family: Theme.font; pixelSize: 14; weight: Font.DemiBold } }
-                Text { text: root.uptime; color: Theme.textDim; font { family: Theme.font; pixelSize: 11 } }
+                Text { text: root.user; color: Theme.text; font { family: Theme.font; pixelSize: 14; weight: Theme.w(Font.DemiBold) } }
+                Text { text: root.uptime; color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
             }
             Round { anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 glyph: ""; onClicked: root.settings("") }
@@ -149,7 +149,7 @@ Item {
                     width: Math.min(implicitWidth, 220); elide: Text.ElideRight
                     text: Audio.name + (outBtn.open ? "  " : "  ")
                     color: Theme.textDim
-                    font { family: Theme.font; pixelSize: 11 }
+                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
                 }
             }
         }
@@ -173,10 +173,10 @@ Item {
                     onClicked: Audio.setDefault(modelData)
                     Rectangle { anchors.fill: parent; radius: 6; color: o.containsMouse ? Theme.hover : "transparent" }
                     Text { x: 8; anchors.verticalCenter: parent.verticalCenter; text: o.modelData === Audio.sink ? "✓" : ""
-                        color: Theme.text; font { family: Theme.font; pixelSize: 11 } }
+                        color: Theme.text; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
                     Text { anchors { left: parent.left; leftMargin: 24; right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
                         text: o.modelData.nickname || o.modelData.description || o.modelData.name; elide: Text.ElideRight
-                        color: Theme.text; font { family: Theme.font; pixelSize: 12 } }
+                        color: Theme.text; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } }
                 }
             }
         }
@@ -207,7 +207,7 @@ Item {
                 onMoved: v => { display.bright = Math.round(v); setBright.restart(); }
             }
             Text { anchors.verticalCenter: parent.verticalCenter; width: 40; horizontalAlignment: Text.AlignRight
-                text: display.bright + "%"; color: Theme.textDim; font { family: Theme.font; pixelSize: 12 } }
+                text: display.bright + "%"; color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } }
             Timer { id: setBright; interval: 350; onTriggered: { Popouts.ddc = display.bright; Quickshell.execDetached(["ddcutil", "setvcp", "10", String(display.bright), "--noverify"]); } }
         }
 
@@ -245,7 +245,7 @@ Item {
                     Text {
                         width: parent.width; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
                         text: parent.modelData.label; color: Theme.textDim
-                        font { family: Theme.font; pixelSize: 10 }
+                        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
                     }
                 }
             }
@@ -290,7 +290,7 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: tile.isArmed ? "Sure?" : tile.modelData.text
                             color: tile.isArmed ? (Theme.pal.red ?? "#ff453a") : tile.current ? Theme.text : Theme.textDim
-                            font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold }
+                            font { family: Theme.font; pixelSize: 10; weight: Theme.w(Font.DemiBold) }
                         }
                     }
                 }

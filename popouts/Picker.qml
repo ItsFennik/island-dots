@@ -368,7 +368,7 @@ Item {
                     anchors.centerIn: parent
                     text: modelData[1]
                     color: active ? Theme.bg : Theme.textDim
-                    font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
+                    font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) }
                 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (!parent.active) Popouts.open(parent.modelData[0], Popouts.screen) }
             }
@@ -405,7 +405,7 @@ Item {
             visible: !Wallhaven.hasKey && Config.values.wallhavenNsfw === true
             text: "NSFW needs an API key (Settings → Wallpaper)"
             color: Theme.textDim
-            font { family: Theme.font; pixelSize: 10 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
         }
     }
 
@@ -486,9 +486,9 @@ Item {
                         Column {
                             anchors.verticalCenter: parent.verticalCenter
                             Text { text: wd.isDir ? root.folderName(wd.fileBaseName) : ""; color: "white"
-                                font { family: Theme.font; pixelSize: 16; weight: Font.DemiBold } }
+                                font { family: Theme.font; pixelSize: 16; weight: Theme.w(Font.DemiBold) } }
                             Text { text: cover.count + (cover.count === 1 ? " picture" : " pictures"); color: Qt.rgba(1, 1, 1, 0.7)
-                                font { family: Theme.font; pixelSize: 11 } }
+                                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
                         }
                     }
                 }
@@ -500,7 +500,7 @@ Item {
                     width: pairText.implicitWidth + 16; height: 22; radius: 11
                     color: Qt.rgba(0, 0, 0, 0.55)
                     Text { id: pairText; anchors.centerIn: parent; text: "♥ " + (Theme.pal.name ?? Theme.current); color: "white"
-                        font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold } }
+                        font { family: Theme.font; pixelSize: 10; weight: Theme.w(Font.DemiBold) } }
                 }
 
                 // Video badge
@@ -565,7 +565,7 @@ Item {
                     width: resText.implicitWidth + 16; height: 22; radius: 11
                     color: Qt.rgba(0, 0, 0, 0.55)
                     Text { id: resText; anchors.centerIn: parent; text: root.havenBusy === hd.wid ? "downloading…" : hd.res; color: "white"
-                        font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold } }
+                        font { family: Theme.font; pixelSize: 10; weight: Theme.w(Font.DemiBold) } }
                 }
             }
         }
@@ -575,7 +575,7 @@ Item {
             visible: root.onHaven && haven.count === 0
             text: root.havenLoading ? "Searching Wallhaven…" : root.havenError !== "" ? root.havenError : "No results"
             color: Theme.textDim
-            font { family: Theme.font; pixelSize: 13 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
         }
 
         Carousel {
@@ -630,14 +630,14 @@ Item {
                         width: 54; height: 20; radius: 4
                         color: td.t.accent
                         Text { anchors.centerIn: parent; text: "OK"; color: td.t.accent_fg
-                            font { family: Theme.font; pixelSize: 10; weight: Font.Bold } }
+                            font { family: Theme.font; pixelSize: 10; weight: Theme.w(Font.Bold) } }
                     }
                 }
                 Text {
                     anchors { left: parent.left; bottom: swatches.top; margins: parent.height * 0.1; bottomMargin: 6 }
                     text: td.t.name
                     color: td.t.fg
-                    font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
+                    font { family: Theme.font; pixelSize: 15; weight: Theme.w(Font.DemiBold) }
                 }
                 Row {
                     id: swatches
@@ -730,7 +730,7 @@ Item {
             visible: root.themeWalls.length === 0
             text: "No wallpapers paired with this theme. Press P on one in the Wallpapers tab to pair it."
             color: Theme.textDim
-            font { family: Theme.font; pixelSize: 11 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
         }
     }
 
@@ -758,7 +758,7 @@ Item {
                 ? (root.centredTheme?.name ?? "") + "  ·  " + root.themeWalls[root.stripIndex].split("/").pop().replace(/\.[^.]+$/, "")
                 : (root.centredTheme?.name ?? "")
             color: Theme.text
-            font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold }
+            font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) }
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -772,7 +772,7 @@ Item {
                 ? "←/→ browse   enter apply   space preview   p pair with current theme   backspace/esc back to folders"
                 : "←/→ browse   enter open folder   tab switch   esc close"
             color: Theme.textDim
-            font { family: Theme.font; pixelSize: 10 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
         }
     }
 }

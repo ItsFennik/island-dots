@@ -58,7 +58,7 @@ Item {
         Column {
             anchors { left: parent.left; leftMargin: root.textInset; right: slot.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
             spacing: 2
-            Text { width: parent.width; text: root.title; color: Theme.text; elide: Text.ElideRight; font { family: Theme.font; pixelSize: 13 } }
+            Text { width: parent.width; text: root.title; color: Theme.text; elide: Text.ElideRight; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 } }
             Text {
                 width: parent.width
                 visible: root.subtitle !== ""
@@ -67,7 +67,7 @@ Item {
                 maximumLineCount: 2
                 elide: Text.ElideRight
                 color: Theme.textDim
-                font { family: Theme.font; pixelSize: 11 }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
             }
         }
         Item {

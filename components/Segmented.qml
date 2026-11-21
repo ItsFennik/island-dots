@@ -49,7 +49,7 @@ Rectangle {
                     anchors.centerIn: parent
                     text: opt.modelData.text
                     color: Theme.text
-                    font { family: Theme.font; pixelSize: 12; weight: opt.current ? Font.DemiBold : Font.Normal }
+                    font { family: Theme.font; pixelSize: 12; weight: Theme.w(opt.current ? Font.DemiBold : Font.Normal) }
                 }
             }
         }

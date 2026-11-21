@@ -114,6 +114,7 @@ PanelWindow {
         property bool bold: false
         property bool active: false
         property int pad: 9
+        property bool shown: true          // false: the zone skips this item (no empty slot)
         implicitWidth: label.implicitWidth + pad * 2
         height: win.barH
         hoverEnabled: true
@@ -129,6 +130,23 @@ PanelWindow {
             text: it.text
             color: Theme.text
             font { family: it.glyph ? win.glyphs : win.family; pixelSize: it.glyph ? win.fontPx + 1 : win.fontPx; weight: it.bold ? Font.Bold : Font.Normal }
+        }
+    }
+
+    // One zone of the menu bar: the items named in `ids`, in order (see BarLayout).
+    component Zone: Row {
+        id: zone
+        property var ids: []
+        visible: !win.taskbar
+        height: win.barH
+        Repeater {
+            model: zone.ids
+            Loader {
+                required property string modelData
+                anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+                sourceComponent: win.items[modelData] ?? null
+                visible: !!item && (item.shown ?? true)
+            }
         }
     }
 
@@ -153,26 +171,39 @@ PanelWindow {
             Component { id: compactComp; CompactBar { bar: win } }
         }
 
-        Row {
-            visible: !win.taskbar
-            anchors { left: parent.left; leftMargin: 8 }
-            height: parent.height
+        // Items come from BarLayout (setting barItems): each zone lays out its ids in order.
+        Zone { ids: BarLayout.layout.left; anchors { left: parent.left; leftMargin: 8 } }
+        Zone { ids: BarLayout.layout.center; anchors.horizontalCenter: parent.horizontalCenter }
+        Zone { ids: BarLayout.layout.right; anchors { right: parent.right; rightMargin: 8 } }
+    }
 
-            Item_ {
-                id: logo
-                glyph: true; pad: 12
-                text: osGlyph.glyph
-                active: win.shown === "system" && win.expanded
-                onClicked: win.openFrom("system", logo, "left")
-                onEntered: win.slide("system", logo)
-                FileView {
-                    id: osGlyph
-                    path: "/etc/os-release"
-                    readonly property string id_: (/^ID=("?)([^"\n]*)\1/m.exec(text() ?? "") ?? [])[2] ?? ""
-                    readonly property string glyph: ({ fedora: "", arch: "", cachyos: "", endeavouros: "", manjaro: "",
-                        debian: "", ubuntu: "", nixos: "", opensuse: "", "opensuse-tumbleweed": "", gentoo: "", void: "" })[id_] ?? ""
-                }
+    // ── Bar items, by id ──────────────────────────────────────────────
+    readonly property var items: ({ logo: iLogo, appmenus: iAppMenus, workspaces: iWorkspaces, tray: iTray, battery: iBattery,
+                                    sound: iSound, network: iNetwork, spotlight: iSpotlight, weather: iWeather,
+                                    controls: iControls, clock: iClock, power: iPower })
+
+    Component {
+        id: iLogo
+        Item_ {
+            id: logo
+            glyph: true; pad: 12
+            text: osGlyph.glyph
+            active: win.shown === "system" && win.expanded
+            onClicked: win.openFrom("system", logo, "left")
+            onEntered: win.slide("system", logo)
+            FileView {
+                id: osGlyph
+                path: "/etc/os-release"
+                readonly property string id_: (/^ID=("?)([^"\n]*)\1/m.exec(text() ?? "") ?? [])[2] ?? ""
+                readonly property string glyph: ({ fedora: "\uf30a", arch: "\uf303", cachyos: "\uf303", endeavouros: "\uf322", manjaro: "\uf312",
+                    debian: "\uf306", ubuntu: "\uf31b", nixos: "\uf313", opensuse: "\uf314", "opensuse-tumbleweed": "\uf314", gentoo: "\uf30d", void: "\uf32e" })[id_] ?? "\uf17c"
             }
+        }
+    }
+    Component {
+        id: iAppMenus
+        Row {
+            height: win.barH
             Item_ {
                 id: appName
                 readonly property var tl: ToplevelManager.activeToplevel
@@ -207,24 +238,22 @@ PanelWindow {
                 onEntered: win.slide("help", helpMenu)
             }
         }
-
-        // Workspaces, centred on the screen (setting barWorkspaces / barWorkspaceStyle).
+    }
+    Component {
+        id: iWorkspaces
         Workspaces {
-            anchors.horizontalCenter: parent.horizontalCenter
-            visible: !win.taskbar && (win.s.barWorkspaces ?? true) && known.length > 0
+            property bool shown: known.length > 0
             screenName: win.screen.name
             family: win.family
             fontPx: win.fontPx
             barH: win.barH
         }
-
+    }
+    // Tray (menu extras)
+    Component {
+        id: iTray
         Row {
-            visible: !win.taskbar
-            anchors { right: parent.right; rightMargin: 8 }
-            height: parent.height
-            spacing: 0
-
-            // Tray (menu extras)
+            height: win.barH
             Repeater {
                 model: SystemTray.items
                 MouseArea {
@@ -249,76 +278,101 @@ PanelWindow {
                     }
                 }
             }
-
-            Item_ {
-                readonly property var bat: UPower.displayDevice
-                readonly property int pct: Math.round((bat?.percentage ?? 0) <= 1 ? (bat?.percentage ?? 0) * 100 : bat.percentage)
-                readonly property bool charging: bat?.state === UPowerDeviceState.Charging || bat?.state === UPowerDeviceState.FullyCharged
-                visible: bat?.isLaptopBattery ?? false
-                text: pct + "%  " + (charging ? "" : ["", "", "", "", ""][Math.min(4, Math.floor(pct / 20))])
-                glyph: true
+        }
+    }
+    Component {
+        id: iBattery
+        Item_ {
+            readonly property var bat: UPower.displayDevice
+            readonly property int pct: Math.round((bat?.percentage ?? 0) <= 1 ? (bat?.percentage ?? 0) * 100 : bat.percentage)
+            readonly property bool charging: bat?.state === UPowerDeviceState.Charging || bat?.state === UPowerDeviceState.FullyCharged
+            shown: bat?.isLaptopBattery ?? false
+            text: pct + "%  " + (charging ? "\uf0e7" : ["\uf244", "\uf243", "\uf242", "\uf241", "\uf240"][Math.min(4, Math.floor(pct / 20))])
+            glyph: true
+        }
+    }
+    Component {
+        id: iSound
+        Item_ {
+            id: vol
+            glyph: true
+            text: Audio.glyph
+            active: win.shown === "sound" && win.expanded
+            onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : win.openFrom("sound", vol, "right")
+            WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
+        }
+    }
+    Component {
+        id: iNetwork
+        Item_ {
+            id: wifi
+            glyph: true
+            text: Net.glyph
+            active: win.shown === "network" && win.expanded
+            onClicked: win.openFrom("network", wifi, "right")
+        }
+    }
+    Component {
+        id: iSpotlight
+        Item_ {
+            glyph: true
+            text: "\uf002"
+            active: Popouts.spotlight
+            onClicked: Popouts.toggleSpotlight()
+        }
+    }
+    Component {
+        id: iWeather
+        Item_ {
+            id: wx
+            shown: Weather.ok
+            implicitWidth: wxRow.implicitWidth + pad * 2
+            Row {
+                id: wxRow
+                anchors.centerIn: parent
+                spacing: 5
+                Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.glyph(Weather.code, Weather.isDay); color: Theme.text
+                    font { family: win.glyphs; pixelSize: win.fontPx + 1 } }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.temp + "°"; color: Theme.text
+                    font { family: win.family; pixelSize: win.fontPx; weight: Theme.w(Font.Normal) } }
             }
-            Item_ {
-                id: vol
-                glyph: true
-                text: Audio.glyph
-                active: win.shown === "sound" && win.expanded
-                onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : win.openFrom("sound", vol, "right")
-                WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
-            }
-            Item_ {
-                id: wifi
-                glyph: true
-                text: Net.glyph
-                active: win.shown === "network" && win.expanded
-                onClicked: win.openFrom("network", wifi, "right")
-            }
-            Item_ {
-                glyph: true
-                text: ""
-                active: Popouts.spotlight
-                onClicked: Popouts.toggleSpotlight()
-            }
-            Item_ {
-                id: wx
-                visible: (win.s.barWeather ?? true) && Weather.ok
-                implicitWidth: wxRow.implicitWidth + pad * 2
-                Row {
-                    id: wxRow
-                    anchors.centerIn: parent
-                    spacing: 5
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.glyph(Weather.code, Weather.isDay); color: Theme.text
-                        font { family: win.glyphs; pixelSize: win.fontPx + 1 } }
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.temp + "°"; color: Theme.text
-                        font { family: win.family; pixelSize: win.fontPx; weight: Font.Normal } }
-                }
-                active: win.shown === "weather" && win.expanded
-                onClicked: e => e.button === Qt.MiddleButton ? Weather.refresh() : win.openFrom("weather", wx, "right")
-            }
-            Item_ {
-                id: cc
-                glyph: true
-                text: ""
-                active: (win.shown === "controls" || win.shown === "media") && win.expanded
-                onClicked: win.openFrom("controls", cc, "right")
-            }
-            Item_ {
-                id: clockItem
-                pad: 10
-                text: Qt.formatDateTime(clockSrc.date, "ddd MMM d   " + ((win.s.clock24h ?? true) ? "HH:mm" : "h:mm")
-                      + ((win.s.clockSeconds ?? false) ? ":ss" : "") + ((win.s.clock24h ?? true) ? "" : " AP"))
-                active: win.shown === "notifs" && win.expanded
-                onClicked: win.openFrom("notifs", clockItem, "right")
-                SystemClock { id: clockSrc; precision: (win.s.clockSeconds ?? false) ? SystemClock.Seconds : SystemClock.Minutes }
-            }
-            Item_ {
-                id: powerItem
-                glyph: true
-                text: "\uf011"
-                active: win.shown === "power" && win.expanded
-                onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : win.openFrom("power", powerItem, "right")
-                WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
-            }
+            active: win.shown === "weather" && win.expanded
+            onClicked: e => e.button === Qt.MiddleButton ? Weather.refresh() : win.openFrom("weather", wx, "right")
+        }
+    }
+    Component {
+        id: iControls
+        Item_ {
+            id: cc
+            glyph: true
+            text: "\uf205"
+            active: (win.shown === "controls" || win.shown === "media") && win.expanded
+            onClicked: win.openFrom("controls", cc, "right")
+        }
+    }
+    Component {
+        id: iClock
+        Item_ {
+            id: clockItem
+            pad: 10
+            // clockDate: "full" (Sat Nov 21), "weekday" (Sat) or "none"; the clock menu then shows the date.
+            text: Qt.formatDateTime(clockSrc.date, ({ full: "ddd MMM d   ", weekday: "ddd  ", none: "" })[win.s.clockDate ?? "full"]
+                  + ((win.s.clock24h ?? true) ? "HH:mm" : "h:mm")
+                  + ((win.s.clockSeconds ?? false) ? ":ss" : "") + ((win.s.clock24h ?? true) ? "" : " AP"))
+            active: win.shown === "notifs" && win.expanded
+            onClicked: win.openFrom("notifs", clockItem, "right")
+            SystemClock { id: clockSrc; precision: (win.s.clockSeconds ?? false) ? SystemClock.Seconds : SystemClock.Minutes }
+        }
+    }
+    Component {
+        id: iPower
+        Item_ {
+            id: powerItem
+            glyph: true
+            text: ""
+            active: win.shown === "power" && win.expanded
+            onClicked: e => e.button === Qt.MiddleButton ? Audio.toggleMute() : win.openFrom("power", powerItem, "right")
+            WheelHandler { onWheel: e => Audio.nudge(e.angleDelta.y > 0 ? 0.03 : -0.03) }
         }
     }
 
@@ -485,7 +539,7 @@ PanelWindow {
             anchors { bottom: parent.bottom; bottomMargin: 6; right: parent.right; rightMargin: 12 }
             text: "+" + n + " more"
             color: Theme.textFaint
-            font { family: win.family; pixelSize: 10; weight: Font.Bold }
+            font { family: win.family; pixelSize: 10; weight: Theme.w(Font.Bold) }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Popouts.open("notifs", win.screen.name) }
         }
     }

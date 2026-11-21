@@ -81,7 +81,7 @@ SettingRow {
                     anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom }
                     text: tileArea.modelData[1]
                     color: tileArea.sel ? Theme.text : Theme.textDim
-                    font { family: Theme.font; pixelSize: 11; weight: tileArea.sel ? Font.DemiBold : Font.Normal }
+                    font { family: Theme.font; pixelSize: 11; weight: Theme.w(tileArea.sel ? Font.DemiBold : Font.Normal) }
                 }
             }
         }
@@ -109,7 +109,7 @@ SettingRow {
         Rectangle { anchors { right: parent.right; rightMargin: 3; verticalCenter: parent.verticalCenter }
             width: 16; height: 16; radius: 4; color: Theme.accent
             Text { anchors.centerIn: parent; text: "⌃\n⌄"; lineHeight: 0.45; horizontalAlignment: Text.AlignHCenter
-                color: Theme.onAccent; font { family: Theme.font; pixelSize: 9; weight: Font.Bold } } }
+                color: Theme.onAccent; font { family: Theme.font; pixelSize: 9; weight: Theme.w(Font.Bold) } } }
     } }
 
     property bool fontOpen: false
@@ -129,7 +129,7 @@ SettingRow {
             TextField { id: q; width: parent.width - 24; placeholder: "Search fonts"
                 Component.onCompleted: input.forceActiveFocus()
                 onAccepted: if (input.activeFocus && list.count > 0) { Config.set(root.spec.key, list.model[0]); root.fontOpen = false; } }
-            Text { visible: list.count === 0; text: "No matches"; color: Theme.textDim; font { family: Theme.font; pixelSize: 12 } leftPadding: 8 }
+            Text { visible: list.count === 0; text: "No matches"; color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } leftPadding: 8 }
             ListView {
                 id: list
                 width: parent.width - 24; height: Math.min(200, contentHeight); clip: true

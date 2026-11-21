@@ -25,13 +25,24 @@ Item {
         width: parent.width
         spacing: 8
 
+        // Date + weather, when the menu bar leaves them out (clockDate / barWeather).
+        Text {
+            readonly property var s: Config.saved
+            readonly property bool wx: !(s.barWeather ?? true) && Weather.ok
+            visible: (s.clockDate ?? "full") !== "full" || wx
+            x: 6
+            text: Qt.formatDate(new Date(root.now), "dddd, MMMM d") + (wx ? "   ·   " + Weather.temp + "°  " + Weather.place : "")
+            color: Theme.textDim
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
+        }
+
         Item {
             width: parent.width; height: 32
             Text {
                 anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
                 text: "Notifications"
                 color: Theme.text
-                font { family: Theme.font; pixelSize: 14; weight: Font.Bold }
+                font { family: Theme.font; pixelSize: 14; weight: Theme.w(Font.Bold) }
             }
             Row {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
@@ -56,7 +67,7 @@ Item {
                     onClicked: Notifs.clear()
                     Rectangle { anchors.fill: parent; radius: 8; color: clear.containsMouse ? Theme.control : Theme.hover }
                     Text { id: clearLabel; anchors.centerIn: parent; text: "Clear all"; color: Theme.textDim
-                        font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold } }
+                        font { family: Theme.font; pixelSize: 11; weight: Theme.w(Font.DemiBold) } }
                 }
             }
         }
@@ -77,7 +88,7 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Notifs.dnd ? "Do Not Disturb is on" : "You're all caught up"
                 color: Theme.textFaint
-                font { family: Theme.font; pixelSize: 12 }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
             }
         }
 

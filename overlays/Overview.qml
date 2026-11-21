@@ -246,14 +246,14 @@ PanelWindow {
                     anchors { right: parent.left; rightMargin: 18; top: parent.top }
                     text: card.modelData.ws
                     color: card.active ? Theme.accent : Qt.rgba(1, 1, 1, card.current ? 0.85 : 0.4)
-                    font { family: win.family; pixelSize: 22; weight: Font.DemiBold }
+                    font { family: win.family; pixelSize: 22; weight: Theme.w(Font.DemiBold) }
                 }
                 Text {
                     anchors.centerIn: parent
                     visible: !card.modelData.windows.length
                     text: "Empty"
                     color: Qt.rgba(1, 1, 1, 0.45)
-                    font { family: win.family; pixelSize: 15 }
+                    font { family: win.family; weight: Theme.fontWeight; pixelSize: 15 }
                 }
 
                 Repeater {
@@ -317,7 +317,7 @@ PanelWindow {
                                 elide: Text.ElideRight
                                 text: thumb.w.title || thumb.w.app
                                 color: "white"
-                                font { family: win.family; pixelSize: 13 }
+                                font { family: win.family; weight: Theme.fontWeight; pixelSize: 13 }
                             }
                         }
 
@@ -369,6 +369,6 @@ PanelWindow {
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 18 }
         text: "Click to focus  ·  Drag to another workspace to move  ·  Middle-click to close  ·  Esc"
         color: Qt.rgba(1, 1, 1, 0.35)
-        font { family: win.family; pixelSize: 12 }
+        font { family: win.family; weight: Theme.fontWeight; pixelSize: 12 }
     }
 }

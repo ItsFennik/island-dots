@@ -27,7 +27,7 @@ Item {
             color: Theme.textFaint; font { family: Theme.mono; pixelSize: 30 } }
         Text { anchors.horizontalCenter: parent.horizontalCenter; width: parent.width - 40; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             text: Weather.failed ? (Weather.badLocation ? Weather.status : "Weather unavailable — are you online?") : "Loading…"
-            color: Theme.textDim; font { family: Theme.font; pixelSize: 12 } }
+            color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } }
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 8
@@ -59,14 +59,14 @@ Item {
                 Row {
                     spacing: 5
                     Text { text: Weather.place || "Weather"; color: Theme.inkSet ? Theme.ink : "white"; elide: Text.ElideRight; width: Math.min(implicitWidth, 190)
-                        font { family: Theme.font; pixelSize: 15; weight: Font.Bold } }
+                        font { family: Theme.font; pixelSize: 15; weight: Theme.w(Font.Bold) } }
                     Text { visible: !Weather.location; text: "\u{f0124}"; color: Theme.inkSet ? Theme.ink : "white"; anchors.verticalCenter: parent.verticalCenter
                         font { family: Theme.mono; pixelSize: 10 } }
                 }
                 Text { text: Weather.resolved; visible: text !== "" && text !== Weather.place; color: Theme.inkSet ? Theme.ink : "white"; opacity: 0.75
-                    width: parent.width; elide: Text.ElideRight; font { family: Theme.font; pixelSize: 11 } }
+                    width: parent.width; elide: Text.ElideRight; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
                 Text { text: Weather.temp + root.deg; color: Theme.inkSet ? Theme.ink : "white"; topPadding: 2
-                    font { family: Theme.font; pixelSize: 50; weight: Font.Light } }
+                    font { family: Theme.font; pixelSize: 50; weight: Theme.w(Font.Light) } }
             }
             Column {
                 anchors { right: parent.right; bottom: parent.bottom; margins: 14; rightMargin: 16 }
@@ -74,9 +74,9 @@ Item {
                 Text { anchors.right: parent.right; text: Weather.glyph(Weather.code, Weather.isDay); color: Theme.inkSet ? Theme.ink : "white"
                     font { family: Theme.mono; pixelSize: 28 } }
                 Text { anchors.right: parent.right; text: Weather.desc; color: Theme.inkSet ? Theme.ink : "white"
-                    font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold } }
+                    font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) } }
                 Text { anchors.right: parent.right; text: "H:" + Weather.hi + root.deg + "  L:" + Weather.lo + root.deg; color: Theme.inkSet ? Theme.ink : "white"; opacity: 0.85
-                    font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
+                    font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
             }
         }
 
@@ -95,13 +95,13 @@ Item {
                         width: (root.width - 16) / 8
                         spacing: 4
                         Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.label; color: Theme.textDim
-                            font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold } }
+                            font { family: Theme.font; pixelSize: 10; weight: Theme.w(Font.DemiBold) } }
                         Text { anchors.horizontalCenter: parent.horizontalCenter; text: Weather.glyph(modelData.code, modelData.day); color: Theme.text
                             font { family: Theme.mono; pixelSize: 16 } }
                         Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.temp + root.deg; color: Theme.text
-                            font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold } }
+                            font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
                         Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.rain >= 20 ? modelData.rain + "%" : " "
-                            color: "#5aa9ff"; font { family: Theme.font; pixelSize: 9; weight: Font.Bold } }
+                            color: "#5aa9ff"; font { family: Theme.font; pixelSize: 9; weight: Theme.w(Font.Bold) } }
                     }
                 }
             }
@@ -135,10 +135,10 @@ Item {
                             Text { text: modelData.g; color: Theme.textFaint; anchors.verticalCenter: parent.verticalCenter
                                 font { family: Theme.mono; pixelSize: 10 } }
                             Text { text: modelData.k.toUpperCase(); color: Theme.textFaint; anchors.verticalCenter: parent.verticalCenter
-                                font { family: Theme.font; pixelSize: 9; weight: Font.Bold; letterSpacing: 0.5 } }
+                                font { family: Theme.font; pixelSize: 9; weight: Theme.w(Font.Bold); letterSpacing: 0.5 } }
                         }
                         Text { width: parent.width; elide: Text.ElideRight; text: modelData.v; color: Theme.text
-                            font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold } }
+                            font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) } }
                     }
                 }
             }
@@ -164,14 +164,14 @@ Item {
                         width: dayCol.width; height: 30
                         Rectangle { visible: index > 0; width: parent.width; height: 1; color: Theme.hairline }
                         Text { anchors.verticalCenter: parent.verticalCenter; width: 82; elide: Text.ElideRight; text: modelData.label; color: Theme.text
-                            font { family: Theme.font; pixelSize: 13; weight: Font.Medium } }
+                            font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.Medium) } }
                         Text { x: 88; anchors.verticalCenter: parent.verticalCenter; text: Weather.glyph(modelData.code, true); color: Theme.text
                             font { family: Theme.mono; pixelSize: 15 } }
                         Text { x: 108; anchors.verticalCenter: parent.verticalCenter; text: modelData.rain >= 20 ? modelData.rain + "%" : ""
-                            color: "#5aa9ff"; font { family: Theme.font; pixelSize: 10; weight: Font.Bold } }
+                            color: "#5aa9ff"; font { family: Theme.font; pixelSize: 10; weight: Theme.w(Font.Bold) } }
                         // lo ─ range bar ─ hi, scaled across all days (Apple style)
                         Text { id: lo; x: 146; width: 30; horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter
-                            text: modelData.lo + root.deg; color: Theme.textDim; font { family: Theme.font; pixelSize: 13 } }
+                            text: modelData.lo + root.deg; color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 } }
                         Rectangle {
                             id: track
                             anchors { left: lo.right; leftMargin: 8; right: hi.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
@@ -191,7 +191,7 @@ Item {
                         }
                         Text { id: hi; anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                             width: 30; horizontalAlignment: Text.AlignRight
-                            text: modelData.hi + root.deg; color: Theme.text; font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold } }
+                            text: modelData.hi + root.deg; color: Theme.text; font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) } }
                     }
                 }
             }
@@ -203,7 +203,7 @@ Item {
             Text {
                 anchors { left: parent.left; leftMargin: 4; verticalCenter: parent.verticalCenter }
                 text: Weather.loading ? "Updating…" : Weather.updatedAt ? "Updated " + Qt.formatTime(Weather.updatedAt, (Config.saved.clock24h ?? true) ? "HH:mm" : "h:mm AP") : ""
-                color: Theme.textFaint; font { family: Theme.font; pixelSize: 11 }
+                color: Theme.textFaint; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
             }
             Row {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }

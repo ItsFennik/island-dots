@@ -65,7 +65,7 @@ Item {
                     text: b.tip
                     elide: Text.ElideRight
                     color: Theme.menuText
-                    font { family: root.family; pixelSize: 11; weight: Font.DemiBold }
+                    font { family: root.family; pixelSize: 11; weight: Theme.w(Font.DemiBold) }
                 }
                 Text {
                     id: tipSubText
@@ -74,7 +74,7 @@ Item {
                     text: b.tipSub
                     elide: Text.ElideRight
                     color: Qt.alpha(Theme.menuText, 0.6)
-                    font { family: root.family; pixelSize: 10 }
+                    font { family: root.family; weight: Theme.fontWeight; pixelSize: 10 }
                 }
             }
         }
@@ -164,9 +164,9 @@ Item {
                     width: 112
                     spacing: 0
                     Text { width: parent.width; text: Media.label; elide: Text.ElideRight; color: Theme.text
-                        font { family: root.family; pixelSize: 12; weight: Font.DemiBold } }
+                        font { family: root.family; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
                     Text { width: parent.width; text: Media.artist; visible: text !== ""; elide: Text.ElideRight; color: Theme.textDim
-                        font { family: root.family; pixelSize: 11 } }
+                        font { family: root.family; weight: Theme.fontWeight; pixelSize: 11 } }
                 }
                 // play/pause + next only (previous is in the media popout / middle-click the art)
                 Row {
@@ -310,7 +310,7 @@ Item {
                     width: nameText.implicitWidth + 16; height: 22; radius: 6
                     color: Theme.menuBg
                     border { width: 1; color: Theme.menuEdge }
-                    Text { id: nameText; anchors.centerIn: parent; text: app.modelData.name; color: Theme.menuText; font { family: root.family; pixelSize: 11 } }
+                    Text { id: nameText; anchors.centerIn: parent; text: app.modelData.name; color: Theme.menuText; font { family: root.family; weight: Theme.fontWeight; pixelSize: 11 } }
                 }
             }
             }
@@ -395,7 +395,7 @@ Item {
                 Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.glyph(Weather.code, Weather.isDay); color: Theme.text
                     font { family: root.glyphs; pixelSize: 14; hintingPreference: Font.PreferNoHinting } }
                 Text { anchors.verticalCenter: parent.verticalCenter; text: Weather.temp + "°"; color: Theme.text
-                    font { family: root.family; pixelSize: 12 } }
+                    font { family: root.family; weight: Theme.fontWeight; pixelSize: 12 } }
             }
         }
         Glyph {
@@ -463,7 +463,7 @@ Item {
                     font { family: root.glyphs; pixelSize: 8; hintingPreference: Font.PreferNoHinting }
                 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: Math.round(ring.frac * 100); color: Theme.text
-                    font { family: root.family; pixelSize: 11; weight: Font.DemiBold } }
+                    font { family: root.family; pixelSize: 11; weight: Theme.w(Font.DemiBold) } }
             }
         }
         Glyph {
@@ -489,7 +489,7 @@ Item {
                 anchors.centerIn: parent
                 text: Qt.formatDateTime(clockSrc.date, (root.s.clock24h ?? true) ? "HH:mm" : "h:mm AP")
                 color: Theme.text
-                font { family: root.family; pixelSize: 15; weight: Font.Medium }
+                font { family: root.family; pixelSize: 15; weight: Theme.w(Font.Medium) }
             }
             SystemClock { id: clockSrc; precision: SystemClock.Minutes }
         }

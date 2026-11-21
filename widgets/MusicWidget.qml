@@ -92,7 +92,7 @@ Card {
                 text: root.p ? (root.p.identity || "Music").toUpperCase() : "MUSIC"
                 elide: Text.ElideRight
                 color: root.cPink || root.fgDim
-                font { family: root.font; pixelSize: 10; weight: Font.Bold; letterSpacing: 0.5 }
+                font { family: root.font; pixelSize: 10; weight: Theme.w(Font.Bold); letterSpacing: 0.5 }
             }
             Item { width: 1; height: 4 }
             Text {
@@ -100,7 +100,7 @@ Card {
                 text: root.p ? (Media.title || "Unknown title") : "Not Playing"
                 elide: Text.ElideRight
                 color: root.fg
-                font { family: root.font; pixelSize: 15; weight: Font.Bold }
+                font { family: root.font; pixelSize: 15; weight: Theme.w(Font.Bold) }
             }
             Text {
                 width: parent.width
@@ -108,7 +108,7 @@ Card {
                 text: Media.artist || root.p?.trackAlbum || ""
                 elide: Text.ElideRight
                 color: root.fgDim
-                font { family: root.font; pixelSize: 12; weight: Font.Medium }
+                font { family: root.font; pixelSize: 12; weight: Theme.w(Font.Medium) }
             }
         }
 
@@ -136,9 +136,9 @@ Card {
                 Item {
                     width: parent.width; height: 12
                     Text { text: Media.fmt(root.p?.position ?? 0); color: root.fgDim
-                        font { family: root.font; pixelSize: 9; weight: Font.DemiBold } }
+                        font { family: root.font; pixelSize: 9; weight: Theme.w(Font.DemiBold) } }
                     Text { anchors.right: parent.right; text: "-" + Media.fmt(Math.max(0, (root.p?.length ?? 0) - (root.p?.position ?? 0))); color: root.fgDim
-                        font { family: root.font; pixelSize: 9; weight: Font.DemiBold } }
+                        font { family: root.font; pixelSize: 9; weight: Theme.w(Font.DemiBold) } }
                 }
             }
 
@@ -175,7 +175,7 @@ Card {
             anchors { left: parent.left; bottom: parent.bottom }
             text: "Play something to see it here"
             color: root.fgFaint
-            font { family: root.font; pixelSize: 11 }
+            font { family: root.font; weight: Theme.fontWeight; pixelSize: 11 }
         }
     }
 
@@ -196,8 +196,8 @@ Card {
         visible: root.size === "s"
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
         Text { width: parent.width; text: root.p ? (Media.title || "Unknown title") : "Not Playing"; elide: Text.ElideRight
-            color: root.fg; font { family: root.font; pixelSize: 13; weight: Font.Bold } }
+            color: root.fg; font { family: root.font; pixelSize: 13; weight: Theme.w(Font.Bold) } }
         Text { width: parent.width; visible: !!root.p; text: Media.artist || root.p?.trackAlbum || ""; elide: Text.ElideRight
-            color: root.fgDim; font { family: root.font; pixelSize: 11; weight: Font.Medium } }
+            color: root.fgDim; font { family: root.font; pixelSize: 11; weight: Theme.w(Font.Medium) } }
     }
 }

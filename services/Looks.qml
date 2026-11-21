@@ -11,6 +11,31 @@ Singleton {
     property var gtk: []        // [[value, text], ...]
     property var icons: []
     property var cursors: []
+    // Weights the interface font really has, as [[css weight, style name], …] for Settings.
+    property var fontWeights: [["400", "Regular"]]
+    readonly property string weightsFor: Config.saved.widgetFont || "Adwaita Sans"
+    onWeightsForChanged: { weightScan.running = false; weightScan.running = true; }   // restart if still scanning
+    Process {
+        id: weightScan
+        running: true
+        command: ["fc-list", root.weightsFor + ":style", "style", "weight"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                // fontconfig weight → CSS/Qt weight
+                const css = w => w <= 0 ? 100 : w <= 40 ? 200 : w <= 50 ? 300 : w <= 80 ? 400 : w <= 100 ? 500
+                               : w <= 180 ? 600 : w <= 200 ? 700 : w <= 205 ? 800 : 900;
+                const seen = {};
+                for (const line of text.split("\n")) {
+                    const st = (/style=([^:,]+)/.exec(line) ?? [])[1], wt = (/weight=(\d+)/.exec(line) ?? [])[1];
+                    if (!st || wt === undefined || /italic|oblique/i.test(st)) continue;
+                    const v = String(css(+wt));
+                    if (!seen[v]) seen[v] = st.trim();
+                }
+                const out = Object.keys(seen).sort((a, b) => a - b).map(v => [v, seen[v]]);
+                root.fontWeights = out.length ? out : [["400", "Regular"]];
+            }
+        }
+    }
 
     function rescan() { scan.running = true; }
 
@@ -31,7 +56,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const g = [], i = [], c = [];
-                const skip = ["hicolor", "locolor", "default", "Default", "Emacs"];
+                const skip = ["hicolor", "locolor", "default", "Default", "Emacs", "Island", "Island-dark"];  // Island = apply-theme.sh's generated GTK 3 theme
                 for (const line of text.split("\n")) {
                     const [kind, name] = line.split("\t");
                     if (!name || skip.includes(name)) continue;

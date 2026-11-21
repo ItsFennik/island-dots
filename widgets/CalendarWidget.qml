@@ -33,7 +33,7 @@ Card {
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14; topMargin: 15 }
         spacing: 4
         Text { text: Qt.locale().standaloneMonthName(root.today.getMonth()).toUpperCase(); color: root.fg
-            font { family: root.font; pixelSize: 10; weight: Font.Bold; letterSpacing: 0.3 } }
+            font { family: root.font; pixelSize: 10; weight: Theme.w(Font.Bold); letterSpacing: 0.3 } }
         Grid {
             columns: 7
             readonly property real cw: parent.width / 7
@@ -45,7 +45,7 @@ Card {
                     horizontalAlignment: Text.AlignHCenter
                     text: Qt.locale().standaloneDayName((index + root.firstDow) % 7, Locale.NarrowFormat)
                     color: root.fg
-                    font { family: root.font; pixelSize: 9; weight: Font.Bold }
+                    font { family: root.font; pixelSize: 9; weight: Theme.w(Font.Bold) }
                 }
             }
             Repeater {
@@ -61,7 +61,7 @@ Card {
                         anchors.centerIn: parent
                         text: parent.modelData || ""
                         color: parent.isToday ? root.onFg : parent.weekend ? root.fgDim : root.fg
-                        font { family: root.font; pixelSize: 10; weight: Font.DemiBold }
+                        font { family: root.font; pixelSize: 10; weight: Theme.w(Font.DemiBold) }
                     }
                 }
             }
@@ -75,16 +75,16 @@ Card {
         width: root.unit - 32
         spacing: -4
         Text { text: Qt.formatDate(root.today, "dddd").toUpperCase(); color: root.tahoe ? root.fgDim : root.red
-            font { family: root.font; pixelSize: 12; weight: Font.Bold; letterSpacing: 0.4 } }
+            font { family: root.font; pixelSize: 12; weight: Theme.w(Font.Bold); letterSpacing: 0.4 } }
         Text { text: root.today.getDate(); color: root.fg
-            font { family: root.font; pixelSize: 64; weight: Font.Light } }
+            font { family: root.font; pixelSize: 64; weight: Theme.w(Font.Light) } }
     }
     Column {
         visible: root.med || (!root.wide && !root.tahoe)
         anchors { left: parent.left; bottom: parent.bottom; margins: 16 }
         spacing: 1
         Text { text: Qt.locale().standaloneMonthName(root.today.getMonth()); color: root.fg
-            font { family: root.font; pixelSize: 13; weight: Font.DemiBold } }
+            font { family: root.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) } }
         Text {
             readonly property int week: {
                 const d = new Date(Date.UTC(root.today.getFullYear(), root.today.getMonth(), root.today.getDate()));
@@ -92,7 +92,7 @@ Card {
                 return Math.ceil(((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 864e5 + 1) / 7);
             }
             text: "Week " + week; color: root.fgDim
-            font { family: root.font; pixelSize: 11; weight: Font.Medium } }
+            font { family: root.font; pixelSize: 11; weight: Theme.w(Font.Medium) } }
     }
 
     // Month grid
@@ -108,7 +108,7 @@ Card {
                 horizontalAlignment: Text.AlignHCenter
                 text: Qt.locale().standaloneDayName((index + root.firstDow) % 7, Locale.NarrowFormat)
                 color: root.fgFaint
-                font { family: root.font; pixelSize: 10; weight: Font.Bold }
+                font { family: root.font; pixelSize: 10; weight: Theme.w(Font.Bold) }
             }
         }
         Repeater {
@@ -124,7 +124,7 @@ Card {
                     anchors.centerIn: parent
                     text: parent.modelData || ""
                     color: parent.isToday ? root.onAccent : parent.weekend ? root.fgDim : root.fg
-                    font { family: root.font; pixelSize: 11; weight: parent.isToday ? Font.Bold : Font.Medium }
+                    font { family: root.font; pixelSize: 11; weight: Theme.w(parent.isToday ? Font.Bold : Font.Medium) }
                 }
             }
         }
@@ -138,13 +138,13 @@ Card {
             id: head
             spacing: 12
             Text { text: root.today.getDate(); color: root.fg
-                font { family: root.font; pixelSize: 54; weight: Font.Light } }
+                font { family: root.font; pixelSize: 54; weight: Theme.w(Font.Light) } }
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 Text { text: Qt.formatDate(root.today, "dddd").toUpperCase(); color: root.tahoe ? root.fgDim : root.red
-                    font { family: root.font; pixelSize: 12; weight: Font.Bold; letterSpacing: 0.4 } }
+                    font { family: root.font; pixelSize: 12; weight: Theme.w(Font.Bold); letterSpacing: 0.4 } }
                 Text { text: Qt.locale().standaloneMonthName(root.today.getMonth()) + " " + root.today.getFullYear(); color: root.fg
-                    font { family: root.font; pixelSize: 15; weight: Font.DemiBold } }
+                    font { family: root.font; pixelSize: 15; weight: Theme.w(Font.DemiBold) } }
             }
         }
         Grid {
@@ -160,7 +160,7 @@ Card {
                     horizontalAlignment: Text.AlignHCenter
                     text: Qt.locale().standaloneDayName((index + root.firstDow) % 7, Locale.NarrowFormat)
                     color: root.fgFaint
-                    font { family: root.font; pixelSize: 11; weight: Font.Bold }
+                    font { family: root.font; pixelSize: 11; weight: Theme.w(Font.Bold) }
                 }
             }
             Repeater {
@@ -176,7 +176,7 @@ Card {
                         anchors.centerIn: parent
                         text: parent.modelData || ""
                         color: parent.isToday ? root.onAccent : parent.weekend ? root.fgDim : root.fg
-                        font { family: root.font; pixelSize: 14; weight: parent.isToday ? Font.Bold : Font.Medium }
+                        font { family: root.font; pixelSize: 14; weight: Theme.w(parent.isToday ? Font.Bold : Font.Medium) }
                     }
                 }
             }

@@ -28,6 +28,39 @@ mkdir -p "$STATE_DIR" "$THUMB_DIR"
 
 notify() { command -v notify-send >/dev/null 2>&1 && notify-send -a island "$1" "${2:-}" || true; }
 
+# Smooth ease-out for every awww transition (cubic-bezier.com).
+BEZIER="$(setting wallBezier ".25,.8,.25,1")"
+
+# Transition fps = the fastest monitor's refresh rate (180 Hz here), 60 if Hyprland can't say.
+trans_fps() {
+  local f; f="$(hyprctl monitors -j 2>/dev/null | jq -r '[.[].refreshRate] | max | floor' 2>/dev/null)"
+  [[ "$f" =~ ^[0-9]+$ ]] && [ "$f" -ge 30 ] && printf '%s' "$f" || printf 60
+}
+
+# Mouse pointer as awww fractions (x from the left, y from the BOTTOM) of the monitor it is on.
+cursor_pos() {
+  local c; c="$(hyprctl cursorpos 2>/dev/null)" || { printf center; return; }
+  hyprctl monitors -j 2>/dev/null | jq -r --arg c "$c" '
+    ($c | split(",") | map(ltrimstr(" ") | tonumber)) as [$cx, $cy]
+    | map(. + {lw: (.width / .scale), lh: (.height / .scale)})
+    | map(select($cx >= .x and $cx < .x + .lw and $cy >= .y and $cy < .y + .lh)) | first
+    | if . == null then "center"
+      else [($cx - .x) / .lw, 1 - ($cy - .y) / .lh]
+           | map([[(. * 1000 | floor) / 1000, 0.001] | max, 0.999] | min | tostring | if test("\\.") then . else . + ".0" end)
+           | join(",") end' \
+    2>/dev/null || printf center
+}
+
+# awww flags for the configured transition. "cursor" = a circle growing out of the pointer.
+trans_args() {
+  local t="$TRANSITION"
+  case "$t" in
+    cursor) printf '%s\n' --transition-type grow --transition-pos "$(cursor_pos)" ;;
+    *)      printf '%s\n' --transition-type "$t" ;;
+  esac
+  printf '%s\n' --transition-duration "$DURATION" --transition-fps "$(trans_fps)" --transition-bezier "$BEZIER"
+}
+
 is_video() { case "${1,,}" in *.mp4|*.webm|*.mkv|*.mov|*.m4v|*.avi) return 0 ;; *) return 1 ;; esac; }
 
 # Poster path = md5 of the full path (the picker computes the same with Qt.md5).
@@ -115,11 +148,16 @@ fi
 
 ensure_daemon
 
+# Video -> picture: drop the video first so the transition plays on screen instead of under mpvpaper
+# (awww still holds the old video's poster, so this doesn't flash).
+is_video "$img" || [ "$mode" = restore ] || stop_video
+
 if [ -n "$still" ] && [ -f "$still" ]; then
   if [ "$mode" = "restore" ]; then
     "$WP" img "$still" --transition-type none
   else
-    "$WP" img "$still" --transition-type "$TRANSITION" --transition-duration "$DURATION" --transition-fps 60
+    mapfile -t targs < <(trans_args)
+    "$WP" img "$still" "${targs[@]}"
   fi
 fi
 
@@ -127,11 +165,17 @@ if is_video "$img"; then
   # Let the poster transition finish, then swap in the video on top of it.
   [ "$mode" = "restore" ] || sleep "$DURATION"
   stop_video
-  # IPC socket: ~/.config/mango/scripts/wallpaper-autopause.py pauses the video while windows cover it.
-  mpvpaper -f -p -a FULL -o "$MPV_OPTS input-ipc-server=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/mpvpaper.sock" ALL "$img" >/dev/null 2>&1
+  # One mpvpaper per monitor, each with its own IPC socket (mpvpaper-<output>.sock), so
+  # ~/.config/mango/scripts/wallpaper-autopause.py can pause only the monitors that have windows.
+  run="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  rm -f "$run"/mpvpaper*.sock
+  mapfile -t outs < <(mmsg get all-monitors 2>/dev/null | jq -r '.monitors[].name' 2>/dev/null)
+  [ "${#outs[@]}" -gt 0 ] || outs=(ALL)
+  for out in "${outs[@]}"; do
+    mpvpaper -f -p -a FULL -o "$MPV_OPTS input-ipc-server=$run/mpvpaper-$out.sock" "$out" "$img" >/dev/null 2>&1
+  done
 else
-  # Kill the video once the new image is underneath, so the switch doesn't flash.
-  stop_video
+  stop_video   # (restore path; otherwise already stopped above)
 fi
 
 printf '%s\n' "$img" > "$STATE_FILE"
@@ -141,4 +185,15 @@ printf '%s\n' "$img" > "$STATE_FILE"
 # Wallpaper colours: rebuild the matugen theme for the new image (or video poster).
 if [ "$mode" != restore ] && [ "$(setting matugen false)" = true ] && [ -f "$still" ]; then
   "$(dirname "$(readlink -f "$0")")/matugen-theme.sh" "$still" >/dev/null 2>&1 &
+elif [ "$mode" != restore ]; then
+  # A wallpaper paired with a theme (~/.config/island/theme-walls.json, P in the picker) brings
+  # that theme along, however it was picked. Stays put if the current theme also owns it.
+  pairs="${XDG_CONFIG_HOME:-$HOME/.config}/island/theme-walls.json"
+  cur_theme="$(cat "$STATE_DIR/theme" 2>/dev/null || true)"
+  if [ -s "$pairs" ]; then
+    want="$(jq -r --arg p "$img" --arg h "$HOME" --arg cur "$cur_theme" '
+      [to_entries[] | select(.value | map(sub("^~"; $h)) | index($p)) | .key] as $ids
+      | if ($ids | index($cur)) then empty else ($ids[0] // empty) end' "$pairs" 2>/dev/null || true)"
+    [ -n "$want" ] && "$(dirname "$(readlink -f "$0")")/../apply-theme.sh" "$want" >/dev/null 2>&1 &
+  fi
 fi

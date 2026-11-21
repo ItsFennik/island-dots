@@ -46,7 +46,7 @@ MouseArea {
         visible: root.check && root.icon === ""
         anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
         text: "✓"; color: Theme.menuText
-        font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
+        font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) }
     }
     Text {
         id: label
@@ -59,7 +59,7 @@ MouseArea {
         color: root.kind === "section" ? Qt.alpha(Theme.menuText, 0.5) : Theme.menuText
         font { family: Theme.font; pixelSize: root.kind === "section" ? 11 : 13
                letterSpacing: root.kind === "section" ? 0.6 : 0
-               weight: root.kind === "header" || root.kind === "section" ? Font.DemiBold : Font.Normal }
+               weight: Theme.w(root.kind === "header" || root.kind === "section" ? Font.DemiBold : Font.Normal) }
     }
     Text {
         id: det
@@ -67,7 +67,7 @@ MouseArea {
         anchors { right: slot.left; rightMargin: slot.width > 0 ? 8 : 0; verticalCenter: parent.verticalCenter }
         text: root.detail
         color: Qt.alpha(Theme.menuText, 0.45)
-        font { family: Theme.font; pixelSize: 12 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
     }
     Item {
         id: slot

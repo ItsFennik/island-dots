@@ -83,7 +83,7 @@ Item {
                     color: Theme.textDim
                     elide: Text.ElideRight
                     width: Math.min(implicitWidth, col.width - 50)
-                    font { family: root.family; pixelSize: 11; weight: Font.DemiBold; letterSpacing: 0.6; capitalization: Font.AllUppercase }
+                    font { family: root.family; pixelSize: 11; weight: Theme.w(Font.DemiBold); letterSpacing: 0.6; capitalization: Font.AllUppercase }
                 }
             }
         }
@@ -123,7 +123,7 @@ Item {
                             visible: row.modelData.buttonType !== QsMenuButtonType.None && row.modelData.checkState === Qt.Checked
                             text: row.modelData.buttonType === QsMenuButtonType.RadioButton ? "●" : "✓"
                             color: row.hot ? Theme.onAccent : Theme.text
-                            font { family: root.family; pixelSize: row.modelData.buttonType === QsMenuButtonType.RadioButton ? 8 : 12 }
+                            font { family: root.family; weight: Theme.fontWeight; pixelSize: row.modelData.buttonType === QsMenuButtonType.RadioButton ? 8 : 12 }
                         }
                         Image {
                             anchors.centerIn: parent
@@ -140,7 +140,7 @@ Item {
                         text: row.sep ? "" : (row.modelData.text ?? "").replace(/_(?!_)/g, "")    // drop mnemonic underscores
                         elide: Text.ElideRight
                         color: !row.enabled ? Theme.textFaint : row.hot ? Theme.onAccent : Theme.text
-                        font { family: root.family; pixelSize: 13 }
+                        font { family: root.family; weight: Theme.fontWeight; pixelSize: 13 }
                     }
                     Text {
                         id: arrow
@@ -158,7 +158,7 @@ Item {
             x: 12; height: 28; verticalAlignment: Text.AlignVCenter
             text: "No menu"
             color: Theme.textFaint
-            font { family: root.family; pixelSize: 12 }
+            font { family: root.family; weight: Theme.fontWeight; pixelSize: 12 }
         }
     }
 }

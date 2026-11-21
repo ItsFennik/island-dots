@@ -32,7 +32,7 @@ Scope {
     function goBack() { if (!back.length) return; navigating = true; forward = [page].concat(forward); page = back[back.length - 1]; back = back.slice(0, -1); navigating = false; }
     function goForward() { if (!forward.length) return; navigating = true; back = back.concat([page]); page = forward[0]; forward = forward.slice(1); navigating = false; }
 
-    readonly property var transitions: [["fade", "Fade"], ["wipe", "Wipe"], ["wave", "Wave"], ["grow", "Grow"], ["outer", "Outer"], ["simple", "Cut"], ["random", "Random"]]
+    readonly property var transitions: [["fade", "Fade"], ["wipe", "Wipe"], ["wave", "Wave"], ["grow", "Grow"], ["cursor", "Grow from Cursor"], ["any", "Grow from Random Spot"], ["outer", "Outer"], ["simple", "Cut"], ["random", "Random"]]
 
     // ── Every pane, as data. section: sidebar group. custom: settings/pages/<name>.qml ──
     readonly property var pages: [
@@ -63,12 +63,13 @@ Scope {
                 { key: "matugenPrefer", type: "list", label: "Pick colour by", when: "matugen", options: [["saturation", "Most saturated"], ["less-saturation", "Least saturated"], ["value", "Brightest"], ["darkness", "Darkest"], ["lightness", "Lightest"]] } ] },
             { title: "Look & feel", footer: "GTK apps pick these up live (GTK 4 apps may need a restart).", rows: [
                 { key: "widgetFont", type: "font", label: "Interface font", sub: "Menu bar, menus, Dock, Spotlight and Settings" },
+                { key: "widgetFontWeight", type: "list", label: "Weight", sub: "Bold text stays at least this heavy", source: "fontWeights" },
                 { key: "textColor", type: "choice", label: "Text colour", sub: "Menu bar, menus, Dock, widgets and Settings", options: [["auto", "Auto"], ["white", "White"], ["black", "Black"]] },
                 { key: "gtkTheme", type: "list", label: "Application theme", sub: "adw-gtk3 is recoloured to match", source: "gtk" },
                 { key: "iconTheme", type: "list", label: "Icons", source: "icons" },
                 { key: "cursorTheme", type: "list", label: "Pointer", source: "cursors" },
                 { key: "cursorSize", type: "slider", label: "Pointer size", from: 16, to: 64, step: 2, suffix: " px", minText: "Normal", maxText: "Large" } ] } ] },
-        { id: "menubar", section: 2, text: "Menu Bar", glyph: "", tint: "#8e8e93",
+        { id: "menubar", section: 2, text: "Menu Bar", custom: "BarItems", customAfter: true, glyph: "", tint: "#8e8e93",
           about: "Menus, status items and the clock across the top of the screen. Control Centre opens from the toggles icon next to the clock.",
           keywords: "workspaces workspace tags dots numbers control centre center menu bar clock time seconds 24 hour height opacity blur font size weather temperature",
           groups: [
@@ -76,13 +77,13 @@ Scope {
                 { key: "barHeight", type: "slider", label: "Height", from: 22, to: 44, suffix: " px" },
                 { key: "barOpacity", type: "slider", label: "Background opacity", from: 0, to: 1, step: 0.01, decimals: 2, minText: "Clear", maxText: "Solid" },
                 { key: "barBlur", type: "switch", label: "Blur behind the menu bar" },
-                { key: "barFontSize", type: "slider", label: "Text size", from: 10, to: 18, suffix: " px" },
-                { key: "barWeather", type: "switch", label: "Show the weather", sub: "Click it for the forecast; location is set under Desktop & Widgets" } ] },
+                { key: "barFontSize", type: "slider", label: "Text size", from: 10, to: 18, suffix: " px" } ] },
             { title: "Workspaces", footer: "Click to switch, scroll to step through, right-click for the Overview.", rows: [
                 { key: "barWorkspaces", type: "switch", label: "Show workspaces", sub: "In the menu bar, bottom bar and compact bar" },
                 { key: "barWorkspaceStyle", type: "wsstyle", label: "Style", when: "barWorkspaces", options: [["numbers", "Numbers"], ["dots", "Dots"], ["pill", "Pill"], ["glide", "Glide"], ["line", "Line"], ["activity", "Activity"], ["kanji", "Kanji"], ["roman", "Roman"]] },
                 { key: "barWorkspaceCount", type: "slider", label: "Always show", from: 1, to: 10, suffix: "", minText: "1", maxText: "10", when: "barWorkspaces" } ] },
             { title: "Clock", rows: [
+                { key: "clockDate", type: "list", label: "Date", sub: "Click the clock for the full date", options: [["full", "Sat Nov 21"], ["weekday", "Sat"], ["none", "Time only"]] },
                 { key: "clock24h", type: "switch", label: "Use a 24-hour clock" },
                 { key: "clockSeconds", type: "switch", label: "Display the time with seconds" } ] } ] },
         { id: "dock", section: 2, text: "Dock", glyph: "", tint: "#1c1c1e",
@@ -102,7 +103,7 @@ Scope {
                 { key: "dockMargin", type: "slider", label: "Distance from the edge", from: 0, to: 30, suffix: " px", when: "dock" } ] } ] },
         { id: "desktop", section: 2, text: "Desktop & Widgets", glyph: "", tint: "#30d158",
           about: "Widgets sit on the desktop under your windows. Drag one anywhere, or right-click it to change its size.",
-          keywords: "widgets clock weather location city country units celsius fahrenheit calendar music now playing system cpu verse bible esv scripture lock screen locker hyprlock style tahoe classic opacity corner colours colors wallpaper tint accent matugen",
+          keywords: "widgets clock weather location city country units celsius fahrenheit calendar music now playing system cpu verse bible esv scripture lock screen locker hyprlock autologin login session start style tahoe classic opacity corner colours colors wallpaper tint accent matugen",
           groups: [
             { title: "", rows: [
                 { key: "widgets", type: "switch", label: "Show widgets" },
@@ -119,7 +120,8 @@ Scope {
                 { key: "widgetVerse", type: "switch", label: "Verse of the Day", sub: "ESV, from Bible Gateway", when: "widgets" } ] },
             { title: "Lock Screen", footer: "hyprlock reads ~/.config/hypr/hyprlock.conf, which apply-theme.sh keeps in the current palette.", rows: [
                 { key: "lockScreen", type: "choice", label: "Locker", options: [["island", "Island"], ["hyprlock", "hyprlock"]] },
-                { key: "lockVerse", type: "switch", label: "Verse on the lock screen", sub: "Island's lock screen only; it sits under the clock" } ] },
+                { key: "lockOnStart", type: "switch", label: "Lock when the session starts", sub: "Use with SDDM autologin: log in automatically, then unlock Island" },
+                { key: "lockVerse", type: "switch", label: "Verse on the lock screen", sub: "Island's lock screen only; it sits above the picture" } ] },
             { title: "Arrangement", footer: "Widgets you haven't moved stack in the chosen corner.", rows: [
                 { type: "button", label: "Arrange widgets", sub: "Or just drag a widget on the desktop", text: "Edit Widgets…", f: () => WidgetLayout.edit("") },
                 { type: "button", label: "Widget positions", sub: "Stack them in the corner again", text: "Reset", f: () => WidgetLayout.reset() },
@@ -360,7 +362,7 @@ Scope {
                         anchors { left: glass.right; leftMargin: 7; right: clearBtn.visible ? clearBtn.left : parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
                         color: Theme.text; selectionColor: Theme.selection; selectedTextColor: Theme.onAccent
                         clip: true
-                        font { family: Theme.font; pixelSize: 13 }
+                        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
                         onTextChanged: root.query = text.trim().toLowerCase()
                         Keys.onUpPressed: root.step(-1)
                         Keys.onDownPressed: root.step(1)
@@ -398,15 +400,15 @@ Scope {
                                 width: 40; height: 40; radius: 20
                                 tint: Qt.darker(Theme.accent, Theme.dark ? 1.5 : 1.15); topColor: Theme.accent
                                 glyph: ""
-                                Text { anchors.centerIn: parent; color: "white"; font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
+                                Text { anchors.centerIn: parent; color: "white"; font { family: Theme.font; pixelSize: 15; weight: Theme.w(Font.DemiBold) }
                                     text: root.userName.split(/\s+/).filter(w => w).slice(0, 2).map(w => w[0].toUpperCase()).join("") }
                             }
                             Column {
                                 anchors { left: avatar.right; leftMargin: 11; right: chev.left; rightMargin: 6; verticalCenter: parent.verticalCenter }
                                 spacing: 1
                                 Text { width: parent.width; text: root.userName; elide: Text.ElideRight; color: Theme.text
-                                    font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold } }
-                                Text { text: "Local Account"; color: Theme.textDim; font { family: Theme.font; pixelSize: 11 } }
+                                    font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) } }
+                                Text { text: "Local Account"; color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
                             }
                             Text { id: chev; anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                                 text: ""; color: Theme.textFaint; font { family: Theme.mono; pixelSize: 10 } }
@@ -439,7 +441,7 @@ Scope {
                             leftPadding: 8; topPadding: 6
                             text: "No Results"
                             color: Theme.textDim
-                            font { family: Theme.font; pixelSize: 12 }
+                            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
                         }
                     }
                 }
@@ -485,7 +487,7 @@ Scope {
                         anchors { left: nav.right; leftMargin: 14; verticalCenter: parent.verticalCenter }
                         text: root.current.text
                         color: Theme.text
-                        font { family: Theme.font; pixelSize: 17; weight: Font.Bold }
+                        font { family: Theme.font; pixelSize: 17; weight: Theme.w(Font.Bold) }
                         // shows once the header card has scrolled away (Tahoe)
                         opacity: !heroCard.visible || scroller.contentY > heroCard.height - 20 ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 120 } }
@@ -529,10 +531,10 @@ Scope {
                                 y: heroCol.implicitHeight < heroIcon.height ? heroIcon.y + (heroIcon.height - implicitHeight) / 2 : 0
                                 spacing: 3
                                 Text { text: root.current.text; color: Theme.text
-                                    font { family: Theme.font; pixelSize: 22; weight: Font.Bold } }
+                                    font { family: Theme.font; pixelSize: 22; weight: Theme.w(Font.Bold) } }
                                 Text { width: parent.width; visible: text !== ""; text: root.current.about ?? ""
                                     wrapMode: Text.WordWrap; lineHeight: 1.15
-                                    color: Theme.textDim; font { family: Theme.font; pixelSize: 12 } }
+                                    color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 } }
                             }
                         }
 

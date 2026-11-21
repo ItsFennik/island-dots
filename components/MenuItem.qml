@@ -48,13 +48,13 @@ MouseArea {
         maximumLineCount: 1
         textFormat: Text.PlainText
         color: root.current || root.containsMouse ? root.tint : Theme.textDim
-        font { family: Theme.font; pixelSize: 13; weight: root.current ? Font.Medium : Font.Normal }
+        font { family: Theme.font; pixelSize: 13; weight: Theme.w(root.current ? Font.Medium : Font.Normal) }
     }
     Text {
         id: d
         anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
         text: root.detail
         color: Theme.textFaint
-        font { family: Theme.font; pixelSize: 11 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
     }
 }

@@ -81,7 +81,7 @@ PanelWindow {
             visible: flash.running
             width: 90; height: 28; radius: 8
             color: Qt.alpha(Theme.bg, 0.85)
-            Text { anchors.centerIn: parent; text: "Copied"; color: Theme.text; font { family: win.family; pixelSize: 13 } }
+            Text { anchors.centerIn: parent; text: "Copied"; color: Theme.text; font { family: win.family; weight: Theme.fontWeight; pixelSize: 13 } }
         }
         Timer { id: flash; interval: 900 }
         Text {
@@ -89,7 +89,7 @@ PanelWindow {
             anchors { left: parent.left; bottom: parent.bottom; margins: 8 }
             text: "Copied to clipboard"
             color: "white"; style: Text.Outline; styleColor: "#80000000"
-            font { family: win.family; pixelSize: 12 }
+            font { family: win.family; weight: Theme.fontWeight; pixelSize: 12 }
         }
     }
     QtObject { id: drag; property real dx: 0 }
@@ -100,6 +100,6 @@ PanelWindow {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         Rectangle { anchors.fill: parent; radius: 6; color: Qt.alpha(Theme.bg, parent.containsMouse ? 0.95 : 0.78) }
-        Text { id: t; anchors.centerIn: parent; text: parent.text; color: Theme.text; font { family: win.family; pixelSize: 12 } }
+        Text { id: t; anchors.centerIn: parent; text: parent.text; color: Theme.text; font { family: win.family; weight: Theme.fontWeight; pixelSize: 12 } }
     }
 }

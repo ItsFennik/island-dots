@@ -37,7 +37,7 @@ MouseArea {
         text: root.currentText
         elide: Text.ElideRight
         color: Theme.text
-        font { family: Theme.font; pixelSize: 13 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
     }
     Rectangle {
         id: chev
@@ -45,7 +45,7 @@ MouseArea {
         width: 16; height: 16; radius: 4
         color: Theme.accent
         Text { anchors.centerIn: parent; text: "⌃\n⌄"; lineHeight: 0.45; color: Theme.onAccent
-            horizontalAlignment: Text.AlignHCenter; font { family: Theme.font; pixelSize: 9; weight: Font.Bold } }
+            horizontalAlignment: Text.AlignHCenter; font { family: Theme.font; pixelSize: 9; weight: Theme.w(Font.Bold) } }
     }
 
     // The menu lives on the window's content item so it can overlap everything.
@@ -86,10 +86,10 @@ MouseArea {
                         Component.onCompleted: list.contentW = Math.max(list.contentW, t.implicitWidth + 40)
                         Rectangle { anchors.fill: parent; radius: 6; antialiasing: true; color: it.containsMouse ? Theme.accent : "transparent" }
                         Text { visible: it.index === root.current; anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
-                            text: "✓"; color: it.containsMouse ? Theme.onAccent : Theme.text; font { family: Theme.font; pixelSize: 11 } }
+                            text: "✓"; color: it.containsMouse ? Theme.onAccent : Theme.text; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
                         Text { id: t; anchors { left: parent.left; leftMargin: 22; verticalCenter: parent.verticalCenter }
                             text: it.modelData[1]; color: it.containsMouse ? Theme.onAccent : Theme.text
-                            font { family: Theme.font; pixelSize: 13 } }
+                            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 } }
                     }
                 }
             }

@@ -122,7 +122,8 @@ fi
 # Written to ~/.config/mango/settings.conf (sourced last by config.conf),
 # then Mango reloads its config.
 if [ -d "$CFG/mango" ] || command -v mango >/dev/null; then
-  mkdir -p "$CFG/mango"
+  mango_dir="$CFG/mango"; [ -d "$mango_dir/modules" ] && mango_dir="$mango_dir/modules"   # split config
+  mkdir -p "$mango_dir"
   n() { [ "$1" = true ] && echo 1 || echo 0; }
   case "$s_layout" in
     dwindle|tile|right_tile|center_tile|vertical_tile|scroller|vertical_scroller|grid|vertical_grid|fair|vertical_fair|deck|vertical_deck|monocle) mlayout=$s_layout ;;
@@ -183,7 +184,7 @@ animation_curve_opacity_fade_out=0.4,0,1,1
 tag_animation_direction=$mtagdir
 MANGO
     for i in 1 2 3 4 5 6 7 8 9; do echo "tag_rule=id:$i,layout_name:$mlayout"; done
-  } | put "$CFG/mango/settings.conf" || true
+  } | put "$mango_dir/settings.conf" || true
   pgrep -x mango >/dev/null && mmsg dispatch reload_config >/dev/null 2>&1 || true
 fi
 

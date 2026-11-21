@@ -12,7 +12,7 @@ Scope {
 
     required property ShellScreen modelData
     readonly property var s: Config.saved
-    readonly property bool primary: Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData
+    readonly property bool primary: Quickshell.screens.length === 0 || Compositor.mainScreen === modelData
     readonly property bool shown: (s.widgets ?? true) && ((s.widgetsAllScreens ?? false) || primary)
 
     Component { id: cWeather; WeatherWidget { size: WidgetLayout.size("weather") } }

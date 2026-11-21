@@ -34,8 +34,12 @@ if [[ ! -s $file ]] && [[ -z $(find "$fail" -mmin -10 2>/dev/null) ]]; then
   out=$(curl -fsS -m 2 'https://www.biblegateway.com/votd/get/?format=json&version=ESV' 2>/dev/null |
     python3 -Ic 'import sys,json,html,re
 v=json.load(sys.stdin)["votd"]
-t=re.sub(r"<[^>]+>","",html.unescape(v["content"]))
-t=re.sub(r"\s+"," ",t).strip().strip("“”\"")
+t=html.unescape(v["content"])
+t=re.sub(r"<h[1-6][^>]*>.*?</h[1-6]>\s*"," ",t,flags=re.S)
+t=re.sub(r"<[^>]+>"," ",t)
+t=re.sub(r"\s+"," ",t)
+t=re.sub(r"\s+([,.;:!?])",r"\1",t)
+t=t.strip().strip("“”\"")
 r=html.unescape(v["display_ref"]).strip()
 print(t+"|"+r) if t and r else sys.exit(1)' 2>/dev/null)
   if [[ -n $out ]]; then

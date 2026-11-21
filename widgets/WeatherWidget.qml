@@ -46,7 +46,7 @@ Card {
         Text { anchors.horizontalCenter: parent.horizontalCenter; text: ""; color: root.ink; opacity: 0.8
             font { family: "JetBrainsMono Nerd Font"; pixelSize: 34 } }
         Text { anchors.horizontalCenter: parent.horizontalCenter; text: Weather.badLocation ? "Unknown location" : Weather.failed ? "Weather unavailable" : "Loading…"
-            color: root.ink; opacity: 0.8; font { family: root.font; pixelSize: 12; weight: Font.DemiBold } }
+            color: root.ink; opacity: 0.8; font { family: root.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
     }
 
     Item {
@@ -62,12 +62,12 @@ Card {
             Row {
                 spacing: 4
                 Text { text: Weather.place || "Weather"; color: root.ink; elide: Text.ElideRight; width: Math.min(implicitWidth, now.width - 16)
-                    font { family: root.font; pixelSize: 14; weight: Font.Bold } }
+                    font { family: root.font; pixelSize: 14; weight: Theme.w(Font.Bold) } }
                 Text { visible: !Weather.location; text: ""; color: root.ink; anchors.verticalCenter: parent.verticalCenter
                     font { family: "JetBrainsMono Nerd Font"; pixelSize: 9 } }
             }
             Text { text: Weather.temp + root.unit; color: root.ink
-                font { family: root.font; pixelSize: 44; weight: Font.Light } }
+                font { family: root.font; pixelSize: 44; weight: Theme.w(Font.Light) } }
         }
 
         Column {
@@ -77,9 +77,9 @@ Card {
             Text { text: Weather.glyph(Weather.code, Weather.isDay); color: root.ink
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 18 } }
             Text { width: parent.width; text: Weather.desc; color: root.ink; elide: Text.ElideRight
-                font { family: root.font; pixelSize: 12; weight: Font.DemiBold } }
+                font { family: root.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
             Text { text: "H:" + Weather.hi + root.unit + "  L:" + Weather.lo + root.unit; color: root.ink; opacity: root.dimText
-                font { family: root.font; pixelSize: 12; weight: Font.DemiBold } }
+                font { family: root.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
         }
 
         // Hourly strip (wide only)
@@ -94,11 +94,11 @@ Card {
                     width: 34
                     spacing: 6
                     Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.label; color: root.ink; opacity: root.dimText
-                        font { family: root.font; pixelSize: 10; weight: Font.DemiBold } }
+                        font { family: root.font; pixelSize: 10; weight: Theme.w(Font.DemiBold) } }
                     Text { anchors.horizontalCenter: parent.horizontalCenter; text: Weather.glyph(modelData.code, modelData.day); color: root.ink
                         font { family: "JetBrainsMono Nerd Font"; pixelSize: 15 } }
                     Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.temp + root.unit; color: root.ink
-                        font { family: root.font; pixelSize: 12; weight: Font.DemiBold } }
+                        font { family: root.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) } }
                 }
             }
         }
@@ -120,7 +120,7 @@ Card {
                 readonly property int maxT: Math.max(...Weather.daily.map(d => d.hi))
                 width: parent.width; height: 46
                 Text { anchors.verticalCenter: parent.verticalCenter; width: 92; text: day.modelData.label; color: root.ink; elide: Text.ElideRight
-                    font { family: root.font; pixelSize: 14; weight: Font.DemiBold } }
+                    font { family: root.font; pixelSize: 14; weight: Theme.w(Font.DemiBold) } }
                 Column {
                     x: 96; width: 34
                     anchors.verticalCenter: parent.verticalCenter
@@ -128,11 +128,11 @@ Card {
                         font { family: "JetBrainsMono Nerd Font"; pixelSize: 17 } }
                     Text { visible: day.modelData.rain >= 30; anchors.horizontalCenter: parent.horizontalCenter
                         text: day.modelData.rain + "%"; color: root.cCyan || "#64d2ff"
-                        font { family: root.font; pixelSize: 9; weight: Font.Bold } }
+                        font { family: root.font; pixelSize: 9; weight: Theme.w(Font.Bold) } }
                 }
                 Text { x: 140; width: 34; anchors.verticalCenter: parent.verticalCenter; horizontalAlignment: Text.AlignRight
                     text: day.modelData.lo + root.unit; color: root.ink; opacity: root.dimText
-                    font { family: root.font; pixelSize: 14; weight: Font.DemiBold } }
+                    font { family: root.font; pixelSize: 14; weight: Theme.w(Font.DemiBold) } }
                 Rectangle {
                     id: track
                     x: 182; width: parent.width - 182 - 42; height: 4; radius: 2
@@ -150,7 +150,7 @@ Card {
                 }
                 Text { anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                     text: day.modelData.hi + root.unit; color: root.ink
-                    font { family: root.font; pixelSize: 14; weight: Font.DemiBold } }
+                    font { family: root.font; pixelSize: 14; weight: Theme.w(Font.DemiBold) } }
             }
         }
     }

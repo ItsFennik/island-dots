@@ -26,14 +26,21 @@ PanelWindow {
     readonly property int shelfH: base + pad * 2
     readonly property string iconTheme: "application-x-executable"
 
-    readonly property bool wanted: (s.dock ?? true) && (s.shellLayout ?? "menubar") === "menubar" && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Quickshell.screens[0] === modelData)
-    visible: wanted
+    readonly property bool wanted: (s.dock ?? true) && (s.shellLayout ?? "menubar") === "menubar" && ((s.dockAllScreens ?? false) || Quickshell.screens.length === 0 || Compositor.mainScreen === modelData)
+    // mango only recomputes reserved space when a surface maps, not when exclusiveZone changes
+    // (autohide toggled, or settings loading after the Dock appeared): remap the surface then.
+    property bool remapping: false
+    visible: wanted && !remapping
+    onAutohideChanged: { remapping = true; remapTimer.restart(); }
+    Timer { id: remapTimer; interval: 80; onTriggered: win.remapping = false }
 
     // Memory: the surface is only as wide as the fully magnified dock (plus room for the menu),
     // not the whole screen, and it's fixed so magnifying never reallocates the buffer.
     anchors.bottom: true
     implicitWidth: Math.min(modelData.width, Math.max(360, Math.ceil(baseTotal + base * (mag - 1) * 2.2 + pad * 2 + 120)))
-    exclusionMode: ExclusionMode.Normal
+    // Autohide: reserve nothing (Ignore), so windows get the bottom strip back; mango still kept
+    // the space with Normal + exclusiveZone 0.
+    exclusionMode: autohide ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: autohide ? 0 : shelfH + edge
     // Where resizes smear (Compositor.smoothResize false) the menu room is kept permanently.
     readonly property int menuRoom: Compositor.smoothResize ? (menu.open ? menu.height + 12 : 0) : 420
@@ -294,7 +301,7 @@ PanelWindow {
                         anchors.centerIn: parent
                         text: cell.modelData.name ?? ""
                         color: Theme.text
-                        font { family: win.s.widgetFont || "Adwaita Sans"; pixelSize: 13; weight: Font.Medium }
+                        font { family: win.s.widgetFont || "Adwaita Sans"; pixelSize: 13; weight: Theme.w(Font.Medium) }
                     }
                 }
 
@@ -405,7 +412,7 @@ PanelWindow {
                             text: parent.parent.modelData.text ?? ""
                             elide: Text.ElideRight
                             color: !ma.enabled ? Theme.textFaint : ma.containsMouse ? Theme.onAccent : Theme.text
-                            font { family: win.s.widgetFont || "Adwaita Sans"; pixelSize: 13 }
+                            font { family: win.s.widgetFont || "Adwaita Sans"; weight: Theme.fontWeight; pixelSize: 13 }
                         }
                         Text {
                             visible: !!parent.parent.modelData.check

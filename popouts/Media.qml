@@ -66,7 +66,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "Nothing playing"
             color: Theme.textFaint
-            font { family: Theme.font; pixelSize: 12 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
         }
     }
 
@@ -113,7 +113,7 @@ Item {
                     text: (root.p?.identity ?? "").toUpperCase()
                     elide: Text.ElideRight
                     color: Theme.textFaint
-                    font { family: Theme.font; pixelSize: 9; weight: Font.Bold; letterSpacing: 1 }
+                    font { family: Theme.font; pixelSize: 9; weight: Theme.w(Font.Bold); letterSpacing: 1 }
                 }
                 Text {
                     width: parent.width
@@ -122,7 +122,7 @@ Item {
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     color: Theme.text
-                    font { family: Theme.font; pixelSize: 15; weight: Font.Bold }
+                    font { family: Theme.font; pixelSize: 15; weight: Theme.w(Font.Bold) }
                 }
                 Text {
                     width: parent.width
@@ -130,7 +130,7 @@ Item {
                     text: Media.artist
                     elide: Text.ElideRight
                     color: Theme.textDim
-                    font { family: Theme.font; pixelSize: 12 }
+                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
                 }
                 Text {
                     width: parent.width
@@ -138,7 +138,7 @@ Item {
                     text: root.p?.trackAlbum ?? ""
                     elide: Text.ElideRight
                     color: Theme.textFaint
-                    font { family: Theme.font; pixelSize: 11 }
+                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
                 }
             }
         }
@@ -185,13 +185,13 @@ Item {
                 anchors { left: parent.left; bottom: parent.bottom }
                 text: Media.fmt(drag.pressed ? drag.f * (root.p?.length ?? 0) : root.p?.position ?? 0)
                 color: Theme.textFaint
-                font { family: Theme.font; pixelSize: 10 }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
             }
             Text {
                 anchors { right: parent.right; bottom: parent.bottom }
                 text: Media.fmt(root.p?.length ?? 0)
                 color: Theme.textFaint
-                font { family: Theme.font; pixelSize: 10 }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
             }
         }
 
@@ -307,7 +307,7 @@ Item {
                         Text {
                             text: chip.modelData.identity || chip.modelData.dbusName
                             color: chip.current ? Theme.text : Theme.textDim
-                            font { family: Theme.font; pixelSize: 11; weight: chip.current ? Font.DemiBold : Font.Normal }
+                            font { family: Theme.font; pixelSize: 11; weight: Theme.w(chip.current ? Font.DemiBold : Font.Normal) }
                         }
                     }
                 }

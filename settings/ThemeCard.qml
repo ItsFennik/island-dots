@@ -55,7 +55,7 @@ MouseArea {
             text: root.theme.name
             elide: Text.ElideRight
             color: root.theme.fg
-            font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
+            font { family: Theme.font; pixelSize: 12; weight: Theme.w(Font.DemiBold) }
         }
         Row {
             anchors { left: parent.left; bottom: parent.bottom; margins: 10 }

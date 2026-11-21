@@ -69,7 +69,11 @@ Singleton {
                                            : niri ? niriOutput
                                            : mango ? mangoOutput : "")
                                          || ToplevelManager.activeToplevel?.screens?.[0]?.name || ""
-    function screenName() { return focusedScreen || (Quickshell.screens[0]?.name ?? ""); }
+    // The "main" monitor (Dock, widgets, overlays' fallback): setting mainScreen (output name),
+    // else whichever screen Quickshell lists first — that order isn't stable with several monitors.
+    readonly property var mainScreen: Quickshell.screens.find(s => s.name === (Config.saved.mainScreen ?? ""))
+                                      ?? Quickshell.screens[0] ?? null
+    function screenName() { return focusedScreen || (mainScreen?.name ?? ""); }
 
     // Number of the focused workspace (1-based), or -1 when the compositor doesn't say.
     readonly property int focusedWorkspace: hyprland ? (Hyprland.focusedWorkspace?.id ?? -1)

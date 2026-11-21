@@ -5,14 +5,17 @@ import Quickshell.Wayland
 import Quickshell.Services.Pam
 import qs.services
 
-// Lock screen, macOS style: the wallpaper, the date and a big clock up top, and the user's
-// picture, name and a password pill at the bottom of the main display. The wallpaper softens
-// into a blur once you start typing; a wrong password shakes the field.
+// Lock screen, macOS style: the wallpaper frosts over, the date and a big clock settle in at
+// the top, and the user's picture, name and password field sit at the bottom of the main
+// display (see LockContent.qml). Typing deepens the frost; a wrong password shakes the field;
+// a correct one melts the frost away before the session is released.
 //
 // Uses ext-session-lock, so it works on every compositor Island supports (Hyprland, niri,
 // Sway, MangoWC, labwc, …). If Island crashes while locked, the compositor stays locked.
 // Locks on: LockState.lock(), `qs -c island ipc call lock lock`, or `loginctl lock-session`
-// (so idle daemons like hypridle / swayidle can just call loginctl).
+// (so idle daemons like hypridle / swayidle can just call loginctl). With Settings →
+// Desktop & Widgets → Lock Screen → "Lock when the session starts" it also locks once after
+// login, which turns an SDDM autologin into a lock-screen login.
 Scope {
     id: root
 
@@ -22,6 +25,8 @@ Scope {
     property string password: ""
     property string primary: ""          // screen that shows the password field
     readonly property bool typing: password !== ""
+    property bool failed: false          // wrong password, shown until the next keypress
+    property bool unlocking: false       // success: let the fade finish before releasing
     signal shake()
 
     // ── Wallpaper, name, picture ──────────────────────────────────────
@@ -56,10 +61,29 @@ Scope {
         function onLockedChanged() {
             if (!LockState.locked) return;
             root.password = "";
+            root.failed = false;
+            root.unlocking = false;
+            failTimer.stop();
+            unlockTimer.stop();
             root.primary = Compositor.screenName();
             Popouts.close();
             Popouts.closeOverlays();
         }
+    }
+
+    // ── Lock on login (Settings → Desktop & Widgets → Lock Screen → Lock when the session starts) ──
+    // The helper only succeeds on the first Island start after a boot/session, so hot
+    // reloads and `qs -c island -n` don't send you back to the lock screen. Wait a moment
+    // for Config's FileViews to load before reading the setting.
+    Process {
+        id: sessionStamp
+        command: [Quickshell.shellDir + "/scripts/session-stamp.sh"]
+        onExited: code => { if (code === 0) Compositor.lock(); }
+    }
+    Timer {
+        interval: 900
+        running: true
+        onTriggered: if (Config.saved.lockOnStart ?? false) sessionStamp.running = true
     }
 
     // loginctl lock-session → logind emits Lock on our session object.
@@ -93,14 +117,33 @@ Scope {
         id: pam
         onResponseRequiredChanged: if (responseRequired) respond(root.password)
         onCompleted: result => {
-            if (result === PamResult.Success) { root.password = ""; LockState.locked = false; }
+            if (result === PamResult.Success) { root.password = ""; root.unlock(); }
             else root.fail();
         }
         onError: root.fail()
     }
     readonly property alias pam: pam
-    function submit() { if (previewing) { fail(); return; } if (!pam.active && password !== "") pam.start(); }
-    function fail() { password = ""; shake(); }
+    // Keep the surface up for the length of LockContent's fade, then release the session.
+    function unlock() {
+        if (unlocking) return;
+        unlocking = true;
+        unlockTimer.restart();
+    }
+    Timer { id: unlockTimer; interval: 300; onTriggered: LockState.locked = false }
+    Timer { id: failTimer; interval: 1800; onTriggered: root.failed = false }
+    onPasswordChanged: if (password !== "" && failed) failed = false
+    function submit() {
+        if (previewing) { fail(); return; }
+        if (unlocking || pam.active || password === "") return;
+        pam.start();
+    }
+    function fail() {
+        if (unlocking) return;
+        password = "";
+        failed = true;
+        failTimer.restart();
+        shake();
+    }
 
     // ── Surfaces (one per screen) ─────────────────────────────────────
     WlSessionLock {

@@ -91,13 +91,13 @@ MouseArea {
                     color: Theme.textFaint
                     elide: Text.ElideRight
                     width: Math.min(implicitWidth, parent.width - age.width - 20)
-                    font { family: Theme.font; pixelSize: 10; weight: Font.Bold; capitalization: Font.AllUppercase }
+                    font { family: Theme.font; pixelSize: 10; weight: Theme.w(Font.Bold); capitalization: Font.AllUppercase }
                 }
                 Text {
                     id: age
                     text: "· " + Notifs.ago(root.entry?.time ?? 0, root.now)
                     color: Theme.textFaint
-                    font { family: Theme.font; pixelSize: 10 }
+                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
                 }
             }
             MouseArea {
@@ -123,7 +123,7 @@ MouseArea {
             maximumLineCount: 2
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold }
+            font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) }
         }
 
         Text {
@@ -136,7 +136,7 @@ MouseArea {
             maximumLineCount: root.bodyLines
             wrapMode: Text.Wrap
             textFormat: Text.StyledText
-            font { family: Theme.font; pixelSize: 11 }
+            font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
             onLinkActivated: link => { Qt.openUrlExternally(link); root.n?.dismiss(); }
         }
 
@@ -163,7 +163,7 @@ MouseArea {
                         elide: Text.ElideRight
                         text: act.modelData.text
                         color: act.containsMouse ? Theme.bg : Theme.text
-                        font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold }
+                        font { family: Theme.font; pixelSize: 11; weight: Theme.w(Font.DemiBold) }
                     }
                 }
             }

@@ -79,7 +79,7 @@ Item {
                     anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter; verticalCenterOffset: -0.5 }
                     text: "✓"
                     color: row.lit ? Theme.menuOnSel : Theme.menuText
-                    font { family: root.family; pixelSize: 12; weight: Font.DemiBold }
+                    font { family: root.family; pixelSize: 12; weight: Theme.w(Font.DemiBold) }
                 }
                 Text {
                     id: label
@@ -89,7 +89,7 @@ Item {
                     color: row.header ? Qt.alpha(Theme.menuText, 0.5)
                          : !row.enabled ? Qt.alpha(Theme.menuText, 0.28) : row.lit ? Theme.menuOnSel : Theme.menuText
                     font { family: root.family; pixelSize: row.header ? 11 : 13; letterSpacing: row.header ? 0.6 : 0
-                           weight: row.header ? Font.DemiBold : Font.Normal }
+                           weight: Theme.w(row.header ? Font.DemiBold : Font.Normal) }
                 }
                 // Shortcut: key in a fixed column at the right edge, modifiers just left of it.
                 Text {
@@ -99,7 +99,7 @@ Item {
                     width: 16
                     text: row.sc[1]
                     color: row.lit ? Qt.alpha(Theme.menuOnSel, 0.85) : !row.enabled ? Qt.alpha(Theme.menuText, 0.22) : Qt.alpha(Theme.menuText, 0.45)
-                    font { family: root.family; pixelSize: 13 }
+                    font { family: root.family; weight: Theme.fontWeight; pixelSize: 13 }
                 }
                 Text {
                     id: mods
@@ -107,7 +107,7 @@ Item {
                     anchors { right: key.left; rightMargin: 1; verticalCenter: parent.verticalCenter }
                     text: row.sc[0]
                     color: key.color
-                    font { family: root.family; pixelSize: 13; letterSpacing: 1 }
+                    font { family: root.family; weight: Theme.fontWeight; pixelSize: 13; letterSpacing: 1 }
                 }
             }
         }

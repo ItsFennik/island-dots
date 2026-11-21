@@ -60,13 +60,13 @@ Item {
         visible: root.minText !== ""
         anchors { left: track.left; top: track.bottom; topMargin: 8 }
         text: root.minText; color: Theme.textDim
-        font { family: Theme.font; pixelSize: 10 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
     }
     Text {
         visible: root.maxText !== ""
         anchors { right: track.right; top: track.bottom; topMargin: 8 }
         text: root.maxText; color: Theme.textDim
-        font { family: Theme.font; pixelSize: 10 }
+        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
     }
     // Value bubble while dragging or focused
     Rectangle {
@@ -78,7 +78,7 @@ Item {
         border { width: 1; color: Theme.hairline }
         z: 2
         Text { id: bubble; anchors.centerIn: parent; text: (root.shownValue * root.displayScale).toFixed(root.decimals) + root.suffix
-            color: Theme.text; font { family: Theme.font; pixelSize: 11 } }
+            color: Theme.text; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 } }
     }
     MouseArea {
         id: area

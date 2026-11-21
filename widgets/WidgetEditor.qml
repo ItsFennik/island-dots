@@ -74,7 +74,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Drag widgets anywhere — you can also drag them straight on the desktop · Shift to skip snapping"
                 color: Theme.textDim
-                font { family: Theme.font; pixelSize: 13 }
+                font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 13 }
             }
             Item { width: 4; height: 1 }
             PushButton { anchors.verticalCenter: parent.verticalCenter; text: "Reset"; onClicked: WidgetLayout.reset() }

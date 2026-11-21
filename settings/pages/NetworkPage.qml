@@ -34,7 +34,7 @@ Column {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData.connected ? (wired && modelData.linkSpeed ? "Connected · " + modelData.linkSpeed + " Mb/s" : "Connected") : "Not Connected"
-                        color: Theme.textDim; font { family: Theme.font; pixelSize: 12 }
+                        color: Theme.textDim; font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
                     }
                 }
             }
