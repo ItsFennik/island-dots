@@ -268,7 +268,17 @@ Singleton {
         else if (niri) niriAct("quit", "--skip-confirmation");
         else if (i3) sway("exit");
         else if (mango) mmsg("quit");
-        else sh("loginctl terminate-session \"${XDG_SESSION_ID:-self}\"");
+        else sh("loginctl terminate-session \"${XDG_SESSION_ID:-self}\" 2>/dev/null || loginctl terminate-user \"$USER\" 2>/dev/null || pkill -KILL -u \"$USER\"");
+    }
+
+    // Power actions: prefer logind (works with systemd and elogind), then fall back.
+    function power(action) {
+        const cmds = {
+            suspend: "loginctl suspend || systemctl suspend || zzz -z || sudo -n zzz -z",
+            reboot: "loginctl reboot || systemctl reboot || sudo -n reboot || reboot",
+            poweroff: "loginctl poweroff || systemctl poweroff || sudo -n poweroff || poweroff"
+        };
+        sh(cmds[action] || action);
     }
 
     // Island's lock screen (overlays/Lock.qml) works on every compositor here. Settings can

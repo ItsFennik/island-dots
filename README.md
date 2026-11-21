@@ -72,6 +72,7 @@ All of this lives in [`services/Compositor.qml`](services/Compositor.qml). The c
 - **Quickshell ≥ 0.3**
 - `jq`, `curl`, `gdbus` (glib2), `gio`, `notify-send`
 - NetworkManager, BlueZ, PipeWire, UPower (for the Control Centre)
+- logind or elogind (for lock-session, suspend/reboot/poweroff integration; fallbacks exist for non-systemd setups)
 - Fonts: **Adwaita Sans** (UI) and **JetBrainsMono Nerd Font** (glyphs). Icons: WhiteSur (any icon theme works)
 - Optional: `cliphist` + `wl-clipboard` (clipboard history), `awww` or `swww` (wallpapers), `mpvpaper` + `ffmpeg` (video wallpapers and thumbnails), `matugen` (Material You colours), `ddcutil` (monitor brightness), `hyprlock` (optional lock screen), `foot`, `sddm` (login theme)
 
@@ -80,6 +81,19 @@ All of this lives in [`services/Compositor.qml`](services/Compositor.qml). The c
 ```sh
 git clone https://github.com/ItsFennik/island-dots ~/.config/quickshell/island
 qs -c island            # try it; -d to daemonize
+```
+
+### Nix
+
+```sh
+# dev shell
+nix develop
+
+# or plain shell.nix
+nix-shell
+
+# run from the flake
+nix run .#
 ```
 
 Then add the autostart lines and keybinds for your compositor:

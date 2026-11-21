@@ -65,11 +65,15 @@ echo "Theme installed to $DEST"
 [ "${1:-}" = "--theme" ] && exit 0
 
 # Display manager
-current="$(basename "$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null)" 2>/dev/null || true)"
-if [ "$current" = "sddm.service" ]; then
-  echo "SDDM is already the display manager."
+if command -v systemctl >/dev/null 2>&1; then
+  current="$(basename "$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null)" 2>/dev/null || true)"
+  if [ "$current" = "sddm.service" ]; then
+    echo "SDDM is already the display manager."
+  else
+    echo "Switching display manager: ${current:-none} → sddm.service"
+    systemctl enable --force sddm.service
+    echo "Done. SDDM takes over at the next boot. (Undo: sudo systemctl enable --force ${current:-greetd.service})"
+  fi
 else
-  echo "Switching display manager: ${current:-none} → sddm.service"
-  systemctl enable --force sddm.service
-  echo "Done. SDDM takes over at the next boot. (Undo: sudo systemctl enable --force ${current:-greetd.service})"
+  echo "systemctl not found; enable SDDM with your init system/service manager."
 fi

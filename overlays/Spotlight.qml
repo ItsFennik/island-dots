@@ -53,10 +53,10 @@ PanelWindow {
     // Sources
     readonly property var system: [
         { key: "sys:lock", title: "Lock", sub: "Lock the screen", glyph: "", words: "lock screen", f: () => Compositor.lock() },
-        { key: "sys:sleep", title: "Sleep", sub: "Suspend to RAM", glyph: "󰒲", words: "sleep suspend", cmd: ["systemctl", "suspend"] },
+        { key: "sys:sleep", title: "Sleep", sub: "Suspend to RAM", glyph: "󰒲", words: "sleep suspend", f: () => Compositor.power("suspend") },
         { key: "sys:logout", title: "Log Out", sub: "End the session", glyph: "󰍃", words: "log out logout exit quit session", confirm: true, f: () => Compositor.logout() },
-        { key: "sys:reboot", title: "Restart", sub: "Reboot the computer", glyph: "", words: "restart reboot", confirm: true, cmd: ["systemctl", "reboot"] },
-        { key: "sys:off", title: "Shut Down", sub: "Power off the computer", glyph: "⏻", words: "shut down shutdown power off poweroff", confirm: true, cmd: ["systemctl", "poweroff"] },
+        { key: "sys:reboot", title: "Restart", sub: "Reboot the computer", glyph: "", words: "restart reboot", confirm: true, f: () => Compositor.power("reboot") },
+        { key: "sys:off", title: "Shut Down", sub: "Power off the computer", glyph: "⏻", words: "shut down shutdown power off poweroff", confirm: true, f: () => Compositor.power("poweroff") },
         { key: "sys:settings", title: "System Settings", sub: "Island settings", glyph: "", words: "settings preferences island", f: () => Popouts.openSettings("") }
     ]
     readonly property var help: [

@@ -6,3 +6,19 @@
 
 # Installed per machine by sddm/install.sh
 sddm/island/background.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Nix
+result
+result-*
+
+# Editor/OS
+.DS_Store
+*.swp
+*.swo
+*~
+.direnv/

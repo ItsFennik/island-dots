@@ -24,10 +24,10 @@ Item {
 
     readonly property var actions: [
         { id: "lock", text: "Lock", glyph: "", confirm: false, f: () => Compositor.lock() },
-        { id: "sleep", text: "Sleep", glyph: "", confirm: false, cmd: ["systemctl", "suspend"] },
+        { id: "sleep", text: "Sleep", glyph: "", confirm: false, f: () => Compositor.power("suspend") },
         { id: "logout", text: "Log Out", glyph: "", confirm: true, f: () => Compositor.logout() },
-        { id: "reboot", text: "Restart", glyph: "", confirm: true, cmd: ["systemctl", "reboot"] },
-        { id: "off", text: "Shut Down", glyph: "", confirm: true, cmd: ["systemctl", "poweroff"] }
+        { id: "reboot", text: "Restart", glyph: "", confirm: true, f: () => Compositor.power("reboot") },
+        { id: "off", text: "Shut Down", glyph: "", confirm: true, f: () => Compositor.power("poweroff") }
     ]
 
     function run(a) {
