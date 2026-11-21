@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+# Island power and session actions with one backend for systemd, elogind, OpenRC and
+# plain init systems.
+#
+#   island-power poweroff | reboot | suspend | hibernate | logout | lock | status
+#
+# Options:
+#   --dry-run              print the command instead of running it
+#   --backend NAME         force systemd, logind, openrc or generic
+#   --help
+#
+# Overrides for unusual systems:
+#   ISLAND_POWER_BACKEND, ISLAND_POWEROFF_CMD, ISLAND_REBOOT_CMD,
+#   ISLAND_SUSPEND_CMD, ISLAND_HIBERNATE_CMD, ISLAND_LOGOUT_CMD
+#
+# The shell's power menus and the compositor keybinds call this. Nothing here needs
+# systemd; systemd is only one of the detected backends.
+
+set -u
+
+usage() {
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+dry=0
+backend_override="${ISLAND_POWER_BACKEND:-}"
+while [ $# -gt 0 ]; do
+  case $1 in
+    --dry-run) dry=1; shift ;;
+    --backend) backend_override="${2:-}"; shift 2 ;;
+    --backend=*) backend_override="${1#*=}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*) printf 'island-power: unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+
+action="${1:-}"
+[ -n "$action" ] || { usage >&2; exit 2; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+warn() { printf 'island-power: %s\n' "$*" >&2; }
+
+detect_backend() {
+  if [ -n "$backend_override" ] && [ "$backend_override" != auto ]; then
+    printf '%s' "$backend_override"
+    return
+  fi
+  if [ -d /run/systemd/system ] && have systemctl; then
+    printf 'systemd'
+  elif have loginctl && loginctl show-session self -p Id >/dev/null 2>&1; then
+    printf 'logind'
+  elif have openrc-shutdown; then
+    printf 'openrc'
+  else
+    printf 'generic'
+  fi
+}
+
+backend="$(detect_backend)"
+
+run() {
+  if [ "$dry" = 1 ]; then
+    printf '%s\n' "$*"
+    return 0
+  fi
+  "$@"
+}
+
+run_shell() {
+  if [ "$dry" = 1 ]; then
+    printf 'sh -c %s\n' "$1"
+    return 0
+  fi
+  sh -c "$1"
+}
+
+as_root() {
+  if [ "$(id -u)" = 0 ]; then
+    run "$@"
+    return
+  fi
+  if have doas; then
+    if [ -t 0 ]; then run doas "$@"; else run doas -n "$@"; fi
+  elif have sudo; then
+    if [ -t 0 ]; then run sudo "$@"; else run sudo -n "$@"; fi
+  elif have pkexec; then
+    run pkexec "$@"
+  else
+    warn "need root for '$*', but doas, sudo and pkexec are not installed"
+    return 1
+  fi
+}
+
+not_supported() {
+  warn "no $action backend found on this system"
+  warn "set ISLAND_${action^^}_CMD to the command your init system uses"
+  return 1
+}
+
+poweroff() {
+  if [ -n "${ISLAND_POWEROFF_CMD:-}" ]; then run_shell "$ISLAND_POWEROFF_CMD"; return; fi
+  case $backend in
+    systemd) run systemctl poweroff ;;
+    logind)  run loginctl poweroff ;;
+    openrc)  run openrc-shutdown --poweroff now ;;
+    *)
+      if have shutdown; then as_root shutdown -P now
+      elif have poweroff; then as_root poweroff
+      else not_supported
+      fi ;;
+  esac
+}
+
+reboot() {
+  if [ -n "${ISLAND_REBOOT_CMD:-}" ]; then run_shell "$ISLAND_REBOOT_CMD"; return; fi
+  case $backend in
+    systemd) run systemctl reboot ;;
+    logind)  run loginctl reboot ;;
+    openrc)  run openrc-shutdown --reboot now ;;
+    *)
+      if have shutdown; then as_root shutdown -r now
+      elif have reboot; then as_root reboot
+      else not_supported
+      fi ;;
+  esac
+}
+
+suspend() {
+  if [ -n "${ISLAND_SUSPEND_CMD:-}" ]; then run_shell "$ISLAND_SUSPEND_CMD"; return; fi
+  case $backend in
+    systemd) run systemctl suspend ;;
+    logind)  run loginctl suspend ;;
+    openrc)
+      if have zzz; then as_root zzz
+      elif have pm-suspend; then as_root pm-suspend
+      else not_supported
+      fi ;;
+    *)
+      if have loginctl; then run loginctl suspend && return; fi
+      if have zzz; then as_root zzz
+      elif have pm-suspend; then as_root pm-suspend
+      else not_supported
+      fi ;;
+  esac
+}
+
+hibernate() {
+  if [ -n "${ISLAND_HIBERNATE_CMD:-}" ]; then run_shell "$ISLAND_HIBERNATE_CMD"; return; fi
+  case $backend in
+    systemd) run systemctl hibernate ;;
+    logind)  run loginctl hibernate ;;
+    *)
+      if have loginctl; then run loginctl hibernate && return; fi
+      if have systemctl; then run systemctl hibernate && return; fi
+      warn "hibernate needs logind/elogind or a custom command"
+      warn "set ISLAND_HIBERNATE_CMD to the command your init system uses"
+      return 1 ;;
+  esac
+}
+
+lock() {
+  if have qs && qs -c island ipc call lock status >/dev/null 2>&1; then
+    run qs -c island ipc call lock lock
+    return
+  fi
+  if have loginctl; then
+    run loginctl lock-session
+    return
+  fi
+  if have hyprlock; then
+    run hyprlock
+    return
+  fi
+  warn "Island is not running and loginctl lock-session is unavailable"
+  return 1
+}
+
+logout() {
+  if [ -n "${ISLAND_LOGOUT_CMD:-}" ]; then run_shell "$ISLAND_LOGOUT_CMD"; return; fi
+  if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && have hyprctl; then
+    run hyprctl dispatch 'hl.dsp.exit()'
+  elif [ -n "${NIRI_SOCKET:-}" ] && have niri; then
+    run niri msg action quit --skip-confirmation
+  elif [ -n "${SWAYSOCK:-}" ] && have swaymsg; then
+    run swaymsg exit
+  elif [[ ${XDG_CURRENT_DESKTOP:-} == *[Ss]croll* ]] && have scrollmsg; then
+    run scrollmsg exit
+  elif [ -n "${MANGO_INSTANCE_SIGNATURE:-}" ] || [[ ${XDG_CURRENT_DESKTOP:-} == *[Mm]ango* ]]; then
+    if have mmsg; then run mmsg quit; else warn "mmsg not found"; return 1; fi
+  elif have loginctl; then
+    if [ -n "${XDG_SESSION_ID:-}" ]; then
+      run loginctl terminate-session "$XDG_SESSION_ID"
+    else
+      run loginctl terminate-user "$USER"
+    fi
+  else
+    warn "no compositor or logind session found"
+    warn "set ISLAND_LOGOUT_CMD to your compositor's exit command"
+    return 1
+  fi
+}
+
+status() {
+  printf 'backend: %s\n' "$backend"
+  printf 'session: %s\n' "${XDG_SESSION_ID:-unset}"
+  printf 'runtime: %s\n' "${XDG_RUNTIME_DIR:-unset}"
+}
+
+case $action in
+  poweroff)  poweroff ;;
+  reboot)    reboot ;;
+  suspend)   suspend ;;
+  hibernate) hibernate ;;
+  logout)    logout ;;
+  lock)      lock ;;
+  status)    status ;;
+  *) usage >&2; exit 2 ;;
+esac

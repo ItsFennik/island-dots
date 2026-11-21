@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+# Start an Island session from a compositor exec-once / spawn-at-startup line.
+#
+#   island-startup                     services + Quickshell, detached
+#   island-startup --foreground        services, then run Quickshell in the foreground
+#   island-startup --no-shell          only the session helpers
+#   island-startup --no-pipewire       leave audio to systemd user units or the distro
+#   island-startup --no-clipboard
+#   island-startup --no-wallpaper
+#   island-startup --no-polkit
+#   island-startup --dry-run
+#
+# It works without systemd: creates XDG_RUNTIME_DIR when it is missing, starts a
+# dbus session bus if needed, starts PipeWire/WirePlumber when no user service
+# manager exists, starts the clipboard watchers, restores the wallpaper and then
+# starts Quickshell. Logs go to $XDG_STATE_HOME/island/logs/startup.log.
+#
+# systemd is optional. When it is present, audio is left to its user units.
+# ISLAND_PIPEWIRE=always|never overrides the audio decision.
+
+set -u
+
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+no_shell=0
+no_pipewire=0
+no_clipboard=0
+no_wallpaper=0
+no_polkit=0
+foreground=0
+dry=0
+while [ $# -gt 0 ]; do
+  case $1 in
+    --no-shell) no_shell=1 ;;
+    --no-pipewire) no_pipewire=1 ;;
+    --no-clipboard) no_clipboard=1 ;;
+    --no-wallpaper) no_wallpaper=1 ;;
+    --no-polkit) no_polkit=1 ;;
+    --foreground) foreground=1 ;;
+    --dry-run) dry=1 ;;
+    -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) printf 'island-startup: unknown option: %s\n' "$1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+have() { command -v "$1" >/dev/null 2>&1; }
+say() { printf 'island-startup: %s\n' "$*"; }
+
+runtime="${XDG_RUNTIME_DIR:-}"
+if [ -z "$runtime" ] || [ ! -d "$runtime" ] || [ ! -w "$runtime" ]; then
+  if [ -d "/run/user/$(id -u)" ] && [ -w "/run/user/$(id -u)" ]; then
+    runtime="/run/user/$(id -u)"
+  else
+    runtime="${TMPDIR:-/tmp}/island-runtime-$(id -u)"
+    if [ "$dry" = 0 ]; then
+      mkdir -p "$runtime" || { say "cannot create $runtime"; exit 1; }
+      chmod 700 "$runtime" 2>/dev/null || true
+    fi
+  fi
+  export XDG_RUNTIME_DIR="$runtime"
+fi
+
+# A dbus session bus is required by NetworkManager, notifications, MPRIS, portals
+# and most GUI apps. Re-exec under dbus-run-session so the shell and its children
+# get the address. If the compositor was started from a proper session wrapper this
+# is already set.
+if [ "$dry" = 0 ] && [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ "${ISLAND_DBUS_WRAPPED:-0}" != 1 ]; then
+  if have dbus-run-session; then
+    export ISLAND_DBUS_WRAPPED=1
+    exec dbus-run-session -- "$0" "$@"
+  elif have dbus-launch; then
+    eval "$(dbus-launch --sh-syntax)"
+    export DBUS_SESSION_BUS_ADDRESS
+  elif have dbus-daemon; then
+    addr="$(dbus-daemon --session --fork --print-address=1 2>/dev/null)" || true
+    [ -n "$addr" ] && export DBUS_SESSION_BUS_ADDRESS="$addr"
+  else
+    say "no dbus session bus and no dbus-run-session/dbus-launch; GUI apps may fail"
+  fi
+fi
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}/island"
+log_dir="$state/logs"
+log="$log_dir/startup.log"
+if [ "$dry" = 0 ]; then
+  mkdir -p "$log_dir" || exit 1
+  if [ -f "$log" ] && [ "$(wc -c <"$log" 2>/dev/null || echo 0)" -gt 2000000 ]; then
+    mv -f "$log" "$log.1" 2>/dev/null || true
+  fi
+  printf 'island-startup: logging to %s\n' "$log" >&2
+  if [ "$foreground" = 1 ]; then
+    exec > >(tee -a "$log") 2>&1
+  else
+    exec >>"$log" 2>&1
+  fi
+  say "$(date '+%F %T') startup: session=${XDG_SESSION_ID:-unset} runtime=$XDG_RUNTIME_DIR"
+fi
+
+lock="$XDG_RUNTIME_DIR/island-startup.lock"
+if [ "$dry" = 0 ]; then
+  if ! mkdir "$lock" 2>/dev/null; then
+    old="$(cat "$lock/pid" 2>/dev/null || true)"
+    if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
+      say "already running (pid $old)"
+      exit 0
+    fi
+    rm -rf "$lock"
+    mkdir "$lock" 2>/dev/null || { say "cannot take $lock"; exit 1; }
+  fi
+  printf '%s\n' "$$" >"$lock/pid"
+  cleanup() { rm -rf "$lock"; }
+  trap cleanup EXIT INT TERM
+fi
+
+systemd_user=0
+if [ -d /run/systemd/system ] && have systemctl; then
+  systemd_user=1
+fi
+
+# Stable id for this compositor run, so lock-on-start fires once per login even
+# when systemd-logind/elogind is not there to provide XDG_SESSION_ID.
+if [ -z "${ISLAND_SESSION_ID:-}" ]; then
+  boot="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo boot)"
+  comp_pid=""
+  for candidate in mango Hyprland niri sway labwc river wayfire; do
+    comp_pid="$(pgrep -x "$candidate" 2>/dev/null | head -n1)"
+    [ -n "$comp_pid" ] && break
+  done
+  [ -n "$comp_pid" ] || comp_pid=1
+  comp_start="$(stat -c %Y "/proc/$comp_pid" 2>/dev/null || echo 0)"
+  ISLAND_SESSION_ID="$boot:$comp_start"
+  export ISLAND_SESSION_ID
+fi
+
+daemonize() {
+  if [ "$dry" = 1 ]; then
+    printf 'start: %s\n' "$*"
+    return 0
+  fi
+  if have setsid; then
+    setsid -f "$@" >>"$log" 2>&1
+  else
+    nohup "$@" >>"$log" 2>&1 &
+  fi
+}
+
+start_daemon() {
+  local bin=$1
+  have "$bin" || return 0
+  if pgrep -x "$bin" >/dev/null 2>&1; then
+    say "$bin already running"
+    return 0
+  fi
+  say "starting $bin"
+  daemonize "$bin"
+}
+
+pipewire_mode="${ISLAND_PIPEWIRE:-auto}"
+if [ "$no_pipewire" = 0 ] && [ "$pipewire_mode" != never ]; then
+  if [ "$pipewire_mode" = always ] || [ "$systemd_user" = 0 ]; then
+    start_daemon pipewire
+    start_daemon wireplumber
+    start_daemon pipewire-pulse
+  else
+    say "systemd user manager present; leaving PipeWire to its units"
+  fi
+fi
+
+if [ "$no_clipboard" = 0 ] && have cliphist && have wl-paste; then
+  if pgrep -f '[w]l-paste --type text --watch cliphist store' >/dev/null 2>&1; then
+    say "clipboard text watcher already running"
+  else
+    say "starting cliphist text watcher"
+    daemonize wl-paste --type text --watch cliphist store
+  fi
+  if pgrep -f '[w]l-paste --type image --watch cliphist store' >/dev/null 2>&1; then
+    say "clipboard image watcher already running"
+  else
+    say "starting cliphist image watcher"
+    daemonize wl-paste --type image --watch cliphist store
+  fi
+fi
+
+if [ "$no_polkit" = 0 ] && [ "${ISLAND_POLKIT_AGENT:-auto}" != off ]; then
+  if pgrep -f 'polkit.*authentication-agent|polkit-gnome|lxpolkit|lxqt-policykit' >/dev/null 2>&1; then
+    say "polkit agent already running"
+  else
+    agent="${ISLAND_POLKIT_AGENT:-}"
+    if [ -z "$agent" ]; then
+      for candidate in \
+        /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
+        /usr/libexec/polkit-gnome-authentication-agent-1 \
+        polkit-gnome-authentication-agent-1 lxpolkit lxqt-policykit-agent mate-polkit; do
+        if [ -x "$candidate" ] || have "$candidate"; then agent="$candidate"; break; fi
+      done
+    fi
+    if [ -n "$agent" ]; then
+      say "starting polkit agent: $agent"
+      daemonize sh -c "$agent"
+    fi
+  fi
+fi
+
+if [ "$no_wallpaper" = 0 ] && [ -x "$HERE/wallpaper-set.sh" ]; then
+  say "restoring wallpaper"
+  if [ "$dry" = 1 ]; then
+    printf 'run: %s --restore\n' "$HERE/wallpaper-set.sh"
+  else
+    "$HERE/wallpaper-set.sh" --restore || say "wallpaper restore failed (continuing)"
+  fi
+fi
+
+if [ "$no_shell" = 1 ]; then
+  say "shell disabled; done"
+  exit 0
+fi
+
+shell_running() {
+  have qs && qs -c island ipc call lock status >/dev/null 2>&1
+}
+
+if shell_running; then
+  say "Quickshell already running"
+elif [ "$dry" = 1 ]; then
+  printf 'start: qs -c island -n %s\n' "$( [ "$foreground" = 1 ] && echo '(foreground)' || echo '-d' )"
+elif [ "$foreground" = 1 ]; then
+  say "starting Quickshell in the foreground"
+  cleanup
+  trap - EXIT INT TERM
+  exec qs -c island -n
+else
+  say "starting Quickshell"
+  daemonize qs -c island -n -d
+fi

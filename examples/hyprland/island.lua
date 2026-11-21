@@ -4,12 +4,11 @@
 
 local island = "~/.config/quickshell/island"
 
--- Autostart
+-- Autostart. island-startup creates XDG_RUNTIME_DIR/dbus when needed, starts
+-- PipeWire on non-systemd systems, the clipboard watchers, the wallpaper and
+-- Quickshell. It is safe to run on every login.
 hl.on("hyprland.start", function()
-  hl.exec_cmd(island .. "/scripts/wallpaper-set.sh --restore")
-  hl.exec_cmd("qs -c island -n -d")   -- bar + launcher + menus + settings
-  hl.exec_cmd("wl-paste --type text --watch cliphist store")
-  hl.exec_cmd("wl-paste --type image --watch cliphist store")
+  hl.exec_cmd(island .. "/scripts/island-startup")
 end)
 
 -- Keybinds (all menus grow out of the bar)

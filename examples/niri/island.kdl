@@ -5,10 +5,9 @@
 include "island.kdl"          // gaps, border width, input, cursor, rounding, animations
 include "island-theme.kdl"    // border colours
 
-spawn-at-startup "sh" "-c" "~/.config/quickshell/island/scripts/wallpaper-set.sh --restore"
-spawn-at-startup "qs" "-c" "island" "-n" "-d"
-spawn-at-startup "sh" "-c" "wl-paste --type text --watch cliphist store"
-spawn-at-startup "sh" "-c" "wl-paste --type image --watch cliphist store"
+// One startup script: session dirs, dbus, PipeWire on non-systemd, clipboard,
+// wallpaper and Quickshell. (`spawn-at-startup` doesn't expand ~.)
+spawn-at-startup "sh" "-c" "~/.config/quickshell/island/scripts/island-startup"
 
 binds {
     Mod+D            { spawn "qs" "-c" "island" "ipc" "call" "launcher" "toggle"; }

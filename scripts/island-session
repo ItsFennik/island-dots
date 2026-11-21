@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Start a Wayland session with a private dbus session bus.
+#
+#   island-session -- mango
+#   island-session -- Hyprland
+#   island-session -- niri
+#   island-session -- sway
+#
+# Use this as the session command in a tty login, greetd, SDDM or a non-systemd
+# display manager. It creates XDG_RUNTIME_DIR when missing and runs the compositor
+# under dbus-run-session, so every app it starts shares one session bus. The
+# compositor then runs scripts/island-startup from its exec-once line.
+#
+# If DBUS_SESSION_BUS_ADDRESS is already set (pam_systemd, elogind, a wrapper),
+# the compositor is started directly.
+
+set -u
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  exit 0
+fi
+[ $# -gt 0 ] || { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[ "${1:-}" = "--" ] && shift
+
+runtime="${XDG_RUNTIME_DIR:-}"
+if [ -z "$runtime" ] || [ ! -d "$runtime" ] || [ ! -w "$runtime" ]; then
+  if [ -d "/run/user/$(id -u)" ] && [ -w "/run/user/$(id -u)" ]; then
+    runtime="/run/user/$(id -u)"
+  else
+    runtime="${TMPDIR:-/tmp}/island-runtime-$(id -u)"
+    mkdir -p "$runtime" || { printf 'island-session: cannot create %s\n' "$runtime" >&2; exit 1; }
+    chmod 700 "$runtime" 2>/dev/null || true
+  fi
+  export XDG_RUNTIME_DIR="$runtime"
+fi
+
+if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+  exec "$@"
+fi
+
+if have dbus-run-session; then
+  exec dbus-run-session -- "$@"
+elif have dbus-launch; then
+  eval "$(dbus-launch --sh-syntax)"
+  export DBUS_SESSION_BUS_ADDRESS
+  exec "$@"
+elif have dbus-daemon; then
+  addr="$(dbus-daemon --session --fork --print-address=1 2>/dev/null)" || true
+  if [ -n "$addr" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="$addr"
+  else
+    printf 'island-session: could not start a dbus session bus\n' >&2
+  fi
+  exec "$@"
+fi
+
+printf 'island-session: no dbus session bus available; starting %s without one\n' "$1" >&2
+exec "$@"
