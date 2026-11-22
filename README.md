@@ -5,7 +5,9 @@ Island is a macOS-style desktop shell for Wayland, built on [Quickshell](https:/
 ![Island desktop](docs/screenshots/island-desktop.png)
 
 > [!WARNING]
-> This is a personal setup, vibecoded in public. Paths and preferences are tuned for one machine. Use it, fork it, take parts of it, but expect rough edges.
+> This is a personal setup, vibecoded. Paths and preferences are tuned for one machine. Use it, fork it, take parts of it, but expect rough edges.
+
+> PRs are welcome and Issues too!
 
 ## Components
 
