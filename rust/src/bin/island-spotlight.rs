@@ -1,3 +1,12 @@
+#![allow(
+    clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::struct_excessive_bools,
+    clippy::too_many_lines
+)]
 use gtk::gdk;
 use gtk::glib;
 use gtk::prelude::*;
@@ -13,8 +22,62 @@ use island_rust::ui;
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
+
+const FIELD_H: i32 = 52;
+const ROW_H: i32 = 44;
+const HEAD_H: i32 = 26;
+const FOOT_H: i32 = 34;
+const WINDOW_MARGIN: i32 = 20;
+const MAX_HEADERS: i32 = 4;
+const OPEN_MS: u64 = 180;
+const CLOSE_MS: u64 = 420;
+const OPEN_OVERSHOOT: f64 = 0.7;
+const HOVER_GRACE_MS: u64 = 100;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Style {
+    Capsule,
+    Attached,
+    Bottom,
+    Floating,
+}
+
+impl Style {
+    fn resolved(cfg: &Config) -> Self {
+        let layout = cfg.string("shellLayout", "menubar");
+        let skin = cfg.string("barSkin", "classic");
+        let capsule = layout == "menubar" && (skin == "island" || skin == "notch");
+        let bottom_layout = layout != "menubar";
+        match cfg.string("spotlightStyle", "auto").as_str() {
+            "floating" => Self::Floating,
+            "capsule" => {
+                if capsule {
+                    Self::Capsule
+                } else if bottom_layout {
+                    Self::Bottom
+                } else {
+                    Self::Attached
+                }
+            }
+            _ => {
+                if capsule && cfg.bool("spotlightFromCapsule", true) {
+                    Self::Capsule
+                } else if bottom_layout {
+                    Self::Bottom
+                } else {
+                    Self::Attached
+                }
+            }
+        }
+    }
+}
+
+fn uses_focus_grab() -> bool {
+    std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_some()
+}
 
 #[derive(Clone)]
 enum Act {
@@ -25,10 +88,20 @@ enum Act {
     Copy(String),
     Url(String),
     Settings(Option<String>),
-    Qml(Option<String>),
     Skin(String),
     Fill(String),
-    None,
+}
+
+#[derive(Clone)]
+enum MenuAct {
+    Activate(usize),
+    AppAction(usize, String),
+    ToggleDock(String),
+    TogglePin(String),
+    Forget(String),
+    OpenFolder(PathBuf),
+    Copy(String),
+    CloseCopy(String),
 }
 
 #[derive(Clone)]
@@ -63,6 +136,7 @@ struct Spotlight {
     apps: AppIndex,
     history: History,
     window: gtk::ApplicationWindow,
+    root: gtk::Box,
     card: gtk::Box,
     search: gtk::Box,
     entry: gtk::Entry,
@@ -76,54 +150,51 @@ struct Spotlight {
     current_w: i32,
     current_h: i32,
     grown: bool,
-    focus_ready: bool,
     closing: bool,
     rows: Vec<Row>,
-    row_widgets: Vec<gtk::ListBoxRow>,
+    list_rows: Vec<gtk::ListBoxRow>,
     selected: usize,
     query: String,
     confirm_key: String,
+    ctx_menu: Option<gtk::Popover>,
     rows_limit: usize,
     files_enabled: bool,
     commands_enabled: bool,
     web_enabled: bool,
     files: Vec<PathBuf>,
     file_gen: u64,
+    file_cancel: Arc<AtomicBool>,
     file_tx: mpsc::Sender<(u64, String, Vec<PathBuf>)>,
     weak: Weak<RefCell<Spotlight>>,
 }
 
 impl Spotlight {
-    fn new(app: &gtk::Application, monitor_name: Option<String>) -> Rc<RefCell<Self>> {
+    fn new(app: &gtk::Application, monitor_name: Option<&str>) -> Rc<RefCell<Self>> {
         let cfg = Config::load();
         let theme = Theme::load(&cfg);
         ui::install_css(&theme);
         let apps = AppIndex::load();
-        let history = History::load();
+        let mut history = History::load();
+        history.merge_usage(apps.usage());
         let rows_limit = cfg.i64("spotlightRows", 9).clamp(5, 12) as usize;
         let width = cfg.i64("spotlightWidth", 700).clamp(460, 920) as i32;
         let files_enabled = cfg.bool("spotlightFiles", true);
         let commands_enabled = cfg.bool("spotlightCommands", true);
         let web_enabled = cfg.bool("spotlightWeb", true);
-        let layout = cfg.string("shellLayout", "menubar");
+        let style = Style::resolved(&cfg);
+        let morph = style == Style::Capsule;
         let skin = cfg.string("barSkin", "classic");
-        let capsule = layout == "menubar" && (skin == "island" || skin == "notch");
-        let morph = match cfg.string("spotlightStyle", "auto").as_str() {
-            "floating" => false,
-            "capsule" => capsule,
-            // "attached" means the capsule on capsule bars, and the edge elsewhere.
-            "attached" => capsule && cfg.bool("spotlightFromCapsule", true),
-            _ => capsule && cfg.bool("spotlightFromCapsule", true),
-        };
         let cap_w = if skin == "notch" { 190 } else { 104 };
         let cap_h = cfg.i64("barHeight", 30) as i32;
         let cap_y = if skin == "notch" { 0 } else { 6 };
+        let fullscreen = !uses_focus_grab();
 
         let window = gtk::ApplicationWindow::builder()
             .application(app)
             .title("Spotlight")
             .build();
         window.set_decorated(false);
+        window.add_css_class("spotlight-window");
         window.init_layer_shell();
         window.set_namespace(Some(if morph {
             "island-capsule-spotlight"
@@ -133,29 +204,37 @@ impl Spotlight {
         window.set_layer(Layer::Overlay);
         window.set_keyboard_mode(KeyboardMode::Exclusive);
         window.set_exclusive_zone(-1);
-        let monitor = ui::monitor_for(monitor_name.as_deref());
+        let monitor = ui::monitor_for(monitor_name);
         if let Some(monitor) = &monitor {
             window.set_monitor(Some(monitor));
         }
-        let screen_height = monitor
-            .as_ref()
-            .map(|monitor| monitor.geometry().height())
-            .unwrap_or(1080);
-        let (bottom, margin) = placement(&cfg, screen_height);
-        let edge = if morph {
-            Edge::Top
-        } else if bottom {
-            Edge::Bottom
-        } else {
-            Edge::Top
+        let screen = monitor.as_ref().map(gtk::prelude::MonitorExt::geometry);
+        let screen_width = screen.map_or(1920, |geometry| geometry.width());
+        let screen_height = screen.map_or(1080, |geometry| geometry.height());
+
+        let bar_height = cfg.i64("barHeight", 30) + i64::from(skin == "pills") * 6;
+        let taskbar_height = cfg.i64("taskbarHeight", 54) + 8;
+        let top_gap = (f64::from(screen_height) * 0.2).round() as i32;
+        let (edge, margin, card_top) = match style {
+            Style::Capsule => (Edge::Top, 0, cap_y),
+            Style::Bottom => (Edge::Bottom, (taskbar_height + 8) as i32, 0),
+            Style::Attached => (Edge::Top, (bar_height + 8) as i32, 0),
+            Style::Floating => (Edge::Top, top_gap, 10),
         };
-        window.set_anchor(edge, true);
-        window.set_margin(edge, if morph { 0 } else { margin });
-        let max_height = 52 + 1 + rows_limit as i32 * 44 + 1 + 34;
-        if morph {
-            window.set_default_size(width + 40, max_height + 4 * 26 + cap_y + 40);
+        if fullscreen {
+            for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
+                window.set_anchor(edge, true);
+            }
+            window.set_default_size(screen_width, screen_height);
         } else {
-            window.set_default_size(width + 40, max_height);
+            window.set_anchor(edge, true);
+            window.set_margin(edge, margin);
+            let window_height = FIELD_H
+                + rows_limit as i32 * ROW_H
+                + MAX_HEADERS * HEAD_H
+                + FOOT_H
+                + WINDOW_MARGIN * 2;
+            window.set_default_size(width + WINDOW_MARGIN * 2, window_height);
         }
         window.set_resizable(false);
 
@@ -171,34 +250,66 @@ impl Spotlight {
             if skin == "notch" {
                 card.add_css_class("notch");
             }
-            card.set_margin_top(cap_y);
-            card.set_size_request(cap_w, cap_h);
-        } else {
-            card.set_size_request(width, max_height);
         }
-        card.set_halign(gtk::Align::Center);
-        card.set_valign(if bottom && !morph {
-            gtk::Align::End
-        } else {
-            gtk::Align::Start
-        });
+        card.set_size_request(width, FIELD_H);
+        card.set_halign(gtk::Align::Fill);
+        card.set_valign(gtk::Align::Fill);
         card.set_overflow(gtk::Overflow::Hidden);
-        root.append(&card);
+        let scroller = gtk::ScrolledWindow::new();
+        scroller.add_css_class("spot-scroller");
+        scroller.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Never);
+        scroller.set_has_frame(false);
+        scroller.set_halign(gtk::Align::Center);
+        scroller.set_valign(match style {
+            Style::Bottom => gtk::Align::End,
+            _ => gtk::Align::Start,
+        });
+        scroller.set_margin_top(if fullscreen {
+            match style {
+                Style::Capsule => cap_y,
+                Style::Bottom => 0,
+                Style::Attached => (bar_height + 8) as i32,
+                Style::Floating => top_gap + 10,
+            }
+        } else {
+            card_top
+        });
+        scroller.set_margin_bottom(if fullscreen {
+            match style {
+                Style::Bottom => (taskbar_height + 8) as i32,
+                _ => 0,
+            }
+        } else {
+            0
+        });
+        scroller.set_child(Some(&card));
+        root.append(&scroller);
         window.set_child(Some(&root));
 
-        let search = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-        search.set_size_request(-1, 52);
-        search.set_margin_start(18);
+        let search = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        search.set_size_request(-1, FIELD_H);
+        search.set_margin_start(30);
         search.set_margin_end(18);
-        let icon = ui::label(">_", "spot-prompt");
         let entry = gtk::Entry::new();
-        entry.set_placeholder_text(Some("Search   ·   ? for help"));
         entry.set_has_frame(false);
         entry.set_hexpand(true);
         entry.set_valign(gtk::Align::Center);
         entry.add_css_class("spot-entry");
-        search.append(&icon);
-        search.append(&entry);
+        let field = gtk::Overlay::new();
+        field.set_hexpand(true);
+        field.set_child(Some(&entry));
+        let placeholder = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        placeholder.add_css_class("spot-placeholder");
+        placeholder.set_halign(gtk::Align::Start);
+        placeholder.set_valign(gtk::Align::Center);
+        placeholder.set_can_target(false);
+        placeholder.append(&ui::label(
+            "Search apps, files, actions",
+            "spot-placeholder-main",
+        ));
+        placeholder.append(&ui::label("·  ? for help", "spot-placeholder-hint"));
+        field.add_overlay(&placeholder);
+        search.append(&field);
         if morph {
             search.set_visible(false);
             search.set_opacity(0.0);
@@ -222,7 +333,7 @@ impl Spotlight {
         card.append(&ui::separator());
 
         let footer = gtk::Box::new(gtk::Orientation::Horizontal, 10);
-        footer.set_size_request(-1, 34);
+        footer.set_size_request(-1, FOOT_H);
         footer.set_margin_start(14);
         footer.set_margin_end(14);
         footer.set_valign(gtk::Align::Center);
@@ -238,7 +349,9 @@ impl Spotlight {
             Rc::new_cyclic(|weak: &std::rc::Weak<RefCell<Spotlight>>| {
                 entry.connect_changed({
                     let weak = weak.clone();
+                    let placeholder = placeholder.clone();
                     move |entry| {
+                        placeholder.set_visible(entry.text().is_empty());
                         if let Some(spot) = weak.upgrade() {
                             let query = entry.text().to_string();
                             spot.borrow_mut().set_query(query);
@@ -252,7 +365,7 @@ impl Spotlight {
                         if let Some(spot) = weak.upgrade() {
                             let idx = spot
                                 .borrow()
-                                .row_widgets
+                                .list_rows
                                 .iter()
                                 .position(|widget| widget == row);
                             if let Some(idx) = idx {
@@ -281,11 +394,17 @@ impl Spotlight {
                             }
                             return glib::Propagation::Stop;
                         }
-                        if keyval == gdk::Key::Down || keyval == gdk::Key::Tab {
+                        if keyval == gdk::Key::Down
+                            || keyval == gdk::Key::Tab
+                            || (ctrl && matches!(ch, Some('j' | 'n')))
+                        {
                             spot.borrow_mut().move_selection(1);
                             return glib::Propagation::Stop;
                         }
-                        if keyval == gdk::Key::Up || keyval == gdk::Key::ISO_Left_Tab {
+                        if keyval == gdk::Key::Up
+                            || keyval == gdk::Key::ISO_Left_Tab
+                            || (ctrl && matches!(ch, Some('k' | 'p')))
+                        {
                             spot.borrow_mut().move_selection(-1);
                             return glib::Propagation::Stop;
                         }
@@ -306,6 +425,11 @@ impl Spotlight {
                             activate(&spot, idx);
                             return glib::Propagation::Stop;
                         }
+                        if keyval == gdk::Key::Menu || (shift && keyval == gdk::Key::F10) {
+                            let index = spot.borrow().selected;
+                            open_context_menu(&spot, index, None);
+                            return glib::Propagation::Stop;
+                        }
                         if ctrl && ch == Some('f') {
                             pin_selected(&spot);
                             return glib::Propagation::Stop;
@@ -319,29 +443,97 @@ impl Spotlight {
                 });
                 entry.add_controller(key);
 
-                let armed = Rc::new(Cell::new(false));
-                let focus = gtk::EventControllerFocus::new();
-                focus.connect_leave({
-                    let weak = weak.clone();
-                    let armed = armed.clone();
-                    move |_| {
-                        if !armed.get() {
-                            return;
+                if uses_focus_grab() {
+                    let armed = Rc::new(Cell::new(false));
+                    let focus = gtk::EventControllerFocus::new();
+                    focus.connect_leave({
+                        let weak = weak.clone();
+                        let armed = armed.clone();
+                        move |_| {
+                            if !armed.get() {
+                                return;
+                            }
+                            if let Some(spot) = weak.upgrade() {
+                                spot.borrow_mut().close();
+                            }
                         }
-                        if let Some(spot) = weak.upgrade() {
-                            spot.borrow_mut().close();
+                    });
+                    window.add_controller(focus);
+                    let armed2 = armed.clone();
+                    glib::timeout_add_local_once(Duration::from_millis(60), move || {
+                        armed2.set(true);
+                    });
+                }
+
+                let hover_entered = Rc::new(Cell::new(false));
+                let hover_pending = Rc::new(Cell::new(false));
+                let motion = gtk::EventControllerMotion::new();
+                motion.set_propagation_phase(gtk::PropagationPhase::Capture);
+                let pointer_inside = {
+                    let card = card.clone();
+                    let root = root.clone();
+                    move |x: f64, y: f64| {
+                        card.compute_bounds(&root).is_some_and(|bounds| {
+                            x >= f64::from(bounds.x())
+                                && y >= f64::from(bounds.y())
+                                && x <= f64::from(bounds.x() + bounds.width())
+                                && y <= f64::from(bounds.y() + bounds.height())
+                        })
+                    }
+                };
+                motion.connect_motion({
+                    let weak = weak.clone();
+                    let hover_entered = hover_entered.clone();
+                    let hover_pending = hover_pending.clone();
+                    let pointer_inside = pointer_inside.clone();
+                    move |_, x, y| {
+                        if pointer_inside(x, y) {
+                            hover_entered.set(true);
+                            hover_pending.set(false);
+                        } else if hover_entered.get() {
+                            schedule_hover_close(&weak, &hover_pending);
                         }
                     }
                 });
-                window.add_controller(focus);
-                let armed2 = armed.clone();
-                glib::timeout_add_local_once(Duration::from_millis(450), move || armed2.set(true));
+                motion.connect_leave({
+                    let weak = weak.clone();
+                    let hover_entered = hover_entered.clone();
+                    let hover_pending = hover_pending.clone();
+                    move |_| {
+                        if hover_entered.get() {
+                            schedule_hover_close(&weak, &hover_pending);
+                        }
+                    }
+                });
+                root.add_controller(motion);
+
+                let click = gtk::GestureClick::new();
+                click.connect_pressed({
+                    let weak = weak.clone();
+                    let card = card.clone();
+                    let root = root.clone();
+                    move |_, _, x, y| {
+                        let outside = card.compute_bounds(&root).is_none_or(|bounds| {
+                            x < f64::from(bounds.x())
+                                || y < f64::from(bounds.y())
+                                || x > f64::from(bounds.x() + bounds.width())
+                                || y > f64::from(bounds.y() + bounds.height())
+                        });
+                        if outside {
+                            if let Some(spot) = weak.upgrade() {
+                                spot.borrow_mut().close();
+                            }
+                        }
+                    }
+                });
+                root.add_controller(click);
 
                 RefCell::new(Self {
                     cfg,
                     apps,
                     history,
                     window: window.clone(),
+                    root: root.clone(),
                     card: card.clone(),
                     search: search.clone(),
                     entry: entry.clone(),
@@ -351,30 +543,38 @@ impl Spotlight {
                     morph,
                     cap_w,
                     cap_h,
-                    final_h: max_height,
+                    final_h: FIELD_H
+                        + 1
+                        + ROW_H * rows_limit as i32
+                        + HEAD_H * MAX_HEADERS
+                        + 1
+                        + FOOT_H,
                     current_w: cap_w,
                     current_h: cap_h,
                     grown: !morph,
-                    focus_ready: !morph,
                     closing: false,
                     rows: Vec::new(),
-                    row_widgets: Vec::new(),
+                    list_rows: Vec::new(),
                     selected: 0,
                     query: String::new(),
                     confirm_key: String::new(),
+                    ctx_menu: None,
                     rows_limit,
                     files_enabled,
                     commands_enabled,
                     web_enabled,
                     files: Vec::new(),
                     file_gen: 0,
+                    file_cancel: Arc::new(AtomicBool::new(false)),
                     file_tx: file_tx.clone(),
                     weak: weak.clone(),
                 })
             });
 
         spot.borrow_mut().rebuild();
-        window.present();
+        window.present_with_time(gdk::CURRENT_TIME);
+        window.set_keyboard_mode(KeyboardMode::Exclusive);
+        gtk::prelude::GtkWindowExt::set_focus(&window, Some(&entry));
         entry.grab_focus();
         spot.borrow_mut().start_open();
 
@@ -397,20 +597,22 @@ impl Spotlight {
 
         spot
     }
-
     fn set_query(&mut self, query: String) {
         self.query = query;
         self.confirm_key.clear();
+        self.selected = 0;
         self.files.clear();
         self.file_gen = self.file_gen.wrapping_add(1);
+        self.file_cancel.store(true, Ordering::Relaxed);
         self.rebuild();
         let q = self.query.trim();
-        if self.files_enabled
-            && q.len() >= 3
+        let files_wanted = self.files_enabled
+            && q.encode_utf16().count() >= 3
             && !q.starts_with('>')
             && !q.starts_with('$')
             && q != "?"
-        {
+            && math_result(q).is_none();
+        if files_wanted {
             let weak = self.weak.clone();
             let generation = self.file_gen;
             let wanted = self.query.clone();
@@ -430,8 +632,10 @@ impl Spotlight {
         let generation = self.file_gen;
         let query = self.query.clone();
         let tx = self.file_tx.clone();
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.file_cancel = cancel.clone();
         std::thread::spawn(move || {
-            let files = search_files(&query);
+            let files = search_files(&query, &cancel);
             let _ = tx.send((generation, query, files));
         });
     }
@@ -467,66 +671,22 @@ impl Spotlight {
             if out.is_empty() {
                 let apps: Vec<Row> = self
                     .apps
-                    .apps
-                    .iter()
-                    .enumerate()
-                    .take(self.rows_limit)
-                    .map(|(index, app)| app_row(index, app))
+                    .ranked_all()
+                    .into_iter()
+                    .take(8)
+                    .map(|index| app_row(index, &self.apps.apps[index]))
                     .collect();
                 push_group(&mut out, self.rows_limit, "Applications", apps);
             }
             return out;
         }
         if q == "?" {
-            let mut help = vec![Row::new(
-                "",
-                "Apps & actions",
-                "Type a name: Firefox, Lock, Sleep, Restart…",
-                "",
-                Act::None,
-            )];
-            if self.commands_enabled {
-                help.push(Row::new(
-                    "",
-                    "> command",
-                    "Run a shell command ($ works too)",
-                    "",
-                    Act::Fill("> ".into()),
-                ));
-            }
-            help.push(Row::new(
-                "",
-                "Math",
-                "2*(3+4), 15% of 80. Enter copies the result",
-                "󰃬",
-                Act::Fill(String::new()),
-            ));
-            if self.files_enabled {
-                help.push(Row::new(
-                    "",
-                    "Files",
-                    "3+ letters also search your home folder",
-                    "",
-                    Act::Fill(String::new()),
-                ));
-            }
-            if self.web_enabled {
-                help.push(Row::new(
-                    "",
-                    "Web",
-                    "Anything else: the last row searches DuckDuckGo",
-                    "󰖟",
-                    Act::Fill(String::new()),
-                ));
-            }
-            help.push(Row::new(
-                "",
-                "Pinning",
-                "Ctrl F pins the selected row; Shift Delete forgets it",
-                "󰐃",
-                Act::Fill(String::new()),
-            ));
-            push_group(&mut out, self.rows_limit, "Help", help);
+            push_group(
+                &mut out,
+                self.rows_limit,
+                "Help",
+                help_rows(self.commands_enabled, self.files_enabled, self.web_enabled),
+            );
             return out;
         }
         if q.starts_with('>') || q.starts_with('$') {
@@ -536,7 +696,7 @@ impl Spotlight {
                     self.rows_limit,
                     "Command",
                     vec![Row::new(
-                        "sys:spotlight",
+                        "",
                         "Shell commands are off",
                         "Turn them on in Spotlight Settings",
                         "\u{f002}",
@@ -566,6 +726,7 @@ impl Spotlight {
         }
 
         if let Some(result) = math_result(q) {
+            let expression = q.strip_prefix('=').unwrap_or(q);
             push_group(
                 &mut out,
                 self.rows_limit,
@@ -573,7 +734,7 @@ impl Spotlight {
                 vec![Row::new(
                     "",
                     &result,
-                    &format!("{} = · Enter copies", q),
+                    &format!("{expression} =  ·  Enter copies"),
                     "󰃬",
                     Act::Copy(result.clone()),
                 )],
@@ -581,55 +742,46 @@ impl Spotlight {
         }
 
         let ql = q.to_lowercase();
-        let mut actions = Vec::new();
-        for row in system_actions() {
-            let haystack = format!("{} {}", row.title, row.sub).to_lowercase();
-            if haystack.contains(&ql) {
-                actions.push(row);
-            }
+        let sys = Self::ranked_system_actions(&ql);
+        let skins = self.ranked_skins(&ql);
+        let skin_prefix = ql.starts_with("skin") || ql.starts_with("bar") || ql.starts_with("menu");
+        if skin_prefix {
+            push_group(&mut out, self.rows_limit, "Bar skins", skins.clone());
         }
-        push_group(&mut out, self.rows_limit, "Actions", actions);
-
-        let apps = self
+        let apps_limit = if sys.is_empty() { 5 } else { 4 };
+        let apps: Vec<Row> = self
             .apps
-            .search(q, if out.len() < self.rows_limit { 6 } else { 0 });
-        let app_rows: Vec<Row> = apps
-            .iter()
-            .filter_map(|app| {
-                self.apps
-                    .apps
-                    .iter()
-                    .position(|candidate| candidate.id == app.id)
-                    .map(|index| app_row(index, app))
-            })
+            .search(q, apps_limit)
+            .into_iter()
+            .map(|index| app_row(index, &self.apps.apps[index]))
             .collect();
-        push_group(&mut out, self.rows_limit, "Applications", app_rows);
-
-        if skin_query(&ql) {
-            let current = self.cfg.string("barSkin", "classic");
-            let mut skins = Vec::new();
-            for (id, label, sub) in [
-                ("classic", "Classic", "Full-width menu bar"),
-                ("pills", "Pills", "Every item in its own floating pill"),
-                ("island", "Dynamic Island", "Only a centre capsule"),
-                ("notch", "Notch", "A MacBook-style notch"),
-            ] {
-                skins.push(Row::new(
-                    "",
-                    label,
-                    &format!("{}{}", if current == id { "Current · " } else { "" }, sub),
-                    "󰮺",
-                    Act::Skin(id.into()),
-                ));
-            }
+        let apps_first = sys.is_empty()
+            || (!apps.is_empty()
+                && island_rust::apps::match_score(&apps[0].title.to_lowercase(), &ql)
+                    >= island_rust::apps::match_score(&sys[0].title.to_lowercase(), &ql));
+        if apps_first {
+            push_group(&mut out, self.rows_limit, "Applications", apps);
+            push_group(
+                &mut out,
+                self.rows_limit,
+                "Actions",
+                sys.into_iter().take(2).collect(),
+            );
+        } else {
+            push_group(
+                &mut out,
+                self.rows_limit,
+                "Actions",
+                sys.into_iter().take(2).collect(),
+            );
+            push_group(&mut out, self.rows_limit, "Applications", apps);
+        }
+        if !skin_prefix {
             push_group(&mut out, self.rows_limit, "Bar skins", skins);
         }
 
-        if self.files_enabled && q.len() >= 3 && !self.files.is_empty() {
-            let remaining = self
-                .rows_limit
-                .saturating_sub(out.len())
-                .saturating_sub(usize::from(self.web_enabled));
+        if self.files_enabled && !self.files.is_empty() {
+            let remaining = self.rows_limit.saturating_sub(1).saturating_sub(out.len());
             let rows: Vec<Row> = self
                 .files
                 .iter()
@@ -653,21 +805,69 @@ impl Spotlight {
                 )],
             );
         }
-        if out.is_empty() {
-            push_group(
-                &mut out,
-                self.rows_limit,
-                "",
-                vec![Row::new(
-                    "",
-                    "No results",
-                    "Try another name, or turn on web search in Spotlight Settings",
-                    "󰍉",
-                    Act::None,
-                )],
-            );
-        }
         out
+    }
+
+    fn ranked_system_actions(query: &str) -> Vec<Row> {
+        let mut ranked: Vec<(f64, Row)> = system_actions()
+            .into_iter()
+            .filter_map(|(row, words)| {
+                let title = island_rust::apps::match_score(&row.title.to_lowercase(), query) as f64;
+                let words = words
+                    .split_whitespace()
+                    .map(|word| island_rust::apps::match_score(word, query) as f64 * 0.7)
+                    .fold(0.0_f64, f64::max);
+                let score = title.max(words);
+                (score >= 300.0).then_some((score, row))
+            })
+            .collect();
+        ranked.sort_by(|(left, _), (right, _)| right.total_cmp(left));
+        ranked.into_iter().map(|(_, row)| row).collect()
+    }
+
+    fn ranked_skins(&self, query: &str) -> Vec<Row> {
+        let words = [
+            "skin", "skins", "bar", "bars", "menu bar", "bar skin", "notch", "island", "pills",
+        ];
+        let skin_word = query.chars().count() >= 2
+            && words
+                .iter()
+                .any(|word| word.starts_with(query) || query.starts_with(&format!("{word} ")));
+        let current_layout = self.cfg.string("shellLayout", "menubar");
+        let current_skin = self.cfg.string("barSkin", "classic");
+        let mut skins = Vec::new();
+        for (id, label, sub, glyph) in [
+            ("classic", "Classic", "Full-width menu bar", "󰍜"),
+            ("pills", "Pills", "Every item in its own floating pill", "󰮺"),
+            (
+                "island",
+                "Dynamic Island",
+                "Only a centre capsule: the time, growing for music, volume, notifications and menus",
+                "󰐾",
+            ),
+            (
+                "notch",
+                "Notch",
+                "Only a MacBook-style notch: the time, growing for music, volume, notifications and menus",
+                "󰟀",
+            ),
+        ] {
+            let matches = skin_word
+                || (query.chars().count() >= 4
+                    && island_rust::apps::match_score(&label.to_lowercase(), query) >= 300);
+            if !matches {
+                continue;
+            }
+            let current = current_layout == "menubar" && current_skin == id;
+            skins.push(Row::new(
+                "",
+                label,
+                &format!("{}{}", if current { "Current · " } else { "" }, sub),
+                glyph,
+                Act::Skin(id.into()),
+            ));
+        }
+        skins
     }
 
     fn add_history(&self, out: &mut Vec<Row>) {
@@ -681,13 +881,13 @@ impl Spotlight {
                 recent.push(row);
             }
         }
-        let recent_keys: Vec<String> = self.history.recent().to_vec();
+        let seen: Vec<String> = recent.iter().map(|row| row.key.clone()).collect();
         let mut frequent = Vec::new();
         for key in self.history.frequent_ordered() {
-            if frequent.len() + recent.len() >= self.rows_limit {
+            if frequent.len() + recent.len() >= 8 {
                 break;
             }
-            if recent_keys.contains(&key) && !pinned(&key) {
+            if seen.contains(&key) {
                 continue;
             }
             if let Some(row) = self.row_for_key(&key) {
@@ -700,8 +900,13 @@ impl Spotlight {
 
     fn row_for_key(&self, key: &str) -> Option<Row> {
         if let Some(id) = key.strip_prefix("app:") {
-            let index = self.apps.apps.iter().position(|app| app.id == id)?;
-            return Some(app_row(index, &self.apps.apps[index]));
+            let app = self.apps.by_id(id)?;
+            let index = self
+                .apps
+                .apps
+                .iter()
+                .position(|candidate| candidate.id == app.id)?;
+            return Some(app_row(index, app));
         }
         if let Some(id) = key.strip_prefix("cmd:") {
             return Some(Row::new(
@@ -712,71 +917,90 @@ impl Spotlight {
                 Act::Command(id.to_string()),
             ));
         }
-        system_actions().into_iter().find(|row| row.key == key)
+        system_actions()
+            .into_iter()
+            .find(|(row, _)| row.key == key)
+            .map(|(row, _)| row)
     }
 
     fn rebuild_list(&mut self) {
         while let Some(child) = self.list.first_child() {
             self.list.remove(&child);
         }
-        self.row_widgets.clear();
+        self.list_rows.clear();
         let mut last_section = String::new();
         let mut content_h = 0;
-        for row in &self.rows {
+        for (index, row) in self.rows.iter().enumerate() {
             if !row.section.is_empty() && row.section != last_section {
                 let header = gtk::ListBoxRow::new();
                 header.set_selectable(false);
                 header.set_activatable(false);
                 header.add_css_class("section-row");
-                header.set_size_request(-1, 26);
-                let label = ui::label(&row.section.to_uppercase(), "section");
+                header.set_size_request(-1, HEAD_H);
+                let label = ui::label(&row.section, "section");
                 label.set_margin_start(12);
                 label.set_margin_bottom(4);
                 label.set_valign(gtk::Align::End);
                 header.set_child(Some(&label));
                 self.list.append(&header);
-                last_section = row.section.clone();
-                content_h += 26;
+                last_section.clone_from(&row.section);
+                content_h += HEAD_H;
             }
             let widget = self.row_widget(row);
+            let secondary = gtk::GestureClick::new();
+            secondary.set_button(gdk::BUTTON_SECONDARY);
+            secondary.set_propagation_phase(gtk::PropagationPhase::Capture);
+            secondary.connect_pressed({
+                let weak = self.weak.clone();
+                let target = widget.clone();
+                move |gesture, _, x, y| {
+                    gesture.set_state(gtk::EventSequenceState::Claimed);
+                    let Some(spot) = weak.upgrade() else {
+                        return;
+                    };
+                    let root = spot.borrow().root.clone();
+                    if let Some(bounds) = target.compute_bounds(&root) {
+                        let rect = gdk::Rectangle::new(
+                            (bounds.x() + x as f32) as i32,
+                            (bounds.y() + y as f32) as i32,
+                            1,
+                            1,
+                        );
+                        open_context_menu(&spot, index, Some(rect));
+                    }
+                }
+            });
+            widget.add_controller(secondary);
             let list_row = gtk::ListBoxRow::new();
             list_row.set_child(Some(&widget));
-            list_row.set_size_request(-1, 44);
-            list_row.set_selectable(!matches!(row.act, Act::None));
-            list_row.set_activatable(!matches!(row.act, Act::None));
-            if !matches!(row.act, Act::None) {
-                let motion = gtk::EventControllerMotion::new();
-                let weak = self.weak.clone();
-                let target = list_row.clone();
-                let list = self.list.clone();
-                motion.connect_enter(move |_, _, _| {
-                    if let Some(spot) = weak.upgrade() {
-                        let mut state = spot.borrow_mut();
-                        if let Some(index) = state
-                            .row_widgets
-                            .iter()
-                            .position(|widget| widget == &target)
-                        {
-                            state.selected = index;
-                            list.select_row(Some(&target));
-                            state.rebuild_footer();
-                        }
+            list_row.set_size_request(-1, ROW_H);
+            list_row.set_activatable(true);
+            let motion = gtk::EventControllerMotion::new();
+            let weak = self.weak.clone();
+            let target = list_row.clone();
+            let list = self.list.clone();
+            motion.connect_enter(move |_, _, _| {
+                if let Some(spot) = weak.upgrade() {
+                    let mut state = spot.borrow_mut();
+                    if let Some(index) = state.list_rows.iter().position(|widget| widget == &target)
+                    {
+                        state.selected = index;
+                        list.select_row(Some(&target));
+                        state.rebuild_footer();
                     }
-                });
-                list_row.add_controller(motion);
-                self.row_widgets.push(list_row.clone());
-            }
+                }
+            });
+            list_row.add_controller(motion);
+            self.list_rows.push(list_row.clone());
             self.list.append(&list_row);
-            content_h += 44;
+            content_h += ROW_H;
         }
         self.list.set_size_request(-1, content_h);
         self.list
             .set_visible(!self.rows.is_empty() && (!self.morph || self.grown));
-        if let Some(first) = self.row_widgets.first() {
-            self.selected = 0;
-            self.list.select_row(Some(first));
-        } else {
-            self.selected = 0;
+        self.selected = self.selected.min(self.rows.len().saturating_sub(1));
+        if let Some(row) = self.list_rows.get(self.selected) {
+            self.list.select_row(Some(row));
         }
         self.resize_card(content_h);
         self.rebuild_footer();
@@ -785,15 +1009,9 @@ impl Spotlight {
     fn row_widget(&self, row: &Row) -> gtk::Widget {
         let line = gtk::Box::new(gtk::Orientation::Horizontal, 12);
         line.add_css_class("spot-row");
-        line.set_size_request(-1, 44);
+        line.set_size_request(-1, ROW_H);
 
-        if let Some(name) = &row.icon {
-            let image = gtk::Image::from_icon_name(name);
-            image.set_pixel_size(28);
-            image.set_margin_start(10);
-            image.set_valign(gtk::Align::Center);
-            line.append(&image);
-        } else {
+        if let Some(glyph_text) = &row.glyph {
             let badge = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             badge.add_css_class("glyph-badge");
             if self.confirm_key == row.key && row.confirm {
@@ -802,11 +1020,18 @@ impl Spotlight {
             badge.set_size_request(28, 28);
             badge.set_margin_start(10);
             badge.set_valign(gtk::Align::Center);
-            let glyph = ui::glyph(row.glyph.as_deref().unwrap_or(""), 14);
+            let glyph = ui::glyph(glyph_text, 14);
             glyph.set_halign(gtk::Align::Center);
             glyph.set_valign(gtk::Align::Center);
             badge.append(&glyph);
             line.append(&badge);
+        } else {
+            let name = row.icon.as_deref().unwrap_or("application-x-executable");
+            let image = icon_image(name, "application-x-executable");
+            image.set_pixel_size(28);
+            image.set_margin_start(10);
+            image.set_valign(gtk::Align::Center);
+            line.append(&image);
         }
 
         let text = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -869,7 +1094,7 @@ impl Spotlight {
         if self.closing {
             return;
         }
-        let height = 52
+        let height = FIELD_H
             + 1
             + (if self.rows.is_empty() {
                 0
@@ -877,7 +1102,7 @@ impl Spotlight {
                 content_h + 12
             })
             + 1
-            + 34;
+            + FOOT_H;
         self.final_h = height;
         if self.morph {
             if self.grown {
@@ -893,20 +1118,33 @@ impl Spotlight {
             self.current_w = self.width;
             self.current_h = height;
             self.card.set_size_request(self.width, height);
-            self.window.set_default_size(self.width + 40, height);
         }
     }
 
     fn start_open(&mut self) {
+        self.closing = false;
         if !self.morph {
+            self.card.set_opacity(0.0);
+            let weak = self.weak.clone();
+            let start = Instant::now();
+            glib::timeout_add_local(Duration::from_millis(16), move || {
+                let Some(spot) = weak.upgrade() else {
+                    return glib::ControlFlow::Break;
+                };
+                let state = spot.borrow_mut();
+                let t = (start.elapsed().as_millis() as f64 / 120.0).clamp(0.0, 1.0);
+                state.card.set_opacity(t);
+                if t >= 1.0 {
+                    return glib::ControlFlow::Break;
+                }
+                glib::ControlFlow::Continue
+            });
             return;
         }
-        self.closing = false;
         self.grown = false;
         self.search.set_visible(false);
         self.list.set_visible(false);
         self.footer.set_visible(false);
-        self.focus_ready = false;
         self.search.set_opacity(0.0);
         self.list.set_opacity(0.0);
         self.footer.set_opacity(0.0);
@@ -920,8 +1158,8 @@ impl Spotlight {
                 return glib::ControlFlow::Break;
             };
             let mut state = spot.borrow_mut();
-            let t = (start.elapsed().as_millis() as f64 / 420.0).clamp(0.0, 1.0);
-            let eased = ease_out_back(t, 0.7);
+            let t = (start.elapsed().as_millis() as f64 / OPEN_MS as f64).clamp(0.0, 1.0);
+            let eased = ease_out_back(t, OPEN_OVERSHOOT);
             let width = state.cap_w as f64 + (state.width - state.cap_w) as f64 * eased;
             let height = state.cap_h as f64 + (state.final_h - state.cap_h) as f64 * eased;
             let width = (width.round() as i32).max(1);
@@ -929,15 +1167,13 @@ impl Spotlight {
             state.card.set_size_request(width, height);
             state.current_w = width;
             state.current_h = height;
-            let reveal = ((t - 0.45) / 0.55).clamp(0.0, 1.0);
-            if reveal > 0.0 && !state.focus_ready {
+            if t >= 0.45 && !state.search.is_visible() {
                 state.search.set_visible(true);
                 state.footer.set_visible(true);
-                state.entry.grab_focus();
-                state.focus_ready = true;
             }
-            state.search.set_opacity(reveal);
-            state.footer.set_opacity(reveal);
+            if t >= 0.8 {
+                state.list.set_visible(!state.rows.is_empty());
+            }
             if t >= 1.0 {
                 state.grown = true;
                 state.card.add_css_class("grown");
@@ -958,17 +1194,17 @@ impl Spotlight {
     }
 
     fn close(&mut self) {
-        if !self.morph || !self.grown || self.closing {
-            self.window.close();
+        if self.closing {
+            return;
+        }
+        if !self.morph || !self.grown {
+            close_window_later(&self.window);
             return;
         }
         self.closing = true;
         self.search.set_visible(false);
         self.list.set_visible(false);
         self.footer.set_visible(false);
-        self.search.set_opacity(0.0);
-        self.list.set_opacity(0.0);
-        self.footer.set_opacity(0.0);
         let weak = self.weak.clone();
         let start = Instant::now();
         let from_w = self.current_w;
@@ -978,16 +1214,16 @@ impl Spotlight {
                 return glib::ControlFlow::Break;
             };
             let state = spot.borrow_mut();
-            let t = (start.elapsed().as_millis() as f64 / 320.0).clamp(0.0, 1.0);
-            let eased = 1.0 - ease_in_out_cubic(t);
-            let width = state.cap_w as f64 + (from_w - state.cap_w) as f64 * eased;
-            let height = state.cap_h as f64 + (from_h - state.cap_h) as f64 * eased;
+            let t = (start.elapsed().as_millis() as f64 / CLOSE_MS as f64).clamp(0.0, 1.0);
+            let eased = ease_out_back(t, OPEN_OVERSHOOT);
+            let width = from_w as f64 + (state.cap_w - from_w) as f64 * eased;
+            let height = from_h as f64 + (state.cap_h - from_h) as f64 * eased;
             state.card.set_size_request(
                 (width.round() as i32).max(1),
                 (height.round() as i32).max(1),
             );
             if t >= 1.0 {
-                state.window.close();
+                close_window_later(&state.window);
                 return glib::ControlFlow::Break;
             }
             glib::ControlFlow::Continue
@@ -1000,7 +1236,7 @@ impl Spotlight {
         }
         let left = gtk::Box::new(gtk::Orientation::Horizontal, 10);
         left.set_valign(gtk::Align::Center);
-        let status = if self.query.is_empty() {
+        let status = if self.query.trim().is_empty() {
             "History"
         } else if self.query.trim() == "?" {
             "Help"
@@ -1040,7 +1276,7 @@ impl Spotlight {
         spacer.set_hexpand(true);
         let right = gtk::Box::new(gtk::Orientation::Horizontal, 14);
         right.set_valign(gtk::Align::Center);
-        if self.query.is_empty() {
+        if self.query.trim().is_empty() {
             right.append(&key_chip("?", "Help"));
         }
         right.append(&key_chip("Esc", "Close"));
@@ -1058,23 +1294,22 @@ impl Spotlight {
         };
         let id = app.id.as_str();
         match self.cfg.get("dockPinned") {
-            serde_json::Value::Array(items) => {
-                items.iter().filter_map(|value| value.as_str()).any(|pin| {
-                    pin == id || pin == id.trim_end_matches(".desktop") || id.starts_with(pin)
-                })
-            }
+            serde_json::Value::Array(items) => items
+                .iter()
+                .filter_map(|value| value.as_str())
+                .any(|pin| pin_matches(pin, id)),
             _ => false,
         }
     }
 
     fn move_selection(&mut self, delta: i64) {
-        if self.row_widgets.is_empty() {
+        if self.list_rows.is_empty() {
             return;
         }
-        let len = self.row_widgets.len() as i64;
+        let len = self.list_rows.len() as i64;
         let next = (self.selected as i64 + delta).rem_euclid(len) as usize;
         self.selected = next;
-        self.list.select_row(Some(&self.row_widgets[next]));
+        self.list.select_row(Some(&self.list_rows[next]));
         self.rebuild_footer();
     }
 }
@@ -1096,31 +1331,41 @@ fn activate(spot: &Rc<RefCell<Spotlight>>, index: usize) {
         }
         spot.borrow_mut().confirm_key.clear();
     }
-    if let Act::Fill(text) = &act {
-        let entry = spot.borrow().entry.clone();
-        entry.set_text(text);
-        entry.set_position(-1);
-        return;
+    match &act {
+        Act::Fill(text) => {
+            let entry = spot.borrow().entry.clone();
+            entry.set_text(text);
+            entry.set_position(-1);
+            return;
+        }
+        Act::Command(command) if command.trim().is_empty() => return,
+        _ => {}
     }
-    if matches!(act, Act::None) {
+    if let Act::App(index) = act {
+        let app = spot.borrow().apps.apps.get(index).cloned();
+        spot.borrow_mut().close();
+        if let Some(app) = app {
+            let mut state = spot.borrow_mut();
+            state.history.record(&format!("app:{}", app.id));
+            state.apps.record_launch(&app.id);
+            drop(state);
+            if let Err(error) = apps::launch(&app) {
+                eprintln!("island-spotlight: {error}");
+            }
+        }
         return;
     }
     if !key.is_empty() && !matches!(act, Act::File(_)) {
         spot.borrow_mut().history.record(&key);
     }
+    spot.borrow_mut().close();
     match act {
-        Act::App(index) => {
-            if let Some(app) = spot.borrow().apps.apps.get(index).cloned() {
-                apps::launch(&app);
-            }
-        }
         Act::File(path) => system::open_path(&path),
         Act::Power(action) => system::power(action),
         Act::Command(command) => system::run_command(&command),
         Act::Copy(text) => system::copy_text(&text),
         Act::Url(url) => system::open_url(&url),
         Act::Settings(page) => system::open_settings(page.as_deref()),
-        Act::Qml(page) => system::open_qml_settings(page.as_deref()),
         Act::Skin(id) => {
             let mut state = spot.borrow_mut();
             let _ = state.cfg.set("shellLayout", serde_json::json!("menubar"));
@@ -1128,9 +1373,239 @@ fn activate(spot: &Rc<RefCell<Spotlight>>, index: usize) {
             drop(state);
             system::apply_settings();
         }
-        Act::Fill(_) | Act::None => {}
+        Act::App(_) | Act::Fill(_) => {}
     }
-    spot.borrow_mut().close();
+}
+
+fn menu_separator() -> gtk::Box {
+    let sep = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    sep.add_css_class("ctx-sep");
+    sep.set_height_request(1);
+    sep
+}
+
+fn open_context_menu(
+    spot: &Rc<RefCell<Spotlight>>,
+    index: usize,
+    position: Option<gdk::Rectangle>,
+) {
+    let (row, root, card, query, docked) = {
+        let mut state = spot.borrow_mut();
+        let Some(row) = state.rows.get(index).cloned() else {
+            return;
+        };
+        let root = state.root.clone();
+        let card = state.card.clone();
+        if let Some(menu) = state.ctx_menu.take() {
+            menu.popdown();
+        }
+        let docked = state.in_dock(&row);
+        (row, root, card, state.query.clone(), docked)
+    };
+    if matches!(row.act, Act::Fill(_)) {
+        return;
+    }
+    let rect = position.or_else(|| {
+        card.compute_bounds(&root).map(|bounds| {
+            gdk::Rectangle::new(
+                (bounds.x() + 60.0) as i32,
+                (bounds.y() + FIELD_H as f32 + 30.0) as i32,
+                1,
+                1,
+            )
+        })
+    });
+    let Some(rect) = rect else {
+        return;
+    };
+    let popover = gtk::Popover::new();
+    popover.add_css_class("spot-menu");
+    popover.set_has_arrow(false);
+    popover.set_parent(&root);
+    let menu = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    menu.set_margin_start(2);
+    menu.set_margin_end(2);
+    let add_header = |text: &str| {
+        let label = ui::label(text, "ctx-header");
+        menu.append(&label);
+    };
+    let add_action = |label: &str, action: MenuAct| {
+        let button = gtk::Button::with_label(label);
+        button.add_css_class("flat");
+        let popover = popover.clone();
+        let weak = Rc::downgrade(spot);
+        button.connect_clicked(move |_| {
+            popover.popdown();
+            if let Some(spot) = weak.upgrade() {
+                run_menu_action(&spot, &action);
+            }
+        });
+        menu.append(&button);
+    };
+    let history_items = |key: &str| {
+        if key.is_empty() {
+            return;
+        }
+        menu.append(&menu_separator());
+        let pinned = spot.borrow().history.is_pinned(key);
+        add_action(
+            if pinned {
+                "Unpin from Top"
+            } else {
+                "Pin to Top"
+            },
+            MenuAct::TogglePin(key.to_string()),
+        );
+        if spot.borrow().history.has(key) {
+            add_action("Remove from Recents", MenuAct::Forget(key.to_string()));
+        }
+    };
+    match row.act {
+        Act::App(app_index) => {
+            add_header(&row.title);
+            add_action("Open", MenuAct::Activate(index));
+            let actions = spot
+                .borrow()
+                .apps
+                .apps
+                .get(app_index)
+                .map(AppEntry::actions)
+                .unwrap_or_default();
+            if !actions.is_empty() {
+                menu.append(&menu_separator());
+                for (id, name) in actions {
+                    add_action(&name, MenuAct::AppAction(app_index, id));
+                }
+            }
+            menu.append(&menu_separator());
+            add_action(
+                if docked {
+                    "Unpin from Taskbar"
+                } else {
+                    "Pin to Taskbar"
+                },
+                MenuAct::ToggleDock(row.key.trim_start_matches("app:").to_string()),
+            );
+            history_items(&row.key);
+        }
+        Act::File(ref path) => {
+            add_header(&row.title);
+            add_action("Open", MenuAct::Activate(index));
+            add_action(
+                "Open Containing Folder",
+                MenuAct::OpenFolder(
+                    path.parent()
+                        .map_or_else(paths::home, std::path::Path::to_path_buf),
+                ),
+            );
+            menu.append(&menu_separator());
+            add_action(
+                "Copy Path",
+                MenuAct::Copy(path.to_string_lossy().to_string()),
+            );
+            add_action("Copy Name", MenuAct::Copy(row.title.clone()));
+        }
+        Act::Command(ref command) if !command.trim().is_empty() => {
+            add_action("Run", MenuAct::Activate(index));
+            add_action("Copy Command", MenuAct::Copy(command.clone()));
+            history_items(&row.key);
+        }
+        Act::Copy(ref result) => {
+            add_action("Copy Result", MenuAct::CloseCopy(result.clone()));
+            add_action(
+                "Copy Expression",
+                MenuAct::Copy(query.trim().trim_start_matches('=').to_string()),
+            );
+        }
+        Act::Url(_) => {
+            add_action("Search the Web", MenuAct::Activate(index));
+            add_action("Copy Search Text", MenuAct::Copy(query.trim().to_string()));
+        }
+        Act::Power(_) | Act::Settings(_) | Act::Skin(_) => {
+            add_header(&row.title);
+            let label = if row.confirm {
+                format!("{}…", row.title)
+            } else {
+                row.title.clone()
+            };
+            add_action(&label, MenuAct::Activate(index));
+            history_items(&row.key);
+        }
+        Act::Command(_) | Act::Fill(_) => {}
+    }
+    if menu.first_child().is_none() {
+        return;
+    }
+    popover.set_child(Some(&menu));
+    let menu_width = menu.measure(gtk::Orientation::Horizontal, -1).1;
+    let rect = gdk::Rectangle::new(rect.x() + menu_width / 2, rect.y(), 1, 1);
+    popover.set_pointing_to(Some(&rect));
+    popover.connect_closed({
+        let weak = Rc::downgrade(spot);
+        move |_| {
+            if let Some(spot) = weak.upgrade() {
+                spot.borrow_mut().ctx_menu = None;
+            }
+        }
+    });
+    popover.popup();
+    spot.borrow_mut().ctx_menu = Some(popover);
+}
+
+fn run_menu_action(spot: &Rc<RefCell<Spotlight>>, action: &MenuAct) {
+    match action {
+        MenuAct::Activate(index) => activate(spot, *index),
+        MenuAct::AppAction(app_index, action) => {
+            let app = spot.borrow().apps.apps.get(*app_index).cloned();
+            spot.borrow_mut().close();
+            if let Some(app) = app {
+                app.launch_action(action);
+            }
+        }
+        MenuAct::ToggleDock(id) => toggle_dock_id(spot, id),
+        MenuAct::TogglePin(key) => {
+            let mut state = spot.borrow_mut();
+            state.history.toggle_pin(key);
+            state.rebuild();
+        }
+        MenuAct::Forget(key) => {
+            let mut state = spot.borrow_mut();
+            state.history.forget(key);
+            state.rebuild();
+        }
+        MenuAct::OpenFolder(path) => {
+            spot.borrow_mut().close();
+            system::open_path(path);
+        }
+        MenuAct::Copy(text) => system::copy_text(text),
+        MenuAct::CloseCopy(text) => {
+            spot.borrow_mut().close();
+            system::copy_text(text);
+        }
+    }
+}
+
+fn toggle_dock_id(spot: &Rc<RefCell<Spotlight>>, id: &str) {
+    let mut state = spot.borrow_mut();
+    let mut items: Vec<String> = match state.cfg.get("dockPinned") {
+        serde_json::Value::Array(values) => values
+            .into_iter()
+            .filter_map(|value| value.as_str().map(str::to_string))
+            .collect(),
+        _ => Vec::new(),
+    };
+    let before = items.len();
+    items.retain(|pin| !pin_matches(pin, id));
+    if items.len() == before {
+        items.push(id.to_string());
+    }
+    if state
+        .cfg
+        .set("dockPinned", serde_json::json!(items))
+        .is_ok()
+    {
+        state.rebuild();
+    }
 }
 
 fn pin_matches(pin: &str, id: &str) -> bool {
@@ -1151,26 +1626,7 @@ fn toggle_dock_selected(spot: &Rc<RefCell<Spotlight>>) {
         };
         app.id.clone()
     };
-    let mut state = spot.borrow_mut();
-    let mut items: Vec<String> = match state.cfg.get("dockPinned") {
-        serde_json::Value::Array(values) => values
-            .into_iter()
-            .filter_map(|value| value.as_str().map(str::to_string))
-            .collect(),
-        _ => Vec::new(),
-    };
-    let before = items.len();
-    items.retain(|pin| !pin_matches(pin, &id));
-    if items.len() == before {
-        items.push(id);
-    }
-    if state
-        .cfg
-        .set("dockPinned", serde_json::json!(items))
-        .is_ok()
-    {
-        state.rebuild();
-    }
+    toggle_dock_id(spot, &id);
 }
 
 fn pin_selected(spot: &Rc<RefCell<Spotlight>>) {
@@ -1207,126 +1663,158 @@ fn forget_selected(spot: &Rc<RefCell<Spotlight>>) {
     }
 }
 
-fn placement(cfg: &Config, screen_height: i32) -> (bool, i32) {
-    let layout = cfg.string("shellLayout", "menubar");
-    let skin = cfg.string("barSkin", "classic");
-    let capsule = layout == "menubar" && (skin == "island" || skin == "notch");
-    let bottom_layout = layout != "menubar";
-    let style = cfg.string("spotlightStyle", "auto");
-    let bottom = match style.as_str() {
-        "floating" => false,
-        "attached" => bottom_layout,
-        "capsule" => {
-            if capsule {
-                false
-            } else {
-                bottom_layout
-            }
-        }
-        _ => {
-            if capsule && cfg.bool("spotlightFromCapsule", true) {
-                false
-            } else {
-                bottom_layout
-            }
-        }
-    };
-    let bar = cfg.i64("barHeight", 30) + if skin == "pills" { 6 } else { 0 };
-    let taskbar = cfg.i64("taskbarHeight", 54) + 8;
-    let floating = style == "floating";
-    let margin = if bottom {
-        (taskbar + 8) as i32
-    } else if floating {
-        (screen_height * 20 / 100) + 8
-    } else {
-        (bar + 8) as i32
-    };
-    (bottom, margin)
-}
-
-fn system_actions() -> Vec<Row> {
+fn system_actions() -> Vec<(Row, &'static str)> {
     vec![
-        Row::new(
-            "sys:lock",
-            "Lock",
-            "Lock the screen",
-            "",
-            Act::Power("lock"),
+        (
+            Row::new(
+                "sys:lock",
+                "Lock",
+                "Lock the screen",
+                "",
+                Act::Power("lock"),
+            ),
+            "lock screen",
         ),
-        Row::new(
-            "sys:sleep",
-            "Sleep",
-            "Suspend to RAM",
-            "󰒲",
-            Act::Power("suspend"),
+        (
+            Row::new(
+                "sys:sleep",
+                "Sleep",
+                "Suspend to RAM",
+                "󰒲",
+                Act::Power("suspend"),
+            ),
+            "sleep suspend",
         ),
-        Row::new(
-            "sys:logout",
-            "Log Out",
-            "End the session",
-            "󰍃",
-            Act::Power("logout"),
+        (
+            Row::new(
+                "sys:logout",
+                "Log Out",
+                "End the session",
+                "󰍃",
+                Act::Power("logout"),
+            ),
+            "log out logout exit quit session",
         ),
-        Row::new(
-            "sys:reboot",
-            "Restart",
-            "Reboot the computer",
-            "",
-            Act::Power("reboot"),
+        (
+            Row::new(
+                "sys:reboot",
+                "Restart",
+                "Reboot the computer",
+                "",
+                Act::Power("reboot"),
+            ),
+            "restart reboot",
         ),
-        Row::new(
-            "sys:off",
-            "Shut Down",
-            "Power off the computer",
-            "⏻",
-            Act::Power("poweroff"),
+        (
+            Row::new(
+                "sys:off",
+                "Shut Down",
+                "Power off the computer",
+                "⏻",
+                Act::Power("poweroff"),
+            ),
+            "shut down shutdown power off poweroff",
         ),
-        Row::new(
-            "sys:settings",
-            "System Settings",
-            "Island settings",
-            "",
-            Act::Settings(None),
+        (
+            Row::new(
+                "sys:settings",
+                "System Settings",
+                "Island settings",
+                "",
+                Act::Settings(None),
+            ),
+            "settings preferences island",
         ),
-        Row::new(
-            "sys:spotlight",
-            "Spotlight Settings",
-            "Window, results and search sources",
-            "\u{f002}",
-            Act::Settings(Some("spotlight".into())),
-        ),
-        Row::new(
-            "sys:qml-settings",
-            "Island Hardware Settings",
-            "Wi-Fi, Bluetooth, sound, displays and drives",
-            "",
-            Act::Qml(None),
+        (
+            Row::new(
+                "sys:spotlight",
+                "Spotlight Settings",
+                "Window, results and search sources",
+                "\u{f002}",
+                Act::Settings(Some("spotlight".into())),
+            ),
+            "spotlight search launcher settings",
         ),
     ]
 }
 
+fn help_rows(commands: bool, files: bool, web: bool) -> Vec<Row> {
+    let mut rows = vec![Row::new(
+        "",
+        "Apps & actions",
+        "Type a name: Firefox, Lock, Sleep, Restart…",
+        "",
+        Act::Fill(String::new()),
+    )];
+    if commands {
+        rows.push(Row::new(
+            "",
+            "> command",
+            "Run a shell command ($ works too)",
+            "",
+            Act::Fill("> ".into()),
+        ));
+    }
+    rows.push(Row::new(
+        "",
+        "Math",
+        "2*(3+4), 15% of 80 → type it, Enter copies the result",
+        "󰃬",
+        Act::Fill(String::new()),
+    ));
+    if files {
+        rows.push(Row::new(
+            "",
+            "Files",
+            "3+ letters also search your home folder",
+            "",
+            Act::Fill(String::new()),
+        ));
+    }
+    if web {
+        rows.push(Row::new(
+            "",
+            "Web",
+            "Anything else: last row searches DuckDuckGo",
+            "󰖟",
+            Act::Fill(String::new()),
+        ));
+    }
+    rows.push(Row::new(
+        "",
+        "Frequently used",
+        "Ctrl+F pins the selected row so it stays at the top",
+        "󰐃",
+        Act::Fill(String::new()),
+    ));
+    rows
+}
 fn app_row(index: usize, app: &AppEntry) -> Row {
     let mut row = Row::new(
         &format!("app:{}", app.id),
         &app.name,
-        &app.description,
+        app.subtitle(),
         "",
         Act::App(index),
     );
-    row.icon = app.icon.clone();
+    row.icon = Some(
+        app.icon
+            .clone()
+            .unwrap_or_else(|| "application-x-executable".to_string()),
+    );
     row
 }
 
 fn file_row(path: &std::path::Path) -> Row {
-    let name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_else(|| path.to_string_lossy().to_string());
+    let name = path.file_name().map_or_else(
+        || path.to_string_lossy().to_string(),
+        |name| name.to_string_lossy().to_string(),
+    );
     let home = paths::home();
-    let display = path
-        .strip_prefix(&home)
-        .map(|relative| format!("~/{}", relative.to_string_lossy()))
-        .unwrap_or_else(|_| path.to_string_lossy().to_string());
+    let display = path.strip_prefix(&home).map_or_else(
+        |_| path.to_string_lossy().to_string(),
+        |relative| format!("~/{}", relative.to_string_lossy()),
+    );
     let ext = path
         .extension()
         .map(|ext| ext.to_string_lossy().to_lowercase())
@@ -1356,40 +1844,97 @@ fn push_group(out: &mut Vec<Row>, limit: usize, section: &str, rows: Vec<Row>) {
     }
 }
 
-fn skin_query(query: &str) -> bool {
-    let words = [
-        "skin", "skins", "bar", "bars", "menu bar", "bar skin", "notch", "island", "pills",
-    ];
-    words
-        .iter()
-        .any(|word| word.starts_with(query) || query.starts_with(&format!("{word} ")))
-}
-
 fn math_result(query: &str) -> Option<String> {
-    let raw = query.trim().trim_start_matches('=');
-    if raw.is_empty() || !raw.chars().any(|c| c.is_ascii_digit()) {
+    let trimmed = query.trim();
+    let forced = trimmed.starts_with('=');
+    let stripped = trimmed.strip_prefix('=').unwrap_or(trimmed);
+    if stripped.is_empty() || !stripped.chars().any(|c| c.is_ascii_digit()) {
         return None;
     }
-    let mut expression = raw.replace(',', ".");
-    if let Some(pos) = expression.find("% of ") {
-        let percent = expression[..pos].trim().to_string();
-        let value = expression[pos + 5..].trim().to_string();
-        expression = format!("({percent}/100)*{value}");
-    }
-    if !query.starts_with('=') && !expression.chars().any(|c| "+-*/%^()".contains(c)) {
+    let expression = expand_percent_of(stripped);
+    if !expression
+        .chars()
+        .all(|c| c.is_ascii_digit() || c.is_whitespace() || "+-*/%().,^".contains(c))
+    {
         return None;
     }
+    if !forced && !expression.chars().any(|c| "+-*/%^".contains(c)) {
+        return None;
+    }
+    let expression = expression.replace(',', ".");
     let value = meval::eval_str(&expression).ok()?;
     if !value.is_finite() {
         return None;
     }
-    let rounded = (value * 1e10).round() / 1e10;
-    Some(format!("{rounded}"))
+    let rounded = js_round(value * 1e10) / 1e10;
+    if rounded == 0.0 {
+        Some("0".to_string())
+    } else {
+        Some(format!("{rounded}"))
+    }
 }
 
-fn search_files(query: &str) -> Vec<PathBuf> {
+fn expand_percent_of(input: &str) -> String {
+    let mut out = input.to_string();
+    let mut search_from = 0;
+    while let Some(offset) = out[search_from..].find('%') {
+        let percent = search_from + offset;
+        let mut number_end = percent;
+        while number_end > 0 && out.as_bytes()[number_end - 1].is_ascii_whitespace() {
+            number_end -= 1;
+        }
+        let mut number_start = number_end;
+        while number_start > 0 && out.as_bytes()[number_start - 1].is_ascii_digit() {
+            number_start -= 1;
+        }
+        if number_start < number_end
+            && number_start > 0
+            && matches!(out.as_bytes()[number_start - 1], b'.' | b',')
+        {
+            let dot = number_start - 1;
+            let mut start = dot;
+            while start > 0 && out.as_bytes()[start - 1].is_ascii_digit() {
+                start -= 1;
+            }
+            if start < dot {
+                number_start = start;
+            }
+        }
+        if number_start == number_end {
+            search_from = percent + 1;
+            continue;
+        }
+        let mut end = percent + 1;
+        while end < out.len() && out.as_bytes()[end].is_ascii_whitespace() {
+            end += 1;
+        }
+        if !out
+            .get(end..end + 2)
+            .is_some_and(|word| word.eq_ignore_ascii_case("of"))
+        {
+            search_from = percent + 1;
+            continue;
+        }
+        end += 2;
+        while end < out.len() && out.as_bytes()[end].is_ascii_whitespace() {
+            end += 1;
+        }
+        let number = out[number_start..number_end].replace(',', ".");
+        let replacement = format!("({number}/100)*");
+        out.replace_range(number_start..end, &replacement);
+        search_from = number_start + replacement.len();
+    }
+    out
+}
+
+fn js_round(value: f64) -> f64 {
+    (value + 0.5).floor()
+}
+
+fn search_files(query: &str, cancel: &AtomicBool) -> Vec<PathBuf> {
     let needle = query.to_lowercase();
     let home = paths::home();
+    let deadline = Instant::now() + Duration::from_secs(1);
     let mut out = Vec::new();
     for entry in walkdir::WalkDir::new(&home)
         .max_depth(4)
@@ -1398,18 +1943,20 @@ fn search_files(query: &str) -> Vec<PathBuf> {
             entry
                 .file_name()
                 .to_str()
-                .map(|name| name == "." || !name.starts_with('.'))
-                .unwrap_or(true)
+                .is_none_or(|name| name == "." || !name.starts_with('.'))
         })
         .flatten()
     {
+        if cancel.load(Ordering::Relaxed) || Instant::now() >= deadline {
+            break;
+        }
         if entry.path() == home {
             continue;
         }
         let name = entry.file_name().to_string_lossy().to_lowercase();
         if name.contains(&needle) {
             out.push(entry.path().to_path_buf());
-            if out.len() >= 6 {
+            if out.len() >= 4 {
                 break;
             }
         }
@@ -1417,19 +1964,56 @@ fn search_files(query: &str) -> Vec<PathBuf> {
     out
 }
 
+fn icon_image(name: &str, fallback: &str) -> gtk::Image {
+    if name.contains('/') {
+        return gtk::Image::from_file(name);
+    }
+    let icon = gtk::gdk::Display::default().map_or(name, |display| {
+        let theme = gtk::IconTheme::for_display(&display);
+        if theme.has_icon(name) {
+            name
+        } else {
+            fallback
+        }
+    });
+    gtk::Image::from_icon_name(icon)
+}
+
+fn schedule_hover_close(weak: &Weak<RefCell<Spotlight>>, pending: &Rc<Cell<bool>>) {
+    let Some(spot) = weak.upgrade() else {
+        return;
+    };
+    {
+        let state = spot.borrow();
+        if !state.grown || state.ctx_menu.is_some() {
+            return;
+        }
+    }
+    pending.set(true);
+    let weak = weak.clone();
+    let pending = pending.clone();
+    glib::timeout_add_local_once(Duration::from_millis(HOVER_GRACE_MS), move || {
+        if !pending.get() {
+            return;
+        }
+        if let Some(spot) = weak.upgrade() {
+            let mut state = spot.borrow_mut();
+            if state.grown && !state.closing && state.ctx_menu.is_none() {
+                state.close();
+            }
+        }
+    });
+}
+
+fn close_window_later(window: &gtk::ApplicationWindow) {
+    let window = window.clone();
+    glib::idle_add_local_once(move || window.close());
+}
+
 fn ease_out_back(t: f64, overshoot: f64) -> f64 {
     let c3 = overshoot + 1.0;
     let u = t - 1.0;
     1.0 + c3 * u * u * u + overshoot * u * u
-}
-
-fn ease_in_out_cubic(t: f64) -> f64 {
-    if t < 0.5 {
-        4.0 * t * t * t
-    } else {
-        let u = -2.0 * t + 2.0;
-        1.0 - u * u * u / 2.0
-    }
 }
 
 fn key_chip(keys: &str, label: &str) -> gtk::Box {
@@ -1444,14 +2028,27 @@ fn key_chip(keys: &str, label: &str) -> gtk::Box {
 }
 
 fn url_escape(value: &str) -> String {
+    use std::fmt::Write as _;
+
     let mut out = String::new();
     for byte in value.bytes() {
         match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(byte as char)
-            }
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'!'
+            | b'~'
+            | b'*'
+            | b'\''
+            | b'('
+            | b')' => out.push(byte as char),
             b' ' => out.push('+'),
-            _ => out.push_str(&format!("%{byte:02X}")),
+            _ => {
+                let _ = write!(out, "%{byte:02X}");
+            }
         }
     }
     out
@@ -1479,7 +2076,7 @@ fn main() {
         let state = state.clone();
         let monitor = monitor.clone();
         app.connect_activate(move |app| {
-            let spot = Spotlight::new(app, monitor.clone());
+            let spot = Spotlight::new(app, monitor.as_deref());
             state.replace(Some(spot));
         });
     }
@@ -1501,7 +2098,6 @@ fn main() {
 fn parse_args() -> (Option<String>, Option<String>, String) {
     let mut shell_dir = None;
     let mut monitor = None;
-    let mut page = None;
     let mut open = false;
     let mut close = false;
     let mut args = std::env::args().skip(1);
@@ -1509,7 +2105,6 @@ fn parse_args() -> (Option<String>, Option<String>, String) {
         match arg.as_str() {
             "--shell-dir" => shell_dir = args.next(),
             "--monitor" => monitor = args.next(),
-            "--page" => page = args.next(),
             "--open" => open = true,
             "--close" => close = true,
             _ => {}
@@ -1517,12 +2112,44 @@ fn parse_args() -> (Option<String>, Option<String>, String) {
     }
     let command = if close {
         "close".to_string()
-    } else if let Some(page) = page {
-        format!("page:{page}")
     } else if open {
         "show".to_string()
     } else {
         "toggle".to_string()
     };
     (shell_dir, monitor, command)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn math_basics() {
+        assert_eq!(math_result("2+2").as_deref(), Some("4"));
+        assert_eq!(math_result("15% of 80").as_deref(), Some("12"));
+        assert_eq!(math_result("=1/3").as_deref(), Some("0.3333333333"));
+        assert_eq!(math_result("2^3").as_deref(), Some("8"));
+        assert_eq!(math_result("hello"), None);
+        assert_eq!(math_result("100%"), None);
+    }
+
+    #[test]
+    fn percent_of_is_case_insensitive() {
+        assert_eq!(math_result("15 % OF 80").as_deref(), Some("12"));
+    }
+
+    #[test]
+    fn unicode_is_not_math() {
+        assert_eq!(math_result("λ+2"), None);
+    }
+
+    #[test]
+    fn fuzzy_match_rewards_prefixes() {
+        assert!(
+            island_rust::apps::match_score("firefox", "fire")
+                > island_rust::apps::match_score("librewolf", "fire")
+        );
+        assert_eq!(island_rust::apps::match_score("firefox", "firefox"), 1000);
+    }
 }

@@ -1,5 +1,4 @@
 use crate::paths;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -53,21 +52,18 @@ pub fn run_command(command: &str) {
         .arg(command)
         .current_dir(home)
         .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn();
 }
 
 pub fn copy_text(text: &str) {
-    if let Ok(mut child) = Command::new("wl-copy")
-        .stdin(Stdio::piped())
+    let _ = Command::new("wl-copy")
+        .arg(text)
+        .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-    {
-        if let Some(stdin) = child.stdin.as_mut() {
-            let _ = stdin.write_all(text.as_bytes());
-        }
-        let _ = child.wait();
-    }
+        .spawn();
 }
 
 pub fn settings_binary() -> PathBuf {
@@ -111,43 +107,4 @@ pub fn open_qml_settings(page: Option<&str>) {
         None => vec!["-c", "island", "ipc", "call", "settings", "qml"],
     };
     spawn("qs", &target);
-}
-
-pub fn focused_monitor() -> Option<String> {
-    if let Ok(value) = std::env::var("ISLAND_MONITOR") {
-        if !value.trim().is_empty() {
-            return Some(value);
-        }
-    }
-    if let Ok(output) = Command::new("mmsg")
-        .args(["get", "focusing-client"])
-        .output()
-    {
-        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-            if let Some(monitor) = value.get("monitor").and_then(|v| v.as_str()) {
-                return Some(monitor.to_string());
-            }
-        }
-    }
-    if let Ok(output) = Command::new("hyprctl")
-        .args(["activeworkspace", "-j"])
-        .output()
-    {
-        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-            if let Some(monitor) = value.get("monitor").and_then(|v| v.as_str()) {
-                return Some(monitor.to_string());
-            }
-        }
-    }
-    if let Ok(output) = Command::new("niri")
-        .args(["msg", "focused-output"])
-        .output()
-    {
-        let text = String::from_utf8_lossy(&output.stdout);
-        let name = text.lines().next().unwrap_or("").trim();
-        if !name.is_empty() {
-            return Some(name.to_string());
-        }
-    }
-    None
 }

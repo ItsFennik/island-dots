@@ -31,8 +31,7 @@ fn pick(map: &BTreeMap<String, Value>, key: &str, fallback: &str) -> String {
     map.get(key)
         .and_then(Value::as_str)
         .filter(|s| s.starts_with('#') && (s.len() == 7 || s.len() == 9))
-        .map(str::to_string)
-        .unwrap_or_else(|| fallback.to_string())
+        .map_or_else(|| fallback.to_string(), str::to_string)
 }
 
 fn rgb(hex: &str) -> Option<(u8, u8, u8)> {
@@ -53,6 +52,11 @@ pub fn rgba(hex: &str, alpha: f64) -> String {
     }
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless
+)]
 pub fn mix(a: &str, b: &str, t: f64) -> String {
     let (Some(a), Some(b)) = (rgb(a), rgb(b)) else {
         return a.to_string();
@@ -76,23 +80,29 @@ impl Theme {
         match cfg.string("textColor", "auto").as_str() {
             "white" => {
                 fg = "#ffffff".into();
-                fg_dim = rgba("#ffffff", 0.62);
-                fg_faint = rgba("#ffffff", 0.36);
+                fg_dim = rgba("#ffffff", 0.60);
+                fg_faint = rgba("#ffffff", 0.35);
             }
             "black" => {
                 fg = "#000000".into();
-                fg_dim = rgba("#000000", 0.62);
-                fg_faint = rgba("#000000", 0.36);
+                fg_dim = rgba("#000000", 0.60);
+                fg_faint = rgba("#000000", 0.35);
             }
             _ => {}
         }
         let accent_override = cfg.string("accentColor", "");
+        let accent_fg = if accent_override == "#ffd60a" {
+            "#1c1c1e".to_string()
+        } else if accent_override.is_empty() {
+            pick(&map, "accent_fg", if dark { "#0a0a0a" } else { "#ffffff" })
+        } else {
+            "#ffffff".to_string()
+        };
         let accent = if accent_override.is_empty() {
             pick(&map, "accent", if dark { "#dddddd" } else { "#0a84ff" })
         } else {
             accent_override
         };
-        let accent_fg = pick(&map, "accent_fg", if dark { "#0a0a0a" } else { "#ffffff" });
         Self {
             id,
             dark,
@@ -112,7 +122,7 @@ impl Theme {
             magenta: pick(&map, "magenta", "#bf5af2"),
             cyan: pick(&map, "cyan", "#64d2ff"),
             font: cfg.string("widgetFont", "Adwaita Sans"),
-            font_weight: cfg.i64("widgetFontWeight", 400) as i32,
+            font_weight: i32::try_from(cfg.i64("widgetFontWeight", 400)).unwrap_or(400),
             liquid: cfg.bool("liquidGlass", false),
         }
     }
@@ -120,14 +130,50 @@ impl Theme {
     pub fn menu_bg(&self) -> String {
         if self.liquid {
             if self.dark {
-                "rgba(28, 28, 31, 0.46)".into()
+                "rgba(28, 28, 33, 0.46)".into()
             } else {
-                "rgba(250, 250, 252, 0.48)".into()
+                "rgba(255, 255, 255, 0.48)".into()
             }
         } else if self.dark {
-            "rgba(42, 42, 45, 0.94)".into()
+            "rgba(42, 42, 45, 0.80)".into()
         } else {
-            "rgba(244, 244, 246, 0.96)".into()
+            "rgba(244, 244, 244, 0.82)".into()
+        }
+    }
+
+    pub fn menu_edge(&self) -> String {
+        if self.liquid {
+            if self.dark {
+                "rgba(0, 0, 0, 0.30)".into()
+            } else {
+                "rgba(0, 0, 0, 0.10)".into()
+            }
+        } else if self.dark {
+            "rgba(0, 0, 0, 0.55)".into()
+        } else {
+            "rgba(0, 0, 0, 0.14)".into()
+        }
+    }
+
+    pub fn menu_inner(&self) -> String {
+        if self.liquid {
+            if self.dark {
+                "rgba(255, 255, 255, 0.24)".into()
+            } else {
+                "rgba(255, 255, 255, 0.85)".into()
+            }
+        } else if self.dark {
+            "rgba(255, 255, 255, 0.10)".into()
+        } else {
+            "rgba(255, 255, 255, 0.60)".into()
+        }
+    }
+
+    pub fn capsule_fill(&self) -> String {
+        if self.dark {
+            "#000000".into()
+        } else {
+            self.bg.clone()
         }
     }
 
@@ -139,32 +185,65 @@ impl Theme {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn css(&self) -> String {
-        let hairline = rgba(&self.fg, 0.09);
-        let hover = rgba(&self.fg, 0.07);
+        let hairline = rgba(&self.fg, 0.08);
+        let hover = rgba(&self.fg, 0.06);
         let card = self.card();
-        let spot_bg = rgba(&self.bg, if self.liquid { 0.55 } else { 0.86 });
-        let spot_rim = if self.liquid {
-            rgba("#ffffff", if self.dark { 0.26 } else { 0.7 })
-        } else {
-            rgba(&self.fg, 0.14)
-        };
-        let row_selected = rgba(&self.fg, 0.10);
-        let capsule_fill = if self.dark {
-            "#000000".to_string()
-        } else {
-            self.bg.clone()
-        };
+        let menu_bg = self.menu_bg();
+        let menu_edge = self.menu_edge();
+        let menu_inner = self.menu_inner();
+        let capsule_fill = self.capsule_fill();
+        let base_weight = self.font_weight.clamp(100, 900);
+        let medium_weight = base_weight.max(500);
+        let demibold_weight = base_weight.max(600);
+        let selected_text = rgba(&self.accent_fg, 0.72);
+        let selected_chip = rgba(&self.accent_fg, 0.70);
+        let selected_badge = rgba(&self.accent_fg, 0.18);
         format!(
-            r#"
-window {{ background: transparent; }}
-.root {{ background: transparent; }}
+            r"
+window {{
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+}}
+.root {{
+    background-color: transparent;
+    background-image: none;
+}}
+.spot-scroller, .spot-scroller > viewport {{
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}}
+.spot-menu, .spot-menu.background, .spot-menu > contents {{
+    background: {menu_bg};
+    border: 1px solid {menu_edge};
+    border-radius: 10px;
+    padding: 5px;
+    box-shadow: none;
+}}
+.spot-menu label {{ color: {fg}; }}
+.spot-menu button {{
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    color: {fg};
+    font-size: 12px;
+}}
+.spot-menu button:hover {{ background: {hover}; }}
+.spot-menu .ctx-header {{ color: {fg_dim}; font-size: 11px; font-weight: {demibold_weight}; padding: 4px 10px; }}
+.spot-menu .ctx-sep {{ background: {hairline}; min-height: 1px; margin: 4px 6px; }}
 .settings-shell {{ background: {bg}; border-radius: 14px; border: 1px solid {hairline}; }}
-.spot-card {{ background: {spot_bg}; border-radius: 14px; border: 1px solid {spot_rim}; }}
-.spot-card.morph {{ background: {capsule_fill}; border: none; border-radius: 15px; }}
+.spot-card {{ background: {menu_bg}; border-radius: 14px; border: 1px solid {menu_edge}; box-shadow: inset 0 0 0 1px {menu_inner}; }}
+.spot-card.morph {{ background: {capsule_fill}; border: none; border-radius: 15px; box-shadow: none; }}
 .spot-card.morph.notch {{ border-radius: 0 0 18px 18px; }}
 .spot-card.morph.grown {{ border-radius: 26px; }}
-.spot-card.morph.notch.grown {{ border-radius: 0 0 26px 26px; }}
+.spot-card.morph.notch.grown {{ border-radius: 0 0 18px 18px; }}
 .traffic-close {{ background: {red}; color: rgba(0, 0, 0, 0.62); min-width: 13px; min-height: 13px; min-width: 13px; border-radius: 7px; padding: 0; font-size: 9px; }}
 .traffic-close:hover {{ background: {red_hover}; }}
 .sidebar {{ background: {sidebar}; border-right: 1px solid {hairline}; border-radius: 13px 0 0 13px; }}
@@ -172,15 +251,14 @@ window {{ background: transparent; }}
 .toolbar {{ background: {bg}; border-bottom: 1px solid {hairline}; }}
 .title {{ color: {fg}; font-size: 21px; font-weight: 700; }}
 .pane-title {{ color: {fg}; font-size: 22px; font-weight: 700; }}
-.row-title {{ color: {fg}; font-size: 13px; font-weight: 500; }}
+.row-title {{ color: {fg}; font-size: 13px; font-weight: {medium_weight}; }}
 .row-title.calc {{ font-size: 17px; }}
 .row-title.asking {{ color: {red}; }}
-.row-sub.asking {{ color: {red_dim}; }}
 .glyph-badge.asking {{ background: {red_soft}; }}
 .row-sub {{ color: {fg_dim}; font-size: 11px; }}
 .muted {{ color: {fg_dim}; font-size: 12px; }}
 .faint {{ color: {fg_faint}; font-size: 11px; }}
-.section {{ color: {fg_dim}; font-size: 11px; font-weight: 600; }}
+.section {{ color: {fg_dim}; font-size: 11px; font-weight: {demibold_weight}; }}
 .sidebar-row {{ background: transparent; border-radius: 9px; padding: 6px 8px; }}
 .sidebar-row:hover {{ background: {hover}; }}
 .sidebar-row.active {{ background: {accent_soft}; }}
@@ -189,26 +267,34 @@ window {{ background: transparent; }}
 .setting-row {{ padding: 11px 14px; }}
 .row-sep {{ background: {hairline}; min-height: 1px; }}
 .search {{ background: {search}; border-radius: 9px; border: 1px solid {hairline}; min-height: 30px; }}
-.spot-entry {{ background: transparent; border: none; box-shadow: none; padding: 0; min-height: 0; font-size: 17px; color: {fg}; caret-color: {fg}; }}
-.spot-entry:focus {{ box-shadow: none; }}
-.spot-prompt {{ color: {fg_dim}; font-size: 16px; }}
+.spot-entry {{ background: transparent; border: none; box-shadow: none; outline: none; padding: 0; min-height: 0; font-size: 17px; color: {fg}; caret-color: {fg}; }}
+.spot-entry:focus {{ background: transparent; border: none; box-shadow: none; outline: none; }}
+.spot-placeholder-main {{ color: {fg_faint}; font-size: 17px; }}
+.spot-placeholder-hint {{ color: {fg_faint}; font-size: 13px; opacity: 0.7; }}
 .spot-icon {{ color: {fg}; font-size: 15px; }}
 .spot-list {{ background: transparent; }}
 .spot-list row {{ background: transparent; padding: 0; margin: 0; border-radius: 0; min-height: 0; outline: none; }}
 .spot-list row:hover {{ background: transparent; }}
 .spot-list row:selected {{ background: transparent; }}
 .spot-row {{ background: transparent; border-radius: 8px; }}
-.spot-list row:selected .spot-row {{ background: {row_selected}; }}
+.spot-list row:selected .spot-row {{ background: {accent}; }}
+.spot-list row:selected .row-title {{ color: {accent_fg}; }}
+.spot-list row:selected .row-title.asking {{ color: {accent_fg}; }}
+.spot-list row:selected .row-sub {{ color: {selected_text}; }}
+.spot-list row:selected .glyph-badge {{ background: {selected_badge}; }}
+.spot-list row:selected .glyph-badge.asking {{ background: {red_soft}; }}
+.spot-list row:selected .dock-chip, .spot-list row:selected .pinned-chip {{ color: {selected_chip}; }}
 .spot-list row.section-row {{ background: transparent; min-height: 26px; }}
-.spot-list row.section-row label {{ color: {fg_faint}; font-size: 10px; font-weight: 600; }}
+.spot-list row.section-row label {{ color: {fg_dim}; font-size: 11px; font-weight: {demibold_weight}; }}
 .glyph-badge {{ background: {glyph_bg}; border-radius: 14px; min-width: 28px; min-height: 28px; }}
 .enter-chip {{ background: {chip}; border-radius: 5px; min-width: 26px; min-height: 20px; opacity: 0; }}
 .enter-chip label {{ color: {fg_dim}; font-size: 12px; }}
-.spot-list row:selected .enter-chip {{ opacity: 1; }}
+.spot-list row:selected .enter-chip {{ background: {selected_badge}; opacity: 1; }}
+.spot-list row:selected .enter-chip label {{ color: {accent_fg}; }}
 .dock-chip, .pinned-chip {{ color: {fg_faint}; font-size: 10px; }}
 .keycap {{ background: {chip}; color: {fg_dim}; border-radius: 4px; padding: 0 5px; min-height: 17px; font-size: 10px; }}
 .keylabel {{ color: {fg_faint}; font-size: 11px; }}
-.footer-status {{ color: {fg_dim}; font-size: 11px; font-weight: 600; }}
+.footer-status {{ color: {fg_dim}; font-size: 11px; font-weight: {demibold_weight}; }}
 .chip {{ background: {chip}; border-radius: 5px; padding: 1px 6px; font-size: 10px; color: {fg_dim}; }}
 .accent-button {{ background: {accent}; color: {accent_fg}; border-radius: 7px; padding: 5px 12px; }}
 .accent-button:hover {{ background: {accent_hover}; }}
@@ -224,7 +310,7 @@ scale highlight {{ background: {accent}; border-radius: 99px; }}
 scale slider {{ background: white; border-radius: 99px; min-width: 16px; min-height: 16px; }}
 dropdown button {{ background: {button}; color: {fg}; border-radius: 7px; border: 1px solid {hairline}; padding: 4px 10px; }}
 dropdown popover {{ background: {sidebar}; color: {fg}; }}
-"#,
+",
             bg = self.bg,
             sidebar = if self.dark {
                 rgba(&self.fg, 0.035)
@@ -232,11 +318,15 @@ dropdown popover {{ background: {sidebar}; color: {fg}; }}
                 "rgba(255, 255, 255, 0.55)".into()
             },
             hairline = hairline,
-            spot_bg = spot_bg,
-            spot_rim = spot_rim,
-            row_selected = row_selected,
+            menu_bg = menu_bg,
+            menu_edge = menu_edge,
+            menu_inner = menu_inner,
             capsule_fill = capsule_fill,
-            red_dim = rgba(&self.red, 0.78),
+            medium_weight = medium_weight,
+            demibold_weight = demibold_weight,
+            selected_text = selected_text,
+            selected_chip = selected_chip,
+            selected_badge = selected_badge,
             red_soft = rgba(&self.red, 0.18),
             glyph_bg = rgba(&self.fg, 0.12),
             fg = self.fg,
@@ -253,7 +343,7 @@ dropdown popover {{ background: {sidebar}; color: {fg}; }}
             } else {
                 rgba("#000000", 0.045)
             },
-            chip = rgba(&self.fg, 0.085),
+            chip = rgba(&self.fg, 0.10),
             button = if self.dark {
                 rgba(&self.fg, 0.12)
             } else {

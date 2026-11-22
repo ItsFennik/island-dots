@@ -8,7 +8,7 @@ pub fn install_css(theme: &Theme) {
         gtk::style_context_add_provider_for_display(
             &display,
             &provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
         );
     }
 }
@@ -49,17 +49,6 @@ pub fn separator() -> gtk::Box {
     line
 }
 
-pub fn margin<W: IsA<gtk::Widget>>(widget: &W, top: i32, right: i32, bottom: i32, left: i32) {
-    widget.set_margin_top(top);
-    widget.set_margin_end(right);
-    widget.set_margin_bottom(bottom);
-    widget.set_margin_start(left);
-}
-
-pub fn close_window<W: IsA<gtk::Window>>(window: &W) {
-    window.close();
-}
-
 pub fn monitor_for(name: Option<&str>) -> Option<gtk::gdk::Monitor> {
     let display = gtk::gdk::Display::default()?;
     let monitors = display.monitors();
@@ -74,8 +63,7 @@ pub fn monitor_for(name: Option<&str>) -> Option<gtk::gdk::Monitor> {
             };
             if monitor
                 .connector()
-                .map(|connector| connector.as_str() == name)
-                .unwrap_or(false)
+                .is_some_and(|connector| connector.as_str() == name)
             {
                 return Some(monitor);
             }

@@ -29,6 +29,21 @@ impl History {
         Self { path, data }
     }
 
+    pub fn merge_usage(&mut self, usage: &BTreeMap<String, i64>) {
+        let mut changed = false;
+        for (id, launches) in usage {
+            let key = format!("app:{id}");
+            let count = self.data.count.entry(key).or_insert(0);
+            if *count < *launches {
+                *count = *launches;
+                changed = true;
+            }
+        }
+        if changed {
+            self.save();
+        }
+    }
+
     pub fn record(&mut self, key: &str) {
         if key.is_empty() {
             return;

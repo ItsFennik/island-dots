@@ -30,14 +30,6 @@ impl Config {
         }
     }
 
-    pub fn defaults(&self) -> &BTreeMap<String, Value> {
-        &self.defaults
-    }
-
-    pub fn user(&self) -> &BTreeMap<String, Value> {
-        &self.user
-    }
-
     pub fn get(&self, key: &str) -> Value {
         self.user
             .get(key)
@@ -51,7 +43,11 @@ impl Config {
     }
 
     pub fn i64(&self, key: &str, fallback: i64) -> i64 {
-        self.get(key).as_i64().unwrap_or(fallback)
+        let value = self.get(key);
+        value
+            .as_i64()
+            .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
+            .unwrap_or(fallback)
     }
 
     pub fn f64(&self, key: &str, fallback: f64) -> f64 {
@@ -61,8 +57,7 @@ impl Config {
     pub fn string(&self, key: &str, fallback: &str) -> String {
         self.get(key)
             .as_str()
-            .map(str::to_string)
-            .unwrap_or_else(|| fallback.to_string())
+            .map_or_else(|| fallback.to_string(), str::to_string)
     }
 
     pub fn is_default(&self, key: &str) -> bool {
