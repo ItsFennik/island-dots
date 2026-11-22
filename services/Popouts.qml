@@ -54,6 +54,10 @@ Singleton {
     function toggleLaunchpad() { launchpad ? closeOverlays() : openOverlay("launchpad"); }
     function toggleOverview() { overview ? closeOverlays() : openOverlay("overview"); }
     function closeOverlays() { spotlight = false; launchpad = false; overview = false; }
+    // Island / notch: Spotlight's window outlives the close briefly so it can shrink back into the capsule.
+    property bool spotlightHeld: false
+    onSpotlightChanged: { if (spotlight) spotHold.stop(); else if (BarLayout.spotlightFromCapsule) { spotlightHeld = true; spotHold.restart(); } }
+    Timer { id: spotHold; interval: 450; onTriggered: root.spotlightHeld = false }
     // Right-click on a tray icon: open its menu; the same icon again closes it.
     function trayMenu(item, screenName) {
         if (current === "tray" && trayItem === item) { close(); return; }

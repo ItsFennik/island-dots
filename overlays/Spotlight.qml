@@ -25,8 +25,25 @@ PanelWindow {
     // Without focus grabs it covers the whole screen (click outside the card closes it).
     readonly property bool catchAll: !Compositor.focusGrab
     readonly property int topGap: Math.round((screen?.height ?? 1080) * 0.2)
+    // Island / notch skins: the card grows out of the bar's capsule (same spot, size and colour)
+    // and shrinks back into it on close (Popouts.spotlightHeld keeps the window meanwhile).
+    readonly property bool morph: BarLayout.spotlightFromCapsule
+    readonly property bool notch: BarLayout.skin === "notch"
+    readonly property int capY: notch ? 0 : 6
+    readonly property int capW0: BarLayout.capsuleIdleW
+    readonly property int capH0: Config.saved.barHeight ?? 30
+    property bool grown: false
+    // Grow once the surface has rendered a few frames (not on a blind timer: see Bar.qml's panel).
+    FrameAnimation {
+        property int frames: 0
+        running: win.morph && Popouts.spotlight && !win.grown
+        onRunningChanged: frames = 0
+        onTriggered: if (++frames >= 3) win.grown = true
+    }
+    Connections { target: Popouts; enabled: win.morph; function onSpotlightChanged() { if (!Popouts.spotlight) win.grown = false; } }
+
     anchors { top: true; bottom: catchAll; left: catchAll; right: catchAll }
-    margins.top: catchAll ? 0 : topGap
+    margins.top: catchAll || morph ? 0 : topGap
     exclusionMode: ExclusionMode.Ignore
     // Fixed size (the biggest it can get) so typing never reallocates the surface.
     implicitWidth: w + 40
@@ -34,7 +51,7 @@ PanelWindow {
     color: "transparent"
     mask: Region { item: card; Region { item: win.catchAll ? catcher : null } Region { item: ctx.visible ? ctx : null } }
 
-    WlrLayershell.namespace: "island-spotlight"
+    WlrLayershell.namespace: morph ? "island-capsule-spotlight" : "island-spotlight"   // capsule: Qt animates, not the compositor
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
@@ -146,12 +163,23 @@ PanelWindow {
         const ql = q.toLowerCase();
         const sys = system.map(s => ({ s, m: Math.max(Apps.match(s.title.toLowerCase(), ql), ...s.words.split(" ").map(w => Apps.match(w, ql) * 0.7)) }))
             .filter(x => x.m >= 300).sort((a, b) => b.m - a.m).map(x => Object.assign({ kind: "sys" }, x.s));
+        // Bar skins: "skin", "bar", "menu bar", or (4+ letters) a skin's own name.
+        const skinWord = ql.length >= 2 && ["skin", "skins", "bar", "bars", "menu bar", "bar skin", "notch", "island", "pills"]
+            .some(w => w.startsWith(ql) || ql.startsWith(w + " "));
+        const skins = BarLayout.skins
+            .filter(k => skinWord || (ql.length >= 4 && Apps.match(k.label.toLowerCase(), ql) >= 300))
+            .map(k => {
+                const on = (Config.saved.shellLayout ?? "menubar") === "menubar" && BarLayout.skin === k.id;
+                return { kind: "sys", title: k.label, sub: (on ? "Current  ·  " : "") + k.sub, glyph: k.glyph, f: () => BarLayout.setSkin(k.id) };
+            });
+        if (skins.length && /^(skin|bar|menu)/.test(ql)) add(skins, "Bar skins");
         const apps = Apps.search(q).slice(0, sys.length ? 4 : 5).map(appRow);
         if (sys.length && (!apps.length || Apps.match(apps[0].title.toLowerCase(), ql) < Apps.match(sys[0].title.toLowerCase(), ql))) {
             add(sys.slice(0, 2), "Actions"); add(apps, "Applications");
         } else {
             add(apps, "Applications"); add(sys.slice(0, 2), "Actions");
         }
+        if (skins.length && !/^(skin|bar|menu)/.test(ql)) add(skins, "Bar skins");
         add(files.slice(0, Math.max(0, maxRows - 1 - out.length)), "Files");
         add([{ kind: "web", title: "Search the web for “" + q + "”", sub: "DuckDuckGo", glyph: "󰖟" }], "Web");
         return out;
@@ -273,20 +301,35 @@ PanelWindow {
 
     Rectangle {
         id: card
+        readonly property int fullH: win.fieldH + 1 + (win.rows.length ? results.height + 12 : 0) + 1 + win.footH
         anchors.horizontalCenter: parent.horizontalCenter
-        y: (win.catchAll ? win.topGap : 0) + 10
-        width: win.w
-        height: win.fieldH + 1 + (win.rows.length ? results.height + 12 : 0) + 1 + win.footH
-        radius: 14
-        color: Qt.alpha(Theme.bg, Theme.liquid ? 0.55 : 0.86)
-        border { width: 1; color: Theme.glassRim }
+        y: win.morph ? win.capY : (win.catchAll ? win.topGap : 0) + 10
+        width: win.morph && !win.grown ? win.capW0 : win.w
+        height: win.morph && !win.grown ? win.capH0 : fullH
+        Behavior on width { enabled: win.morph; NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 } }
+        Behavior on height { enabled: win.morph; NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 } }
+        radius: win.morph ? (win.notch ? 18 : Math.min(height / 2, 26)) : 14
+        color: win.morph ? BarLayout.capsuleFill : Qt.alpha(Theme.bg, Theme.liquid ? 0.55 : 0.86)
+        border { width: win.morph ? 0 : 1; color: Theme.glassRim }
         clip: true
-        GlassSheen { radius: card.radius; height: Math.min(card.height, 120) }
+        // Notch: square top corners, flush with the screen edge.
+        Rectangle { visible: win.morph && win.notch; width: parent.width; height: parent.radius; color: parent.color }
+        GlassSheen { visible: !win.morph; radius: card.radius; height: Math.min(card.height, 120) }
+        // While capsule-sized (opening / closing) the contents hide under the capsule colour.
+        Rectangle {
+            z: 100
+            anchors.fill: parent
+            radius: parent.radius
+            color: parent.color
+            opacity: win.morph && !win.grown ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 200 } }
+        }
 
-        opacity: 0; scale: 0.97
+        opacity: win.morph ? 1 : 0; scale: win.morph ? 1 : 0.97
         Component.onCompleted: { opacity = 1; scale = 1; }
-        Behavior on opacity { NumberAnimation { duration: 120 } }
-        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        Behavior on opacity { enabled: !win.morph; NumberAnimation { duration: 120 } }
+        Behavior on scale { enabled: !win.morph; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
         // Field
         Item {

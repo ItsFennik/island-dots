@@ -23,6 +23,7 @@ import qs.overlays
 //   qs -c island ipc call launcher toggle      (Spotlight)
 //   qs -c island ipc call launchpad toggle
 //   qs -c island ipc call overview toggle     (niri-style workspace overview)
+//   qs -c island ipc call bar <skin NAME|next|previous>   (menu bar skins: classic, pills, island, notch)
 //   qs -c island ipc call menu <system|app|notifs|controls|clipboard|power|sound|bluetooth|network|close>
 //   qs -c island ipc call picker <wallpapers|wallhaven|themes|toggle|close>
 //   qs -c island ipc call settings toggle
@@ -59,7 +60,7 @@ ShellRoot {
 
     // Spotlight and Launchpad: created on open, destroyed (and collected) on close.
     readonly property var overlayScreen: Quickshell.screens.find(s => s.name === Popouts.overlayScreen) ?? Compositor.mainScreen
-    LazyLoader { active: Popouts.spotlight; Spotlight { screen: root.overlayScreen } }
+    LazyLoader { active: Popouts.spotlight || Popouts.spotlightHeld; Spotlight { screen: root.overlayScreen } }
     LazyLoader { active: Popouts.launchpad; Launchpad { screen: root.overlayScreen } }
     LazyLoader { active: Popouts.overview; Overview { screen: root.overlayScreen } }
     Connections {
@@ -92,6 +93,13 @@ ShellRoot {
     IpcHandler {
         target: "shell"
         function reload(): void { Quickshell.reload(false); }
+    }
+
+    IpcHandler {
+        target: "bar"
+        function skin(name: string): void { BarLayout.setSkin(name); }
+        function next(): void { BarLayout.cycleSkin(1); }
+        function previous(): void { BarLayout.cycleSkin(-1); }
     }
 
     IpcHandler {

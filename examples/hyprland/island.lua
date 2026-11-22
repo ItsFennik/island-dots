@@ -73,3 +73,5 @@ hl.layer_rule({ name = "island-launchpad-anim", match = { namespace = "island-la
 -- No layer animation for the menu bar and dock (they resize when menus open)
 hl.layer_rule({ name = "island-bar-noanim", match = { namespace = "island-bar" }, no_anim = true })
 hl.layer_rule({ name = "island-dock-noanim", match = { namespace = "island-dock" }, no_anim = true })
+-- Island / notch skins: menus and Spotlight grow out of the capsule in Qt
+hl.layer_rule({ name = "island-capsule-noanim", match = { namespace = "^island-capsule-" }, no_anim = true })

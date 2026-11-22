@@ -246,7 +246,9 @@ if printf '%s\n' "$s_gtkTheme" | put "$STATE/gtk-theme"; then
 fi
 
 # Quickshell reads its icon theme from a pragma at startup: rewrite it and restart the bar.
-if ! grep -qx "//@ pragma IconTheme $s_iconTheme" "$HERE/shell.qml"; then
+# Theme names come from directory names, so refuse anything that could break out of the sed below.
+case $s_iconTheme in ""|*[!A-Za-z0-9._+-]*) s_iconTheme_ok=false ;; *) s_iconTheme_ok=true ;; esac
+if $s_iconTheme_ok && ! grep -qxF "//@ pragma IconTheme $s_iconTheme" "$HERE/shell.qml"; then
   sed -i "s|^//@ pragma IconTheme .*|//@ pragma IconTheme $s_iconTheme|" "$HERE/shell.qml"
   setsid -f sh -c 'sleep 0.5; qs -c island kill >/dev/null 2>&1; sleep 0.5; exec qs -c island -n -d' >/dev/null 2>&1
 fi

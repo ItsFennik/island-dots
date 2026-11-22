@@ -95,6 +95,8 @@
   "weatherLocation": "",
   "weatherUnits": "c",
   "barWeather": true,
+  "barSkin": "classic",
+  "spotlightFromCapsule": true,
   "barWorkspaces": true,
   "barWorkspaceStyle": "numbers",
   "barWorkspaceCount": 5,

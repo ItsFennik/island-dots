@@ -15,6 +15,7 @@ Singleton {
         { id: "logo",       label: "Logo menu",       glyph: "\uf17c" },
         { id: "appmenus",   label: "App menus",       glyph: "󰍜", sub: "App name, Go, Window, Help" },
         { id: "workspaces", label: "Workspaces",      glyph: "󰕰" },
+        { id: "media",      label: "Now playing",     glyph: "󰝚", sub: "Song and artist; opens the player" },
         { id: "tray",       label: "Tray icons",      glyph: "󱊔" },
         { id: "battery",    label: "Battery",         glyph: "󰁹", sub: "Laptops only" },
         { id: "sound",      label: "Sound",           glyph: "󰕾" },
@@ -26,6 +27,31 @@ Singleton {
         { id: "power",      label: "Power",           glyph: "\uf011" },
     ]
     readonly property var zones: ["left", "center", "right"]
+
+    // Menu bar skins (setting barSkin; only the "Menu bar + Dock" layout has skins).
+    // Listed by Spotlight ("skin", "bar"), Settings → Appearance and `ipc call bar skin <id>`.
+    readonly property var skins: [
+        { id: "classic", label: "Classic",        glyph: "󰍜", sub: "Full-width menu bar" },
+        { id: "pills",   label: "Pills",          glyph: "󰮺", sub: "Every item in its own floating pill" },
+        { id: "island",  label: "Dynamic Island", glyph: "󰐾", sub: "Only a centre capsule: the time, growing for music, volume, notifications and menus" },
+        { id: "notch",   label: "Notch",          glyph: "󰟀", sub: "Only a MacBook-style notch: the time, growing for music, volume, notifications and menus" },
+    ]
+    readonly property string skin: skins.some(k => k.id === s.barSkin) ? s.barSkin : "classic"
+    readonly property bool capsule: (s.shellLayout ?? "menubar") === "menubar" && (skin === "island" || skin === "notch")
+    // Black like the hardware it imitates; light themes keep their bg so menu text stays readable.
+    readonly property color capsuleFill: Theme.dark ? "#000000" : Theme.bg
+    // Island / notch: Spotlight grows out of the capsule too (setting spotlightFromCapsule).
+    property int capsuleIdleW: 110      // the idle capsule's real width (set by the bar), where Spotlight starts
+    readonly property bool spotlightFromCapsule: capsule && (s.spotlightFromCapsule ?? true)
+    function setSkin(id) {
+        if (!skins.some(k => k.id === id)) { console.warn("island: unknown bar skin " + id); return; }
+        if ((s.shellLayout ?? "menubar") !== "menubar") Config.commit("shellLayout", "menubar");
+        Config.commit("barSkin", id);
+    }
+    function cycleSkin(d) {
+        const i = skins.findIndex(k => k.id === skin);
+        setSkin(skins[(i + (d ?? 1) + skins.length) % skins.length].id);
+    }
     function info(id) { return catalogue.find(c => c.id === id) ?? { id: id, label: id, glyph: "" }; }
 
     // The layout as the older switches describe it.
