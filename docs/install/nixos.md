@@ -1,6 +1,6 @@
 # Install on NixOS
 
-Island is packaged as a flake, so you can build and run it without installing Quickshell by hand. The flake package starts the shell; the checkout path below adds the full `island-startup` session helpers.
+Island is packaged as a flake, so you can build and run it without installing Quickshell by hand. The repository root has [`flake.nix`](../../flake.nix) and [`shell.nix`](../../shell.nix). The flake package starts the shell; the checkout path below adds the full `island-startup` session helpers.
 
 No root is needed for the checkout or the installer. Dependencies come from `configuration.nix`, and the checkout lives in your home. Island is a shell, not a compositor. Enable a Wayland compositor first: `programs.hyprland`, `programs.niri`, `programs.sway` or `programs.mango`.
 
@@ -93,6 +93,13 @@ cd ~/src/island-dots
 ```
 
 The installer symlinks the checkout by default and moves an existing target to `~/.local/state/island/install-backups/<timestamp>/island`. Use `--copy` for a detached copy. It does not edit the compositor config.
+
+If you do not use flakes, `nix-shell` reads [`shell.nix`](../../shell.nix) and puts Quickshell, jq, Python and bash on `PATH`. Run the installer from that shell:
+
+```sh
+nix-shell
+./install.sh
+```
 
 ## 4. Add the compositor autostart
 
