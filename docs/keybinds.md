@@ -57,7 +57,11 @@ Hyprland's example uses `hl.bind`. If you use the global-shortcut interface inst
 | `volumeUp`, `volumeDown`, `volumeMute` | Audio |
 | `mediaPlayPause`, `mediaNext`, `mediaPrevious`, `mediaStop` | Media |
 
-Mango's helper writes the name to the socket. Hyprland binds the name, for example:
+Mango binds call `scripts/island-shortcut <name>`, which writes the name to
+`$XDG_RUNTIME_DIR/island.sock` with netcat (`nc`). `launcher` goes straight to the
+running Rust Spotlight socket (`$XDG_RUNTIME_DIR/island-spotlight.sock`) so a keypress
+does not start a client process; only the first press, when no Spotlight server is up,
+falls back to Quickshell and starts the binary. Hyprland binds the name, for example:
 
 ```lua
 hl.bind("SUPER + D", hl.dsp.global("quickshell:launcher"))

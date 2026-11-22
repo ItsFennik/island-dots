@@ -1,0 +1,18 @@
+#!/bin/sh
+# Run a named Island shortcut without starting a client process for every keypress.
+# Mango binds call this; the name is written to Quickshell's socket. Spotlight talks
+# straight to the running Rust surface and only falls back to Quickshell (which starts
+# the binary) when no Spotlight server is up.
+set -u
+runtime=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+name=${1:-}
+if [ -z "$name" ]; then
+    printf 'usage: island-shortcut <name>\n' >&2
+    exit 2
+fi
+if [ "$name" = launcher ]; then
+    if printf 'toggle\n' | nc -U -N "$runtime/island-spotlight.sock" 2>/dev/null; then
+        exit 0
+    fi
+fi
+printf '%s\n' "$name" | nc -U -N "$runtime/island.sock"
