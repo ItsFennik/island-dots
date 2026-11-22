@@ -36,6 +36,7 @@ const OPEN_MS: u64 = 180;
 const CLOSE_MS: u64 = 420;
 const OPEN_OVERSHOOT: f64 = 0.7;
 const HOVER_GRACE_MS: u64 = 100;
+const LINGER_MS: u64 = 8_000;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Style {
@@ -151,6 +152,8 @@ struct Spotlight {
     current_h: i32,
     grown: bool,
     closing: bool,
+    hover_entered: Rc<Cell<bool>>,
+    linger: Option<glib::SourceId>,
     rows: Vec<Row>,
     list_rows: Vec<gtk::ListBoxRow>,
     selected: usize,
@@ -553,6 +556,8 @@ impl Spotlight {
                     current_h: cap_h,
                     grown: !morph,
                     closing: false,
+                    hover_entered: hover_entered.clone(),
+                    linger: None,
                     rows: Vec::new(),
                     list_rows: Vec::new(),
                     selected: 0,
@@ -642,13 +647,73 @@ impl Spotlight {
 
     fn handle(&mut self, message: &str) {
         match message {
-            "show" => {
-                self.window.present();
-                self.entry.grab_focus();
+            "show" => self.show(),
+            "close" => {
+                if self.window.is_visible() {
+                    self.close();
+                } else {
+                    close_window_later(&self.window);
+                }
             }
-            "close" | "toggle" => self.close(),
+            "toggle" => {
+                if self.window.is_visible() {
+                    self.close();
+                } else {
+                    self.show();
+                }
+            }
             _ => {}
         }
+    }
+
+    fn show(&mut self) {
+        if let Some(linger) = self.linger.take() {
+            linger.remove();
+        }
+        let was_hidden = !self.window.is_visible();
+        if was_hidden {
+            self.reset();
+        }
+        self.window.present_with_time(gdk::CURRENT_TIME);
+        self.window.set_keyboard_mode(KeyboardMode::Exclusive);
+        gtk::prelude::GtkWindowExt::set_focus(&self.window, Some(&self.entry));
+        self.entry.grab_focus();
+        if was_hidden {
+            self.start_open();
+        }
+    }
+
+    fn reset(&mut self) {
+        if let Some(menu) = self.ctx_menu.take() {
+            menu.popdown();
+        }
+        self.closing = false;
+        self.hover_entered.set(false);
+        if !self.entry.text().is_empty() {
+            self.entry.set_text("");
+        }
+        self.set_query(String::new());
+    }
+
+    fn hide(&mut self) {
+        if let Some(menu) = self.ctx_menu.take() {
+            menu.popdown();
+        }
+        self.window.set_visible(false);
+        self.reset();
+        let weak = self.weak.clone();
+        if let Some(linger) = self.linger.take() {
+            linger.remove();
+        }
+        self.linger = Some(glib::timeout_add_local_once(
+            Duration::from_millis(LINGER_MS),
+            move || {
+                if let Some(spot) = weak.upgrade() {
+                    let window = spot.borrow().window.clone();
+                    close_window_later(&window);
+                }
+            },
+        ));
     }
 
     fn rebuild(&mut self) {
@@ -1198,7 +1263,12 @@ impl Spotlight {
             return;
         }
         if !self.morph || !self.grown {
-            close_window_later(&self.window);
+            let weak = self.weak.clone();
+            glib::idle_add_local_once(move || {
+                if let Some(spot) = weak.upgrade() {
+                    spot.borrow_mut().hide();
+                }
+            });
             return;
         }
         self.closing = true;
@@ -1223,7 +1293,12 @@ impl Spotlight {
                 (height.round() as i32).max(1),
             );
             if t >= 1.0 {
-                close_window_later(&state.window);
+                let weak = weak.clone();
+                glib::idle_add_local_once(move || {
+                    if let Some(spot) = weak.upgrade() {
+                        spot.borrow_mut().hide();
+                    }
+                });
                 return glib::ControlFlow::Break;
             }
             glib::ControlFlow::Continue
@@ -2080,15 +2155,15 @@ fn main() {
             state.replace(Some(spot));
         });
     }
-    glib::timeout_add_local(Duration::from_millis(60), {
+    glib::spawn_future_local({
         let state = state.clone();
-        move || {
-            while let Ok(message) = rx.try_recv() {
-                if let Some(spot) = state.borrow().as_ref() {
+        async move {
+            while let Ok(message) = rx.recv().await {
+                let spot = state.borrow().as_ref().cloned();
+                if let Some(spot) = spot {
                     spot.borrow_mut().handle(&message);
                 }
             }
-            glib::ControlFlow::Continue
         }
     });
     let _ = app.run_with_args(&["island-rust"]);
