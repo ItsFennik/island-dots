@@ -14,24 +14,31 @@ import qs.components
 PanelWindow {
     id: win
 
-    readonly property string family: Config.saved.widgetFont || "Adwaita Sans"
-    readonly property int w: 700
+    readonly property var s: Config.saved
+    readonly property string family: s.widgetFont || "Adwaita Sans"
+    readonly property int w: Math.max(460, Math.min(920, Math.round(s.spotlightWidth ?? 700)))
     readonly property int fieldH: 52
     readonly property int rowH: 44
     readonly property int headH: 26
     readonly property int footH: 34
-    readonly property int maxRows: 9
+    readonly property int maxRows: Math.max(5, Math.min(12, Math.round(s.spotlightRows ?? 9)))
 
     // Without focus grabs it covers the whole screen (click outside the card closes it).
     readonly property bool catchAll: !Compositor.focusGrab
     readonly property int topGap: Math.round((screen?.height ?? 1080) * 0.2)
-    // Island / notch skins: the card grows out of the bar's capsule (same spot, size and colour)
-    // and shrinks back into it on close (Popouts.spotlightHeld keeps the window meanwhile).
-    readonly property bool morph: BarLayout.spotlightFromCapsule
+    readonly property int topBarH: (s.barHeight ?? 30) + (BarLayout.skin === "pills" ? 6 : 0)
+    readonly property int bottomBarH: (s.taskbarHeight ?? 54) + 8
+    // auto follows the bar: capsule bars grow from the capsule, menu bars drop down, bottom
+    // bars rise above them. Attached / floating / capsule are explicit overrides.
+    readonly property string style: BarLayout.spotlightStyle
+    readonly property bool morph: BarLayout.spotlightMorph
+    readonly property bool bottom: style === "bottom"
+    readonly property bool floating: style === "floating"
+    readonly property bool attachedTop: style === "attached"
     readonly property bool notch: BarLayout.skin === "notch"
     readonly property int capY: notch ? 0 : 6
     readonly property int capW0: BarLayout.capsuleIdleW
-    readonly property int capH0: Config.saved.barHeight ?? 30
+    readonly property int capH0: s.barHeight ?? 30
     property bool grown: false
     // Grow once the surface has rendered a few frames (not on a blind timer: see Bar.qml's panel).
     FrameAnimation {
@@ -42,8 +49,13 @@ PanelWindow {
     }
     Connections { target: Popouts; enabled: win.morph; function onSpotlightChanged() { if (!Popouts.spotlight) win.grown = false; } }
 
-    anchors { top: true; bottom: catchAll; left: catchAll; right: catchAll }
-    margins.top: catchAll || morph ? 0 : topGap
+    anchors {
+        top: win.catchAll || !win.bottom
+        bottom: win.catchAll || win.bottom
+        left: win.catchAll
+        right: win.catchAll
+    }
+    margins.top: win.catchAll || win.morph ? 0 : win.floating ? win.topGap : 0
     exclusionMode: ExclusionMode.Ignore
     // Fixed size (the biggest it can get) so typing never reallocates the surface.
     implicitWidth: w + 40
@@ -74,16 +86,23 @@ PanelWindow {
         { key: "sys:logout", title: "Log Out", sub: "End the session", glyph: "󰍃", words: "log out logout exit quit session", confirm: true, f: () => Compositor.logout() },
         { key: "sys:reboot", title: "Restart", sub: "Reboot the computer", glyph: "", words: "restart reboot", confirm: true, f: () => Compositor.power("reboot") },
         { key: "sys:off", title: "Shut Down", sub: "Power off the computer", glyph: "⏻", words: "shut down shutdown power off poweroff", confirm: true, f: () => Compositor.power("poweroff") },
-        { key: "sys:settings", title: "System Settings", sub: "Island settings", glyph: "", words: "settings preferences island", f: () => Popouts.openSettings("") }
+        { key: "sys:settings", title: "System Settings", sub: "Island settings", glyph: "", words: "settings preferences island", f: () => Popouts.openSettings("") },
+        { key: "sys:spotlight", title: "Spotlight Settings", sub: "Window, results and search sources", glyph: "\uf002", words: "spotlight search launcher settings", f: () => Popouts.openSettings("spotlight") }
     ]
-    readonly property var help: [
-        { kind: "help", fill: "", title: "Apps & actions", sub: "Type a name: Firefox, Lock, Sleep, Restart…", glyph: "" },
-        { kind: "help", fill: "> ", title: "> command", sub: "Run a shell command ($ works too)", glyph: "" },
-        { kind: "help", fill: "", title: "Math", sub: "2*(3+4), 15% of 80 → type it, Enter copies the result", glyph: "󰃬" },
-        { kind: "help", fill: "", title: "Files", sub: "3+ letters also search your home folder", glyph: "" },
-        { kind: "help", fill: "", title: "Web", sub: "Anything else: last row searches DuckDuckGo", glyph: "󰖟" },
-        { kind: "help", fill: "", title: "Frequently used", sub: "Ctrl+F pins the selected row so it stays at the top", glyph: "󰐃" }
-    ]
+    readonly property bool filesOn: s.spotlightFiles !== false
+    readonly property bool commandsOn: s.spotlightCommands !== false
+    readonly property bool webOn: s.spotlightWeb !== false
+    readonly property var help: {
+        const out = [
+            { kind: "help", fill: "", title: "Apps & actions", sub: "Type a name: Firefox, Lock, Sleep, Restart…", glyph: "" }
+        ];
+        if (commandsOn) out.push({ kind: "help", fill: "> ", title: "> command", sub: "Run a shell command ($ works too)", glyph: "" });
+        out.push({ kind: "help", fill: "", title: "Math", sub: "2*(3+4), 15% of 80 → type it, Enter copies the result", glyph: "󰃬" });
+        if (filesOn) out.push({ kind: "help", fill: "", title: "Files", sub: "3+ letters also search your home folder", glyph: "" });
+        if (webOn) out.push({ kind: "help", fill: "", title: "Web", sub: "Anything else: last row searches DuckDuckGo", glyph: "󰖟" });
+        out.push({ kind: "help", fill: "", title: "Frequently used", sub: "Ctrl+F pins the selected row so it stays at the top", glyph: "󰐃" });
+        return out;
+    }
 
     // A history key back to a row (null when the app is gone).
     function fromKey(key) {
@@ -102,7 +121,8 @@ PanelWindow {
     property int index: 0
     property string confirmKey: ""
     readonly property string q: query.trim()
-    readonly property bool cmd: q.startsWith(">") || q.startsWith("$")
+    readonly property bool commandOff: !commandsOn && (q.startsWith(">") || q.startsWith("$"))
+    readonly property bool cmd: commandsOn && (q.startsWith(">") || q.startsWith("$"))
     readonly property string calc: {
         let s = q.replace(/^=/, "");
         s = s.replace(/(\d+(?:[.,]\d+)?)\s*%\s*of\s*/gi, "($1/100)*");
@@ -115,7 +135,7 @@ PanelWindow {
 
     // Files: `find` in ~ (no hidden dirs, depth 4), debounced, only for 3+ letters.
     property var files: []
-    readonly property bool wantFiles: q.length >= 3 && !cmd && calc === "" && q !== "?"
+    readonly property bool wantFiles: filesOn && q.length >= 3 && !cmd && !commandOff && calc === "" && q !== "?"
     onQChanged: { files = []; finder.running = false; if (wantFiles) debounce.restart(); }
     Timer { id: debounce; interval: 220; onTriggered: { finder.pattern = win.q; finder.running = true; } }
     Process {
@@ -154,6 +174,10 @@ PanelWindow {
             return out;
         }
         if (q === "?") { add(help, "Help"); return out; }
+        if (commandOff) {
+            add([{ kind: "sys", title: "Shell commands are off", sub: "Turn them on in Spotlight Settings", glyph: "\uf002", f: () => Popouts.openSettings("spotlight") }], "Command");
+            return out;
+        }
         if (cmd) {
             const c = q.slice(1).trim();
             add([{ kind: "cmd", key: "cmd:" + c, cmd: c, title: c ? c : "Type a shell command", sub: "Run in a shell", glyph: "" }], "Command");
@@ -169,7 +193,7 @@ PanelWindow {
         const skins = BarLayout.skins
             .filter(k => skinWord || (ql.length >= 4 && Apps.match(k.label.toLowerCase(), ql) >= 300))
             .map(k => {
-                const on = (Config.saved.shellLayout ?? "menubar") === "menubar" && BarLayout.skin === k.id;
+                const on = (s.shellLayout ?? "menubar") === "menubar" && BarLayout.skin === k.id;
                 return { kind: "sys", title: k.label, sub: (on ? "Current  ·  " : "") + k.sub, glyph: k.glyph, f: () => BarLayout.setSkin(k.id) };
             });
         if (skins.length && /^(skin|bar|menu)/.test(ql)) add(skins, "Bar skins");
@@ -180,8 +204,8 @@ PanelWindow {
             add(apps, "Applications"); add(sys.slice(0, 2), "Actions");
         }
         if (skins.length && !/^(skin|bar|menu)/.test(ql)) add(skins, "Bar skins");
-        add(files.slice(0, Math.max(0, maxRows - 1 - out.length)), "Files");
-        add([{ kind: "web", title: "Search the web for “" + q + "”", sub: "DuckDuckGo", glyph: "󰖟" }], "Web");
+        if (filesOn) add(files.slice(0, Math.max(0, maxRows - 1 - out.length)), "Files");
+        if (webOn) add([{ kind: "web", title: "Search the web for “" + q + "”", sub: "DuckDuckGo", glyph: "󰖟" }], "Web");
         return out;
     }
     onRowsChanged: { index = Math.min(index, Math.max(0, rows.length - 1)); if (!rows.some(r => r.key === confirmKey)) confirmKey = ""; }
@@ -296,24 +320,35 @@ PanelWindow {
     }
 
     // Card
-    readonly property color sel: Qt.alpha(Theme.text, 0.10)
+    readonly property color sel: Theme.accent
+    readonly property color selText: Theme.onAccent
     readonly property color chip: Qt.alpha(Theme.text, 0.10)
 
     Rectangle {
         id: card
         readonly property int fullH: win.fieldH + 1 + (win.rows.length ? results.height + 12 : 0) + 1 + win.footH
         anchors.horizontalCenter: parent.horizontalCenter
-        y: win.morph ? win.capY : (win.catchAll ? win.topGap : 0) + 10
+        y: win.morph ? win.capY
+         : win.bottom ? Math.max(8, win.height - fullH - win.bottomBarH - 8)
+         : win.attachedTop ? win.topBarH + 8
+         : (win.catchAll ? win.topGap : 0) + 10
         width: win.morph && !win.grown ? win.capW0 : win.w
         height: win.morph && !win.grown ? win.capH0 : fullH
         Behavior on width { enabled: win.morph; NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 } }
         Behavior on height { enabled: win.morph; NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 } }
         radius: win.morph ? (win.notch ? 18 : Math.min(height / 2, 26)) : 14
-        color: win.morph ? BarLayout.capsuleFill : Qt.alpha(Theme.bg, Theme.liquid ? 0.55 : 0.86)
-        border { width: win.morph ? 0 : 1; color: Theme.glassRim }
+        color: win.morph ? BarLayout.capsuleFill : Theme.menuBg
+        border { width: win.morph ? 0 : 1; color: Theme.menuEdge }
         clip: true
         // Notch: square top corners, flush with the screen edge.
         Rectangle { visible: win.morph && win.notch; width: parent.width; height: parent.radius; color: parent.color }
+        Rectangle {
+            visible: !win.morph
+            anchors { fill: parent; margins: 1 }
+            radius: parent.radius - 1
+            color: "transparent"
+            border { width: 1; color: Theme.menuInner }
+        }
         GlassSheen { visible: !win.morph; radius: card.radius; height: Math.min(card.height, 120) }
         // While capsule-sized (opening / closing) the contents hide under the capsule colour.
         Rectangle {
@@ -355,7 +390,7 @@ PanelWindow {
                     visible: !input.text
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 8
-                    Text { id: ph; text: ">_ Search"; color: Theme.textFaint; font: input.font }
+                    Text { id: ph; text: "Search apps, files, actions"; color: Theme.textFaint; font: input.font }
                     Text { text: "·  ? for help"; color: Qt.alpha(Theme.textFaint, 0.7); anchors.baseline: ph.baseline; font { family: win.family; weight: Theme.fontWeight; pixelSize: 13 } }
                 }
                 Keys.onPressed: e => {
@@ -397,9 +432,9 @@ PanelWindow {
                         visible: !!rowCol.r.section
                         height: win.headH
                         leftPadding: 12; topPadding: rowCol.index === 0 ? 6 : 10
-                        text: (rowCol.r.section ?? "").toUpperCase()
-                        color: Theme.textFaint
-                        font { family: win.family; pixelSize: 10; weight: Theme.w(Font.DemiBold); letterSpacing: 0.8 }
+                        text: rowCol.r.section ?? ""
+                        color: Theme.textDim
+                        font { family: win.family; pixelSize: 11; weight: Theme.w(Font.DemiBold) }
                     }
                     MouseArea {
                         id: row
@@ -433,11 +468,11 @@ PanelWindow {
                                 visible: !!rowCol.r.glyph
                                 anchors.fill: parent
                                 radius: width / 2
-                                color: row.asking ? "#ff453a" : Qt.alpha(Theme.text, 0.12)
+                                color: row.asking ? Qt.alpha(Theme.pal.red, 0.18) : row.hot ? Qt.alpha(win.selText, 0.18) : Qt.alpha(Theme.text, 0.12)
                                 Text {
                                     anchors.centerIn: parent
                                     text: rowCol.r.glyph ?? ""
-                                    color: row.asking ? "#ffffff" : Theme.text
+                                    color: row.asking ? Theme.pal.red : row.hot ? win.selText : Theme.text
                                     font { family: "JetBrainsMono Nerd Font"; pixelSize: 14; hintingPreference: Font.PreferNoHinting }
                                 }
                             }
@@ -449,7 +484,7 @@ PanelWindow {
                                 width: parent.width
                                 text: row.asking ? "Press ↵ again to " + rowCol.r.title.toLowerCase() : rowCol.r.title
                                 elide: Text.ElideRight
-                                color: row.asking ? "#ff6961" : Theme.text
+                                color: row.asking ? (row.hot ? win.selText : Theme.pal.red) : row.hot ? win.selText : Theme.text
                                 font { family: win.family; pixelSize: rowCol.r.kind === "calc" ? 17 : 13; weight: Theme.w(Font.Medium) }
                             }
                             Text {
@@ -457,7 +492,7 @@ PanelWindow {
                                 width: parent.width
                                 text: rowCol.r.sub ?? ""
                                 elide: rowCol.r.kind === "file" ? Text.ElideMiddle : Text.ElideRight
-                                color: Theme.textDim
+                                color: row.hot ? Qt.alpha(win.selText, 0.72) : Theme.textDim
                                 font { family: win.family; weight: Theme.fontWeight; pixelSize: 11 }
                             }
                         }
@@ -469,21 +504,21 @@ PanelWindow {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: SpotHistory.isPinned(rowCol.r.key)
                                 text: "Pinned"
-                                color: Theme.textFaint
+                                color: row.hot ? Qt.alpha(win.selText, 0.7) : Theme.textFaint
                                 font { family: win.family; weight: Theme.fontWeight; pixelSize: 10 }
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: rowCol.r.kind === "app" && DockPins.has(rowCol.r.entry.id)
                                 text: "In Dock"
-                                color: Theme.textFaint
+                                color: row.hot ? Qt.alpha(win.selText, 0.7) : Theme.textFaint
                                 font { family: win.family; weight: Theme.fontWeight; pixelSize: 10 }
                             }
                             Rectangle {
                                 visible: row.hot
                                 width: 26; height: 20; radius: 5
-                                color: win.chip
-                                Text { anchors.centerIn: parent; text: "↵"; color: Theme.textDim; font { family: win.family; weight: Theme.fontWeight; pixelSize: 12 } }
+                                color: row.hot ? Qt.alpha(win.selText, 0.16) : win.chip
+                                Text { anchors.centerIn: parent; text: "↵"; color: row.hot ? win.selText : Theme.textDim; font { family: win.family; weight: Theme.fontWeight; pixelSize: 12 } }
                             }
                         }
                     }

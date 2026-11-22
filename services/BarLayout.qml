@@ -38,11 +38,23 @@ Singleton {
     ]
     readonly property string skin: skins.some(k => k.id === s.barSkin) ? s.barSkin : "classic"
     readonly property bool capsule: (s.shellLayout ?? "menubar") === "menubar" && (skin === "island" || skin === "notch")
+    readonly property bool bottomLayout: (s.shellLayout ?? "menubar") !== "menubar"
     // Black like the hardware it imitates; light themes keep their bg so menu text stays readable.
     readonly property color capsuleFill: Theme.dark ? "#000000" : Theme.bg
     // Island / notch: Spotlight grows out of the capsule too (setting spotlightFromCapsule).
     property int capsuleIdleW: 110      // the idle capsule's real width (set by the bar), where Spotlight starts
     readonly property bool spotlightFromCapsule: capsule && (s.spotlightFromCapsule ?? true)
+    // Resolved Spotlight placement for the current bar: auto follows the bar, the other
+    // choices are explicit overrides. Shared with Popouts so the close hold matches the morph.
+    readonly property string spotlightStyle: {
+        const st = s.spotlightStyle ?? "auto";
+        if (st === "floating") return "floating";
+        if (st === "capsule") return capsule ? "capsule" : bottomLayout ? "bottom" : "attached";
+        if (st === "attached") return capsule && spotlightFromCapsule ? "capsule" : bottomLayout ? "bottom" : "attached";
+        if (capsule && spotlightFromCapsule) return "capsule";
+        return bottomLayout ? "bottom" : "attached";
+    }
+    readonly property bool spotlightMorph: spotlightStyle === "capsule"
     function setSkin(id) {
         if (!skins.some(k => k.id === id)) { console.warn("island: unknown bar skin " + id); return; }
         if ((s.shellLayout ?? "menubar") !== "menubar") Config.commit("shellLayout", "menubar");

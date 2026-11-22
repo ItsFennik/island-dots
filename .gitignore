@@ -22,3 +22,6 @@ result-*
 *.swo
 *~
 .direnv/
+
+# Rust build output
+rust/target/

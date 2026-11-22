@@ -33,6 +33,12 @@ Singleton {
     }
 
     function isPinned(key) { return !!key && pinned.includes(key); }
+    function clear() {
+        recent = [];
+        count = {};
+        pinned = [];
+        save();
+    }
     function togglePin(key) {
         if (!key) return;
         pinned = isPinned(key) ? pinned.filter(k => k !== key) : [key, ...pinned];
