@@ -2,18 +2,18 @@
 
 Pick the guide for your distribution. Each one is a complete walkthrough from a fresh machine to a running shell.
 
-| Your distro | Guide |
+| Distro | Installation Instructions |
 |---|---|
-| Arch, CachyOS, EndeavourOS, Manjaro, Garuda | [docs/install/arch.md](install/arch.md) |
-| Artix Linux (and other Arch-based, OpenRC/runit/dinit/s6) | [docs/install/artix.md](install/artix.md) |
-| Fedora, and RHEL-like systems | [docs/install/fedora.md](install/fedora.md) |
-| Debian, Ubuntu, Mint, Pop!_OS, PikaOS | [docs/install/debian.md](install/debian.md) |
-| openSUSE / SUSE-family | [docs/install/opensuse.md](install/opensuse.md) |
-| NixOS | [docs/install/nixos.md](install/nixos.md) |
-| Gentoo (OpenRC/systemd) | [docs/install/gentoo.md](install/gentoo.md) |
-| Void Linux (runit) | [docs/install/void.md](install/void.md) |
+| Arch, CachyOS, EndeavourOS, Manjaro, Garuda | `pacman` packages + `./install.sh` — [guide](install/arch.md) |
+| Artix Linux (and other Arch-based, OpenRC/runit/dinit/s6) | `pacman` packages + init services + `./install.sh` — [guide](install/artix.md) |
+| Fedora, and RHEL-like systems | COPR for Quickshell + `./install.sh` — [guide](install/fedora.md) |
+| Debian, Ubuntu, Mint, Pop!_OS, PikaOS | `apt` packages + `./install.sh` — [guide](install/debian.md) |
+| openSUSE / SUSE-family | Build Quickshell, then `./install.sh` — [guide](install/opensuse.md) |
+| NixOS | Flake: `nix build github:ItsFennik/island-dots` — [guide](install/nixos.md) |
+| Gentoo (OpenRC/systemd) | GURU overlay + `emerge` + `./install.sh` — [guide](install/gentoo.md) |
+| Void Linux (runit) | `xbps-install` + `./install.sh` — [guide](install/void.md) |
 
-Every guide installs the same checkout at `~/.config/quickshell/island`, adds one autostart line to the compositor and finishes with a first-run check. Island needs Quickshell 0.3 or newer and an existing Wayland compositor; it is not a compositor itself.
+Every guide installs Island at `~/.config/quickshell/island`; the NixOS flake links its store copy there. Each guide adds one autostart line to the compositor and finishes with a first-run check. Island needs Quickshell 0.3 or newer and an existing Wayland compositor; it is not a compositor itself.
 
 If your distribution is not listed, follow the closest package-manager guide and check the [Quickshell build instructions](https://github.com/quickshell-mirror/quickshell/blob/master/BUILD.md) for the minimum version.
 
