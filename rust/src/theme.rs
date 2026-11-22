@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::SettingsRead;
 use crate::paths;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -67,7 +67,7 @@ pub fn mix(a: &str, b: &str, t: f64) -> String {
 }
 
 impl Theme {
-    pub fn load(cfg: &Config) -> Self {
+    pub fn load(cfg: &impl SettingsRead) -> Self {
         let id = paths::theme_id();
         let map = match paths::load_json(&paths::themes_dir().join(format!("{id}.json"))) {
             Some(Value::Object(map)) => map.into_iter().collect::<BTreeMap<_, _>>(),
@@ -246,6 +246,17 @@ window {{
 .spot-card.morph.notch.grown {{ border-radius: 0 0 18px 18px; }}
 .traffic-close {{ background: {red}; color: rgba(0, 0, 0, 0.62); min-width: 13px; min-height: 13px; min-width: 13px; border-radius: 7px; padding: 0; font-size: 9px; }}
 .traffic-close:hover {{ background: {red_hover}; }}
+.traffic-min {{ background: #febc2e; color: rgba(0, 0, 0, 0.62); min-width: 13px; min-height: 13px; border-radius: 7px; padding: 0; font-size: 9px; }}
+.traffic-min:hover {{ background: #ffd15c; }}
+.traffic-max {{ background: #28c840; color: rgba(0, 0, 0, 0.62); min-width: 13px; min-height: 13px; border-radius: 7px; padding: 0; font-size: 9px; }}
+.traffic-max:hover {{ background: #4ade5e; }}
+.account-card {{ background: transparent; border-radius: 10px; padding: 6px 8px; }}
+.account-card:hover {{ background: {hover}; }}
+.account-avatar {{ background: {accent_soft}; color: {accent}; border-radius: 17px; font-size: 13px; font-weight: 700; }}
+.theme-card {{ padding: 8px; border-radius: 10px; }}
+.theme-card.theme-card-active {{ border: 2px solid {accent}; }}
+.toolbar-button {{ background: {button}; color: {fg}; border-radius: 7px; padding: 2px 10px; border: 1px solid {hairline}; min-height: 24px; }}
+.toolbar-button:hover {{ background: {hover}; }}
 .sidebar {{ background: {sidebar}; border-right: 1px solid {hairline}; border-radius: 13px 0 0 13px; }}
 .content {{ background: {bg}; border-radius: 0 13px 13px 0; }}
 .toolbar {{ background: {bg}; border-bottom: 1px solid {hairline}; }}
@@ -264,6 +275,9 @@ window {{
 .sidebar-row.active {{ background: {accent_soft}; }}
 .sidebar-row.active label {{ color: {fg}; font-weight: 600; }}
 .group-card {{ background: {card}; border: 1px solid {hairline}; border-radius: 12px; }}
+.about-hero {{ padding: 4px 2px 6px 2px; }}
+.about-badge {{ background: {accent_soft}; border-radius: 14px; }}
+.accent-check {{ color: {accent}; font-size: 14px; font-weight: 700; }}
 .setting-row {{ padding: 11px 14px; }}
 .row-sep {{ background: {hairline}; min-height: 1px; }}
 .search {{ background: {search}; border-radius: 9px; border: 1px solid {hairline}; min-height: 30px; }}
@@ -308,8 +322,40 @@ switch slider {{ background: white; }}
 scale trough {{ background: {overlay}; border-radius: 99px; min-height: 5px; }}
 scale highlight {{ background: {accent}; border-radius: 99px; }}
 scale slider {{ background: white; border-radius: 99px; min-width: 16px; min-height: 16px; }}
-dropdown button {{ background: {button}; color: {fg}; border-radius: 7px; border: 1px solid {hairline}; padding: 4px 10px; }}
-dropdown popover {{ background: {sidebar}; color: {fg}; }}
+dropdown > button, .dropdown > button {{
+    background: {button};
+    color: {fg};
+    border-radius: 7px;
+    border: 1px solid {hairline};
+    padding: 2px 8px;
+    min-height: 24px;
+    box-shadow: none;
+    outline: none;
+}}
+dropdown > button:hover, .dropdown > button:hover {{ background: {hover}; }}
+dropdown > button:focus, dropdown > button:focus-visible,
+.dropdown > button:focus, .dropdown > button:focus-visible {{
+    border-color: {hairline};
+    box-shadow: none;
+    outline: none;
+}}
+dropdown popover, dropdown popover.background {{
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}}
+dropdown popover > contents {{
+    background: {menu_bg};
+    color: {fg};
+    border: 1px solid {menu_edge};
+    border-radius: 10px;
+    box-shadow: none;
+    padding: 4px;
+}}
+dropdown popover listview, dropdown popover scrolledwindow {{ background: transparent; }}
+dropdown popover row {{ padding: 3px 7px; border-radius: 6px; }}
+dropdown popover row:hover, dropdown popover row:selected {{ background: {hover}; }}
 ",
             bg = self.bg,
             sidebar = if self.dark {

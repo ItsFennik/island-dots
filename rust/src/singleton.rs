@@ -1,6 +1,6 @@
 use crate::paths;
 use anyhow::{Context, Result};
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
@@ -19,6 +19,17 @@ impl Instance {
         let dir = paths::runtime_dir();
         let _ = fs::create_dir_all(&dir);
         let path = dir.join(format!("{name}.sock"));
+        // Serialize the connect/bind race so two presses cannot both decide they are the
+        // first instance, delete each other's socket, or lose a toggle.
+        let lock_path = dir.join(format!("{name}.lock"));
+        let lock = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .open(&lock_path)
+            .with_context(|| format!("open {}", lock_path.display()))?;
+        lock.lock()
+            .with_context(|| format!("lock {}", lock_path.display()))?;
         if let Ok(mut stream) = UnixStream::connect(&path) {
             let _ = stream.write_all(format!("{message}\n").as_bytes());
             let _ = stream.flush();

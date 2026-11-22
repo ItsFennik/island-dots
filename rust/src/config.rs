@@ -94,3 +94,23 @@ impl Config {
         Ok(())
     }
 }
+
+pub trait SettingsRead {
+    fn bool(&self, key: &str, fallback: bool) -> bool;
+    fn i64(&self, key: &str, fallback: i64) -> i64;
+    fn string(&self, key: &str, fallback: &str) -> String;
+}
+
+impl SettingsRead for Config {
+    fn bool(&self, key: &str, fallback: bool) -> bool {
+        Self::bool(self, key, fallback)
+    }
+
+    fn i64(&self, key: &str, fallback: i64) -> i64 {
+        Self::i64(self, key, fallback)
+    }
+
+    fn string(&self, key: &str, fallback: &str) -> String {
+        Self::string(self, key, fallback)
+    }
+}
