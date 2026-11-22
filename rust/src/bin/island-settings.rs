@@ -1,3 +1,8 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::too_many_arguments,
+    clippy::too_many_lines
+)]
 use gtk::gdk;
 use gtk::glib;
 use gtk::prelude::*;
@@ -525,8 +530,7 @@ impl Settings {
                     if modifiers.contains(gdk::ModifierType::CONTROL_MASK)
                         && keyval
                             .to_unicode()
-                            .map(|c| c.eq_ignore_ascii_case(&'f'))
-                            .unwrap_or(false)
+                            .is_some_and(|c| c.eq_ignore_ascii_case(&'f'))
                     {
                         if let Some(spot) = weak.upgrade() {
                             spot.borrow().search.grab_focus();
@@ -582,14 +586,14 @@ impl Settings {
                 if let Some(spot) = weak.upgrade() {
                     {
                         let mut state = spot.borrow_mut();
-                        state.page = id.clone();
+                        state.page.clone_from(&id);
                     }
                     let search = spot.borrow().search.clone();
-                    if !search.text().is_empty() {
-                        search.set_text("");
-                    } else {
+                    if search.text().is_empty() {
                         spot.borrow_mut().rebuild_sidebar();
                         spot.borrow_mut().rebuild_content();
+                    } else {
+                        search.set_text("");
                     }
                 }
             });
@@ -724,7 +728,7 @@ impl Settings {
         let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
         card.add_css_class("group-card");
         for (index, (page, spec)) in results.iter().enumerate() {
-            let label = spec.map(spec_label).unwrap_or(page.title);
+            let label = spec.map_or(page.title, spec_label);
             let sub = spec
                 .map(|spec| spec_sub(spec).to_string())
                 .filter(|sub| !sub.is_empty())
@@ -753,14 +757,14 @@ impl Settings {
                 if let Some(spot) = weak.upgrade() {
                     {
                         let mut state = spot.borrow_mut();
-                        state.page = id.clone();
+                        state.page.clone_from(&id);
                     }
                     let search = spot.borrow().search.clone();
-                    if !search.text().is_empty() {
-                        search.set_text("");
-                    } else {
+                    if search.text().is_empty() {
                         spot.borrow_mut().rebuild_sidebar();
                         spot.borrow_mut().rebuild_content();
+                    } else {
+                        search.set_text("");
                     }
                 }
             });
@@ -860,7 +864,7 @@ impl Settings {
                 } else {
                     Some(
                         self.cfg
-                            .string(key, options.first().map(|(value, _)| *value).unwrap_or("")),
+                            .string(key, options.first().map_or("", |(value, _)| *value)),
                     )
                 };
                 let index = options
@@ -1044,8 +1048,8 @@ fn page_keys(page: &Page) -> Vec<&'static str> {
 
 fn format_value(value: f64, decimals: usize, suffix: &str) -> String {
     match decimals {
-        0 => format!("{:.0}{}", value, suffix),
-        n => format!("{:.prec$}{}", value, suffix, prec = n),
+        0 => format!("{value:.0}{suffix}"),
+        n => format!("{value:.n$}{suffix}"),
     }
 }
 
@@ -1086,7 +1090,7 @@ fn theme_choices() -> (Vec<String>, Vec<String>) {
             entries.push((id.to_string(), name));
         }
     }
-    entries.sort_by(|a, b| a.1.to_lowercase().cmp(&b.1.to_lowercase()));
+    entries.sort_by_key(|a| a.1.to_lowercase());
     entries.into_iter().unzip()
 }
 
