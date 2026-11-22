@@ -110,7 +110,6 @@ Column {
         Setting { spec: ({ key: "liquidGlass", type: "switch", label: "Liquid glass", sub: "Clearer panels with a glass rim and sheen. No extra GPU cost" }) }
         Setting { spec: ({ key: "shellLayout", type: "choice", label: "Layout", options: [["menubar", "Menu bar + Dock"], ["taskbar", "Bottom bar"], ["compact", "Compact bar"]] }) }
         Setting { spec: ({ key: "barSkin", type: "choice", label: "Menu bar skin", options: BarLayout.skins.map(k => [k.id, k.label]) }); visible: (Config.values.shellLayout ?? "menubar") === "menubar" }
-        Setting { spec: ({ key: "spotlightFromCapsule", type: "switch", label: "Spotlight grows out of the capsule", sub: "Off: Spotlight opens in the middle of the screen" }); visible: (Config.values.shellLayout ?? "menubar") === "menubar" && ["island", "notch"].includes(Config.values.barSkin) }
         Setting { spec: ({ key: "taskbarHeight", type: "slider", label: "Bottom bar height", from: 40, to: 72, suffix: " px" }); visible: ["taskbar", "compact"].includes(Config.values.shellLayout ?? "menubar") }
         Setting { spec: ({ key: "taskbarMagnify", type: "switch", label: "Magnification", sub: "Bottom bar icons grow under the pointer" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }
         Setting { spec: ({ key: "taskbarMagnifySize", type: "slider", label: "Magnified size", from: 1.1, to: 2.5, step: 0.05, decimals: 2, suffix: "×", minText: "Small", maxText: "Large", when: "taskbarMagnify" }); visible: (Config.values.shellLayout ?? "menubar") === "taskbar" }

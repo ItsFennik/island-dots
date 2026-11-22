@@ -14,9 +14,18 @@ Singleton {
     property bool caffeine: false         // idle inhibitor (held by the bar)
     property var trayItem: null           // SystemTrayItem whose menu the "tray" popout shows
     property var ctxApp: null             // { id, name, entry, wins } for the "appctx" popout (taskbar right-click)
-    signal settingsRequested()
-    property string settingsPage: ""      // page for the next settingsRequested ("" = keep)
-    function openSettings(page) { settingsPage = page || ""; settingsRequested(); }
+    // Rust owns every Settings pane, including the hardware pages.
+    readonly property var rustPages: ({ "": "", appearance: "appearance", spotlight: "spotlight", menubar: "bar", bar: "bar",
+                                         dock: "dock", desktop: "desktop", windows: "windows", animations: "animations",
+                                         input: "keyboard", keyboard: "keyboard", terminal: "terminal", sound: "sound",
+                                         wifi: "wifi", bluetooth: "bluetooth", network: "network", general: "general",
+                                         defaultapps: "defaultapps", drives: "drives", displays: "displays",
+                                         wallpaper: "wallpaper", notifications: "notifications", focus: "focus",
+                                         screenshots: "screenshots", mouse: "mouse" })
+    function openSettings(page) {
+        const id = page || "";
+        RustUi.settingsOpen(root.rustPages[id] ?? id);
+    }
     // ddcutil brightness (-2 unknown, -1 unsupported), probed once after start and kept across reloads:
     // each call stalls the display ~0.5 s on NVIDIA, so menus never probe.
     property alias ddc: persist.ddc
@@ -45,18 +54,18 @@ Singleton {
     property string overlayScreen: ""
     function openOverlay(which) {
         close();
+        if (which === "spotlight") { RustUi.spotlightOpen(); return; }
         overlayScreen = Compositor.screenName();
-        spotlight = which === "spotlight";
         launchpad = which === "launchpad";
         overview = which === "overview";
     }
-    function toggleSpotlight() { spotlight ? closeOverlays() : openOverlay("spotlight"); }
+    function toggleSpotlight() { RustUi.spotlightToggle(); }
     function toggleLaunchpad() { launchpad ? closeOverlays() : openOverlay("launchpad"); }
     function toggleOverview() { overview ? closeOverlays() : openOverlay("overview"); }
     function closeOverlays() { spotlight = false; launchpad = false; overview = false; }
     // Island / notch: Spotlight's window outlives the close briefly so it can shrink back into the capsule.
     property bool spotlightHeld: false
-    onSpotlightChanged: { if (spotlight) spotHold.stop(); else if (BarLayout.spotlightFromCapsule) { spotlightHeld = true; spotHold.restart(); } }
+    onSpotlightChanged: { if (spotlight) spotHold.stop(); else if (BarLayout.spotlightMorph) { spotlightHeld = true; spotHold.restart(); } }
     Timer { id: spotHold; interval: 450; onTriggered: root.spotlightHeld = false }
     // Right-click on a tray icon: open its menu; the same icon again closes it.
     function trayMenu(item, screenName) {

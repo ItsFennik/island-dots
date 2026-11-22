@@ -1,6 +1,6 @@
 # Island
 
-Island is a macOS-style desktop shell for Wayland, built on [Quickshell](https://quickshell.org): a menu bar, dock, desktop widgets, Spotlight, Launchpad, Overview, Control Centre, notifications, System Settings and a lock screen, all in one Quickshell process. A matching SDDM login theme and a palette pipeline that recolours the rest of the desktop are included. It runs on Hyprland, niri, Sway/SwayFX/Scroll and MangoWC, with sensible fallbacks on any compositor that speaks layer-shell, foreign-toplevel and ext-session-lock.
+Island is a macOS-style desktop shell for Wayland, built on [Quickshell](https://quickshell.org): a menu bar, dock, desktop widgets, Spotlight, Launchpad, Overview, Control Centre, notifications, System Settings and a lock screen, all in one Quickshell process, with Spotlight and Settings as small Rust/GTK4 companions. A matching SDDM login theme and a palette pipeline that recolours the rest of the desktop are included. It runs on Hyprland, niri, Sway/SwayFX/Scroll and MangoWC, with sensible fallbacks on any compositor that speaks layer-shell, foreign-toplevel and ext-session-lock.
 
 ![Island desktop](docs/screenshots/island-desktop.png)
 
@@ -16,12 +16,12 @@ Island is a macOS-style desktop shell for Wayland, built on [Quickshell](https:/
 | Shell | Bar, dock, widgets, overlays, popouts, Settings and lock in one process | `shell.qml`, `bar/`, `dock/`, `widgets/`, `overlays/`, `popouts/`, `settings/` |
 | Menu bar | App menus, workspace indicator, tray, status, weather, clock | `bar/` |
 | Dock | Magnification, launch bounce, pinning, trash, autohide | `dock/Dock.qml` |
-| Spotlight and Launchpad | Apps, files, math, `>` commands, web search, app grid | `overlays/Spotlight.qml`, `overlays/Launchpad.qml` |
+| Spotlight and Launchpad | Apps, files, math, `>` commands, web search (Rust); app grid (QML) | `rust/`, `overlays/Launchpad.qml` |
 | Overview | Workspace and window overview with live previews | `overlays/Overview.qml` |
 | Control Centre | Wi-Fi, Bluetooth, sound, brightness, media, DND, caffeine | `popouts/ControlCenter.qml` |
 | Notifications | Notification daemon and Notification Centre | `services/Notifs.qml`, `popouts/Notifications.qml` |
-| System Settings | Live settings window for shell and compositor | `settings/` |
-| Lock screen | ext-session-lock locker with PAM authentication | `overlays/Lock.qml`, `overlays/LockContent.qml` |
+| System Settings | Rust/GTK4 settings for the shell; QML hardware panes remain in `settings/` | `rust/`, `settings/` |
+| Lock screen | ext-session-lock locker with PAM authentication, animated typing and circles/last-letter/letters password styles | `overlays/Lock.qml`, `overlays/LockContent.qml` |
 | SDDM login | Matching greeter theme and installer | `sddm/` |
 | Themes | 21 palettes plus generated Material You theme | `themes/*.json`, `apply-theme.sh` |
 | Settings pipeline | Pushes settings to the compositor, GTK, Foot, cursor and icons | `apply-settings.sh` |
@@ -54,6 +54,23 @@ exec-once=~/.config/quickshell/island/scripts/island-startup
 Then log out and back in, or run the startup script by hand.
 
 systemd is not required. The startup script creates the runtime directory, starts a dbus session when needed, starts PipeWire and WirePlumber when no user service manager exists, and starts the clipboard watchers, wallpaper and Quickshell. See [docs/non-systemd.md](docs/non-systemd.md).
+
+## Rust UI
+
+Spotlight and Settings are standalone Rust/GTK4 binaries that read the same
+`~/.config/island/settings.json` and `themes/*.json` as the shell:
+
+```sh
+./rust/build.sh
+```
+
+The script installs `island-spotlight` and `island-settings` into `~/.local/bin`
+and creates a user-local `gtk4-layer-shell` pkg-config shim when the distribution
+ships only the runtime library. Super+D, the bar icons, the dock and the
+`qs -c island ipc call launcher`/`settings` targets all launch the Rust binaries.
+Every pane, including Wi-Fi, Bluetooth, network, sound, displays, drives and default
+apps, is native in the Rust Settings window. The QML tree in `settings/` is kept as the
+source of truth for the port, not as a second Settings surface.
 
 ## Documentation
 

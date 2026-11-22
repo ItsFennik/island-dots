@@ -11,11 +11,10 @@ import qs.services
 // $XDG_RUNTIME_DIR/island.sock instead of starting `qs ipc call` per keypress.
 Scope {
     id: root
-    required property var settingsWin
 
     readonly property var actions: ({
         // menus + overlays
-        launcher:      () => Popouts.toggleSpotlight(),
+        launcher:      () => RustUi.spotlightToggle(),
         launchpad:     () => Popouts.toggleLaunchpad(),
         overview:      () => Popouts.toggleOverview(),
         notifs:        () => Popouts.toggle("notifs"),
@@ -26,7 +25,7 @@ Scope {
         media:         () => Popouts.toggle("media"),
         wallpaper:     () => Popouts.toggle("wallpapers"),
         theme:         () => Popouts.toggle("themes"),
-        settings:      () => { root.settingsWin.open = !root.settingsWin.open; },
+        settings:      () => RustUi.settingsToggle(),
         lock:          () => Compositor.lock(),
         // screenshots
         screenshot:        () => Screenshot.capture("region"),

@@ -121,9 +121,9 @@ ShellRoot {
         Dock {}
     }
 
-    SettingsWindow { id: settings }
+    // The QML Settings tree in settings/ is the source of truth for the Rust port, not a surface.
     // Hyprland global shortcuts (quickshell:launcher, …), bound in hypr/island.lua
-    Shortcuts { settingsWin: settings }
+    Shortcuts {}
 
     // Lock screen (ext-session-lock; any compositor). Also locks on `loginctl lock-session`.
     Lock { id: lock }
@@ -135,18 +135,16 @@ ShellRoot {
         function previewOpen(): bool { return lock.previewing; }
         function status(): string { return LockState.locked ? "locked" : "unlocked"; }
     }
-    Connections { target: Popouts; function onSettingsRequested() { if (Popouts.settingsPage) settings.page = Popouts.settingsPage; Popouts.settingsPage = ""; settings.open = true; } }
-
     IpcHandler {
         target: "launcher"
-        function toggle(): void { Popouts.toggleSpotlight(); }
-        function open(): void { Popouts.openOverlay("spotlight"); }
-        function close(): void { Popouts.closeOverlays(); }
+        function toggle(): void { RustUi.spotlightToggle(); }
+        function open(): void { RustUi.spotlightOpen(); }
+        function close(): void { RustUi.spotlightClose(); }
     }
 
     IpcHandler {
         target: "menu"
-        function launcher(): void { Popouts.toggleSpotlight(); }
+        function launcher(): void { RustUi.spotlightToggle(); }
         function dash(): void { Popouts.toggle("notifs"); }
         function notifs(): void { Popouts.toggle("notifs"); }
         function system(): void { Popouts.toggle("system"); }
@@ -172,10 +170,10 @@ ShellRoot {
 
     IpcHandler {
         target: "settings"
-        function toggle(): void { settings.open = !settings.open; }
-        function open(): void { settings.open = true; }
-        function close(): void { settings.open = false; }
-        function page(name: string): void { settings.page = name; settings.open = true; }
+        function toggle(): void { RustUi.settingsToggle(); }
+        function open(): void { Popouts.openSettings(""); }
+        function close(): void { RustUi.settingsClose(); }
+        function page(name: string): void { Popouts.openSettings(name); }
         // qs -c island ipc call settings set gapsIn 8      (values are JSON; bare words are strings)
         function set(key: string, value: string): string {
             if (!(key in Config.defaults)) return "unknown setting: " + key;
@@ -255,6 +253,6 @@ ShellRoot {
     // Switching workspace closes whatever is open.
     Connections {
         target: Compositor
-        function onWorkspaceChanged() { Popouts.close(); Popouts.closeOverlays(); settings.open = false; }
+        function onWorkspaceChanged() { Popouts.close(); Popouts.closeOverlays(); }
     }
 }

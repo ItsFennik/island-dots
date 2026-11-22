@@ -86,6 +86,22 @@ Scope {
                 { key: "clockDate", type: "list", label: "Date", sub: "Click the clock for the full date", options: [["full", "Sat Nov 21"], ["weekday", "Sat"], ["none", "Time only"]] },
                 { key: "clock24h", type: "switch", label: "Use a 24-hour clock" },
                 { key: "clockSeconds", type: "switch", label: "Display the time with seconds" } ] } ] },
+        { id: "spotlight", section: 2, text: "Spotlight", glyph: "\uf002", tint: "#0a84ff",
+          about: "Search apps, files and actions, do maths, run a shell command, or search the web from one field.",
+          keywords: "spotlight search launcher apps files commands shell web duckduckgo history recent pin width results style attached floating capsule",
+          groups: [
+            { title: "Window", footer: "Auto follows the bar: it grows from a capsule, drops from a menu bar, or rises above the bottom bar.", rows: [
+                { key: "spotlightStyle", type: "choice", label: "Open as", sub: "Auto fits the current bar", options: [["auto", "Auto"], ["attached", "Attached"], ["floating", "Floating"], ["capsule", "Capsule"]] },
+                { key: "spotlightFromCapsule", type: "switch", label: "Grow from the capsule", sub: "Only on Dynamic Island and Notch, with Auto style",
+                  visible: (Config.values.shellLayout ?? "menubar") === "menubar" && ["island", "notch"].includes(Config.values.barSkin) && (Config.values.spotlightStyle ?? "auto") === "auto" },
+                { key: "spotlightWidth", type: "slider", label: "Width", from: 520, to: 900, step: 20, suffix: " px", minText: "Compact", maxText: "Wide" },
+                { key: "spotlightRows", type: "slider", label: "Visible results", from: 5, to: 12, minText: "5", maxText: "12" } ] },
+            { title: "Search", footer: "Apps and actions always search. Files need three letters and stop after a second.", rows: [
+                { key: "spotlightFiles", type: "switch", label: "Search files in your home folder" },
+                { key: "spotlightCommands", type: "switch", label: "Run shell commands", sub: "Type > or $ first" },
+                { key: "spotlightWeb", type: "switch", label: "Search the web", sub: "DuckDuckGo, for anything that doesn't match" } ] },
+            { title: "History", footer: "Recent and frequently used items are stored in ~/.local/state/island/spotlight.json.", rows: [
+                { type: "button", label: "History", sub: "Clears recents, launch counts and pinned rows", text: "Clear", f: () => SpotHistory.clear() } ] } ] },
         { id: "dock", section: 2, text: "Dock", glyph: "", tint: "#1c1c1e",
           about: "Your apps along the bottom of the screen. Drag icons to reorder them, or drag an open app in to keep it there.",
           keywords: "dock magnification magnify autohide hide size pinned apps edge",
@@ -120,6 +136,8 @@ Scope {
                 { key: "widgetVerse", type: "switch", label: "Verse of the Day", sub: "ESV, from Bible Gateway", when: "widgets" } ] },
             { title: "Lock Screen", footer: "hyprlock reads ~/.config/hypr/hyprlock.conf, which apply-theme.sh keeps in the current palette.", rows: [
                 { key: "lockScreen", type: "choice", label: "Locker", options: [["island", "Island"], ["hyprlock", "hyprlock"]] },
+                { key: "lockTypingFx", type: "switch", label: "Typing animation", sub: "Password dots pop, the field glows and the screen fades back while you type" },
+                { key: "lockPasswordMask", type: "choice", label: "Password style", sub: "Circles hide every character; Last letter reveals the one you just typed", options: [["circles", "Circles"], ["last", "Last letter"], ["letters", "Letters"]] },
                 { key: "lockOnStart", type: "switch", label: "Lock when the session starts", sub: "Use with SDDM autologin: log in automatically, then unlock Island" },
                 { key: "lockVerse", type: "switch", label: "Verse on the lock screen", sub: "Island's lock screen only; it sits above the picture" } ] },
             { title: "Arrangement", footer: "Widgets you haven't moved stack in the chosen corner.", rows: [
@@ -227,17 +245,40 @@ Scope {
                 { key: "termPadding", type: "slider", label: "Padding", from: 0, to: 40, suffix: " px" } ] } ] }
     ]
     readonly property var current: pages.find(p => p.id === page) ?? pages[0]
+    readonly property var sectionNames: ["Network", "Alerts & Sound", "Desktop", "Input & Capture", "Apps"]
 
-    // Search
+    // Search runs across panes and their rows, so a setting can be found without knowing
+    // which pane it lives in. Results open the pane and clear the query.
     property string query: ""                         // trimmed, lower-case
-    function rowHit(r, q) { return (r.label + " " + (r.sub ?? "")).toLowerCase().includes(q); }
+    readonly property bool searching: query !== ""
+    function rowShown(r) { return r.visible !== false; }
+    function rowHit(r, q) { return ((r.label ?? "") + " " + (r.sub ?? "") + " " + (r.key ?? "")).toLowerCase().includes(q); }
     function pageHit(p, q) {
         if (q === "") return true;
-        if ((p.text + " " + p.keywords).toLowerCase().includes(q)) return true;
-        return (p.groups ?? []).some(g => g.rows.some(r => rowHit(r, q)));
+        if ((p.text + " " + (p.keywords ?? "")).toLowerCase().includes(q)) return true;
+        return (p.groups ?? []).some(g => (g.rows ?? []).some(r => rowShown(r) && rowHit(r, q)));
     }
     readonly property var hits: pages.filter(p => pageHit(p, query))
-    onQueryChanged: if (hits.length > 0 && !hits.some(p => p.id === page)) page = hits[0].id
+    readonly property var searchRows: {
+        if (query === "") return [];
+        const out = [];
+        for (const p of pages) {
+            if (!pageHit(p, query)) continue;
+            const rows = [];
+            for (const g of (p.groups ?? [])) for (const r of (g.rows ?? [])) {
+                if (rowShown(r) && r.label && rowHit(r, query)) rows.push(r);
+            }
+            if (rows.length) for (const r of rows) out.push({ pane: p, row: r });
+            else out.push({ pane: p, row: null });
+        }
+        return out;
+    }
+    readonly property int searchPanes: {
+        const ids = [];
+        for (const hit of searchRows) if (!ids.includes(hit.pane.id)) ids.push(hit.pane.id);
+        return ids.length;
+    }
+    onQueryChanged: scroller.contentY = 0
     function step(d) {
         const list = query ? hits : pages;
         const i = list.findIndex(p => p.id === page);
@@ -426,13 +467,26 @@ Scope {
                                 required property var modelData
                                 required property int index
                                 readonly property var list: root.query === "" ? root.pages : root.hits
+                                readonly property bool newSection: root.query === "" && (index === 0 || list[index - 1].section !== modelData.section)
                                 width: side.width
-                                Item { width: 1; height: index > 0 && root.query === "" && parent.list[index - 1].section !== modelData.section ? 12 : 1 }
+                                Item { width: 1; height: root.query !== "" || index === 0 ? 1 : newSection ? 10 : 1 }
+                                Text {
+                                    visible: newSection
+                                    width: parent.width
+                                    height: visible ? 20 : 0
+                                    leftPadding: 11
+                                    text: root.sectionNames[modelData.section] ?? ""
+                                    color: Theme.textDim
+                                    font { family: Theme.font; weight: Theme.w(Font.DemiBold); pixelSize: 11 }
+                                }
                                 SidebarItem {
                                     width: parent.width
                                     text: modelData.text; glyph: modelData.glyph; tint: modelData.tint
                                     current: root.page === modelData.id
-                                    onClicked: root.page = modelData.id
+                                    onClicked: {
+                                        if (root.searching) { search.text = ""; root.query = ""; }
+                                        root.page = modelData.id;
+                                    }
                                 }
                             }
                         }
@@ -485,11 +539,11 @@ Scope {
                     }
                     Text {
                         anchors { left: nav.right; leftMargin: 14; verticalCenter: parent.verticalCenter }
-                        text: root.current.text
+                        text: root.searching ? "Search" : root.current.text
                         color: Theme.text
                         font { family: Theme.font; pixelSize: 17; weight: Theme.w(Font.Bold) }
                         // shows once the header card has scrolled away (Tahoe)
-                        opacity: !heroCard.visible || scroller.contentY > heroCard.height - 20 ? 1 : 0
+                        opacity: root.searching || !heroCard.visible || scroller.contentY > heroCard.height - 20 ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 120 } }
                     }
                     Rectangle {
@@ -511,6 +565,12 @@ Scope {
                         width: Math.min(scroller.width - 48, 640)
                         x: (scroller.width - width) / 2; y: 4
                         spacing: 22
+
+                        Column {
+                            id: pane
+                            visible: !root.searching
+                            width: parent.width
+                            spacing: 22
 
                         // Pane header: icon beside the title and description, left-aligned. Every
                         // pane but General, which draws its own.
@@ -555,7 +615,11 @@ Scope {
                                     model: modelData.rows
                                     delegate: Loader {
                                         required property var modelData
+                                        readonly property bool shown: modelData.visible !== false
                                         width: parent ? parent.width : 0
+                                        height: shown && item ? item.implicitHeight : 0
+                                        visible: shown
+                                        active: shown
                                         sourceComponent: modelData.type === "button" ? buttonRow : settingRow
                                         Component { id: settingRow; Setting {
                                             id: row
@@ -587,6 +651,141 @@ Scope {
                                 anchors.right: parent.right
                                 text: "Restore Defaults"
                                 onClicked: { Config.reset(parent.keys); }
+                            }
+                        }
+                        }
+
+                        Column {
+                            id: searchPane
+                            visible: root.searching
+                            width: parent.width
+                            spacing: 16
+
+                            Item {
+                                width: parent.width
+                                height: searchTitle.implicitHeight + 20
+                                Text {
+                                    id: searchTitle
+                                    text: "Search results"
+                                    color: Theme.text
+                                    font { family: Theme.font; pixelSize: 22; weight: Theme.w(Font.Bold) }
+                                }
+                                Text {
+                                    anchors { left: parent.left; top: searchTitle.bottom; topMargin: 3 }
+                                    text: root.searchRows.length + (root.searchRows.length === 1 ? " setting" : " settings")
+                                          + (root.searchPanes > 0 ? " in " + root.searchPanes + (root.searchPanes === 1 ? " pane" : " panes") : "")
+                                    color: Theme.textDim
+                                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
+                                }
+                            }
+
+                            Rectangle {
+                                visible: root.searchRows.length === 0
+                                width: parent.width
+                                height: empty.implicitHeight + 40
+                                radius: 12
+                                antialiasing: true
+                                color: Theme.dark ? Qt.alpha(Theme.text, 0.05) : Qt.rgba(1, 1, 1, 0.75)
+                                border { width: 1; color: Qt.alpha(Theme.text, Theme.dark ? 0.06 : 0.07) }
+                                Column {
+                                    id: empty
+                                    anchors.centerIn: parent
+                                    spacing: 4
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: "No matching settings"
+                                        color: Theme.text
+                                        font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.DemiBold) }
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: "Try a feature or a setting name, like Wi-Fi, Spotlight or theme."
+                                        color: Theme.textDim
+                                        font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 12 }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                visible: root.searchRows.length > 0
+                                width: parent.width
+                                height: results.implicitHeight
+                                radius: 12
+                                antialiasing: true
+                                color: Theme.dark ? Qt.alpha(Theme.text, 0.05) : Qt.rgba(1, 1, 1, 0.75)
+                                border { width: 1; color: Qt.alpha(Theme.text, Theme.dark ? 0.06 : 0.07) }
+                                Column {
+                                    id: results
+                                    width: parent.width
+                                    Repeater {
+                                        model: root.searchRows
+                                        delegate: MouseArea {
+                                            id: result
+                                            required property var modelData
+                                            required property int index
+                                            width: parent.width
+                                            height: 54
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                root.page = result.modelData.pane.id;
+                                                search.text = "";
+                                                root.query = "";
+                                            }
+                                            Rectangle {
+                                                anchors.fill: parent; anchors.margins: 4
+                                                radius: 8
+                                                color: result.containsMouse ? Theme.hover : "transparent"
+                                            }
+                                            Badge {
+                                                id: resultBadge
+                                                anchors { left: parent.left; leftMargin: 13; verticalCenter: parent.verticalCenter }
+                                                width: 24; height: 24; radius: 7; glyphSize: 13
+                                                tint: result.modelData.pane.tint
+                                                topColor: Qt.lighter(result.modelData.pane.tint, 1.25)
+                                                glyph: result.modelData.pane.glyph
+                                            }
+                                            Column {
+                                                anchors { left: resultBadge.right; leftMargin: 11; right: resultChip.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                                spacing: 1
+                                                Text {
+                                                    width: parent.width
+                                                    text: result.modelData.row ? result.modelData.row.label : result.modelData.pane.text
+                                                    elide: Text.ElideRight
+                                                    color: Theme.text
+                                                    font { family: Theme.font; pixelSize: 13; weight: Theme.w(Font.Medium) }
+                                                }
+                                                Text {
+                                                    width: parent.width
+                                                    text: result.modelData.row ? (result.modelData.row.sub || "In " + result.modelData.pane.text) : "Open " + result.modelData.pane.text + " settings"
+                                                    elide: Text.ElideRight
+                                                    color: Theme.textDim
+                                                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 11 }
+                                                }
+                                            }
+                                            Rectangle {
+                                                id: resultChip
+                                                anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                                width: resultChipText.implicitWidth + 14; height: 20
+                                                radius: 10
+                                                color: Qt.alpha(Theme.text, 0.07)
+                                                Text {
+                                                    id: resultChipText
+                                                    anchors.centerIn: parent
+                                                    text: result.modelData.pane.text
+                                                    color: Theme.textDim
+                                                    font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 10 }
+                                                }
+                                            }
+                                            Rectangle {
+                                                visible: result.index < root.searchRows.length - 1
+                                                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 48; rightMargin: 10 }
+                                                height: 1
+                                                color: Qt.alpha(Theme.text, 0.07)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

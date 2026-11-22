@@ -14,9 +14,9 @@ Column {
     Text {
         visible: root.title !== ""
         leftPadding: 12
-        text: root.title.toUpperCase()
+        text: root.title
         color: Theme.textDim
-        font { family: Theme.font; pixelSize: 11; weight: Theme.w(Font.DemiBold); letterSpacing: 0.6 }
+        font { family: Theme.font; pixelSize: 11; weight: Theme.w(Font.DemiBold) }
     }
     Rectangle {
         width: parent.width

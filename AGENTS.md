@@ -15,6 +15,7 @@ For any visual change, read `DESIGN.md` first: palette roles, type, shape and mo
 |---|---|
 | Start / restart | `setsid -f qs -c island -n -d` |
 | Session start | `scripts/island-startup` (runtime dir, dbus, PipeWire, clipboard, wallpaper, shell) |
+| Build Rust UI | `./rust/build.sh` (installs `island-spotlight` and `island-settings` to `~/.local/bin`) |
 | Power / session | `scripts/island-power <lock|logout|suspend|hibernate|reboot|poweroff>` |
 | Logs (check after every edit) | `qs log -c island`; startup helpers log to `~/.local/state/island/logs/startup.log` |
 | Drive it | `qs -c island ipc call <target> <fn> [args]` (targets: see `shell.qml` / README) |
@@ -34,7 +35,9 @@ For any visual change, read `DESIGN.md` first: palette roles, type, shape and mo
 shell.qml          entry point: per-screen windows (Variants), LazyLoaders, every IpcHandler
 bar/ dock/ widgets/ overlays/    surfaces (overlays = Spotlight, Launchpad, Overview, lock, screenshot UI)
 popouts/           everything that drops down from the bar (opened through services/Popouts.qml)
-settings/          System Settings: SettingsWindow.qml holds the data-driven page specs, pages/ the custom pages
+rust/              standalone Rust/GTK4 Spotlight and Settings (shared config/theme modules)
+settings/          QML System Settings source of truth: SettingsWindow.qml holds the data-driven page specs,
+                   pages/ the custom pages. Rust Settings ports every pane; the QML window is not reachable.
 services/          singletons (pragma Singleton): Config, Theme, Compositor, Popouts, Media, Audio, Net,
                    Notifs, Weather, SysStats, WallColors, WidgetLayout, … imported as `qs.services`
 components/        shared controls (Switch, Slider, Segmented, MenuList, GlassSheen, …)
@@ -97,6 +100,8 @@ hardcodes it, and it should be fixed rather than copied.
   staged edits (what Settings shows). Read `Config.saved.x` in surfaces and `Config.values` in
   Settings rows. Write with `Config.set(key, v)` (staged, autosaves after 450 ms) or
   `Config.commit(key, v)` (right away). Saving runs `apply-settings.sh`.
+- Rust Settings (`rust/src/bin/island-settings.rs`) edits the same `settings.json` and
+  runs `apply-settings.sh`; add rows in its `pages()` table as well as the QML page.
 - **Adding a setting:** (1) a default in `defaults.json`; (2) a row spec in
   `settings/SettingsWindow.qml` (types: `switch`, `slider`, `choice`, `list`, `font`, `text`,
   `secret`, `wsstyle`, `button`; `when: "<key>"` greys it out; add search `keywords` to the page);

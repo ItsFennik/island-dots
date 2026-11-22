@@ -100,11 +100,3 @@ pub fn open_settings(page: Option<&str>) {
         .stderr(Stdio::null())
         .spawn();
 }
-
-pub fn open_qml_settings(page: Option<&str>) {
-    let target = match page.filter(|p| !p.is_empty()) {
-        Some(page) => vec!["-c", "island", "ipc", "call", "settings", "qmlPage", page],
-        None => vec!["-c", "island", "ipc", "call", "settings", "qml"],
-    };
-    spawn("qs", &target);
-}
