@@ -11,6 +11,17 @@ Item {
     property bool preview: false
     anchors.fill: parent
 
+    // Typing animation (Settings → Desktop & Widgets → Lock Screen → Typing animation): every
+    // keypress pops its dot, lights the field and the ring around the picture, and pulls the
+    // clock back so the field is the one thing in focus.
+    readonly property bool typedFx: Config.saved.lockTypingFx ?? true
+    // Password mask: "circles" hides every character, "last" keeps dots but reveals the one being
+    // typed, "letters" shows them all. Settings → Desktop & Widgets → Lock Screen → Password style.
+    readonly property string maskStyle: Config.saved.lockPasswordMask ?? "last"
+    property real keyPulse: 0            // 1 on a keypress, decays between keys
+    property real typingFocus: content.typing ? 1 : 0
+    Behavior on typingFocus { NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
+
     readonly property bool typing: lock.typing || lock.pam.active
     readonly property bool h24: Config.saved.clock24h ?? true
     readonly property color errColor: Theme.pal.red || "#ff5f6d"
@@ -50,6 +61,13 @@ Item {
         id: loginIn
         PauseAnimation { duration: 200 }
         NumberAnimation { target: content; property: "loginIntro"; from: 0; to: 1; duration: 650; easing.type: Easing.OutCubic }
+    }
+
+    // Every keystroke: quick rise, soft decay. Fast typing restarts it, so the field stays lit.
+    SequentialAnimation {
+        id: keyPulseAnim
+        NumberAnimation { target: content; property: "keyPulse"; to: 1; duration: 80; easing.type: Easing.OutCubic }
+        NumberAnimation { target: content; property: "keyPulse"; to: 0; duration: 420; easing.type: Easing.OutCubic }
     }
 
     // Wallpaper
@@ -128,37 +146,44 @@ Item {
         Behavior on opacity { NumberAnimation { duration: 230; easing.type: Easing.InCubic } }
         Behavior on scale { NumberAnimation { duration: 230; easing.type: Easing.InCubic } }
 
-        // Date and time
-        Column {
-            id: clockGroup
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(content.height * 0.075) - (1 - content.clockIntro) * 14
-            spacing: -Math.round(content.height * 0.012)
-            opacity: content.clockIntro
+        // Date and time. Fades back while a password is being typed.
+        Item {
+            id: clockWrap
+            anchors.fill: parent
+            opacity: 1 - (content.typedFx ? 0.42 : 0) * content.typingFocus
+            Behavior on opacity { NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
 
-            Text {
+            Column {
+                id: clockGroup
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: Qt.formatDate(clock.date, "dddd, MMMM d")
-                color: Qt.rgba(1, 1, 1, 0.80)
-                font { family: Theme.font; pixelSize: Math.round(content.height * 0.023); weight: Theme.w(Font.DemiBold); letterSpacing: 0.3 }
-            }
-            Item {
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: bigClock.implicitWidth + (meridiem.visible ? meridiem.implicitWidth + 10 : 0)
-                height: bigClock.implicitHeight
+                y: Math.round(content.height * 0.075) - (1 - content.clockIntro) * 14
+                spacing: -Math.round(content.height * 0.012)
+                opacity: content.clockIntro
+
                 Text {
-                    id: bigClock
-                    text: content.time[0]
-                    color: Qt.rgba(1, 1, 1, 0.96)
-                    font { family: Theme.font; pixelSize: Math.round(content.height * 0.155); weight: Theme.w(Font.Bold); letterSpacing: -5 }
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Qt.formatDate(clock.date, "dddd, MMMM d")
+                    color: Qt.rgba(1, 1, 1, 0.80)
+                    font { family: Theme.font; pixelSize: Math.round(content.height * 0.023); weight: Theme.w(Font.DemiBold); letterSpacing: 0.3 }
                 }
-                Text {
-                    id: meridiem
-                    visible: text !== ""
-                    anchors { left: bigClock.right; leftMargin: 10; baseline: bigClock.baseline }
-                    text: content.time[1]
-                    color: Qt.rgba(1, 1, 1, 0.55)
-                    font { family: Theme.font; pixelSize: Math.round(content.height * 0.030); weight: Theme.w(Font.DemiBold); letterSpacing: 1.5 }
+                Item {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: bigClock.implicitWidth + (meridiem.visible ? meridiem.implicitWidth + 10 : 0)
+                    height: bigClock.implicitHeight
+                    Text {
+                        id: bigClock
+                        text: content.time[0]
+                        color: Qt.rgba(1, 1, 1, 0.96)
+                        font { family: Theme.font; pixelSize: Math.round(content.height * 0.155); weight: Theme.w(Font.Bold); letterSpacing: -5 }
+                    }
+                    Text {
+                        id: meridiem
+                        visible: text !== ""
+                        anchors { left: bigClock.right; leftMargin: 10; baseline: bigClock.baseline }
+                        text: content.time[1]
+                        color: Qt.rgba(1, 1, 1, 0.55)
+                        font { family: Theme.font; pixelSize: Math.round(content.height * 0.030); weight: Theme.w(Font.DemiBold); letterSpacing: 1.5 }
+                    }
                 }
             }
         }
@@ -226,6 +251,18 @@ Item {
                 scale: 0.88 + 0.12 * content.loginIntro
                 property int tryIdx: 0
 
+                // Typing lights a quiet accent ring around the picture.
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width + 12
+                    height: width
+                    radius: width / 2
+                    color: "transparent"
+                    border { width: 1.5; color: Qt.alpha(Theme.accent, 0.55) }
+                    opacity: content.typedFx ? 0.75 * content.typingFocus : 0
+                    scale: 1 + 0.05 * content.keyPulse
+                }
+
                 Image {
                     id: face
                     visible: false
@@ -289,11 +326,26 @@ Item {
                 radius: height / 2
                 property color fill: input.activeFocus ? Qt.rgba(0, 0, 0, 0.34) : Qt.rgba(0, 0, 0, 0.26)
                 property color edge: lock.failed ? Qt.alpha(content.errColor, 0.85)
-                                   : input.activeFocus ? Qt.rgba(1, 1, 1, 0.44) : Qt.rgba(1, 1, 1, 0.20)
+                                   : lock.pam.active && content.typedFx ? Qt.alpha(Theme.accent, 0.6 + 0.3 * content.keyPulse)
+                                   : input.activeFocus ? Qt.rgba(1, 1, 1, content.typedFx ? 0.34 + 0.30 * content.keyPulse : 0.44)
+                                   : Qt.rgba(1, 1, 1, 0.20)
                 color: fill
                 border { width: 1; color: edge }
                 Behavior on fill { ColorAnimation { duration: 160 } }
                 Behavior on edge { ColorAnimation { duration: 160 } }
+
+                // Soft halo behind the field: a beat on every key, a low glow while typing.
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width + 20
+                    height: parent.height + 20
+                    radius: height / 2
+                    z: -2
+                    color: lock.failed ? content.errColor : Theme.accent
+                    opacity: content.typedFx ? (lock.failed ? 0.10 + 0.18 * content.keyPulse
+                                              : 0.07 * content.typingFocus + 0.22 * content.keyPulse) : 0
+                    scale: 1 + 0.03 * content.keyPulse
+                }
 
                 MouseArea { anchors.fill: parent; z: -1; onClicked: input.forceActiveFocus() }
 
@@ -301,7 +353,7 @@ Item {
                     id: lockGlyph
                     anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
                     text: "\uf023"
-                    color: Qt.rgba(1, 1, 1, input.activeFocus ? 0.8 : 0.5)
+                    color: Qt.rgba(1, 1, 1, input.activeFocus ? (content.typedFx ? 0.55 + 0.35 * content.keyPulse : 0.8) : 0.5)
                     font { family: Theme.mono; pixelSize: 13 }
                     Behavior on color { ColorAnimation { duration: 160 } }
                 }
@@ -316,11 +368,15 @@ Item {
                     echoMode: TextInput.Password
                     passwordCharacter: "●"
                     selectByMouse: true
-                    color: "white"
+                    color: content.typedFx ? "transparent" : "white"
+                    cursorDelegate: content.typedFx ? caretComp : null
                     selectionColor: Qt.rgba(1, 1, 1, 0.3)
                     font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 14; letterSpacing: 2 }
                     clip: true
-                    onTextChanged: if (lock.password !== text) lock.password = text
+                    onTextChanged: {
+                        if (lock.password !== text) lock.password = text;
+                        if (content.typedFx && text.length > 0) keyPulseAnim.restart();
+                    }
                     Connections { target: lock; function onPasswordChanged() { if (input.text !== lock.password) input.text = lock.password; } }
                     Connections { target: lock; function onFailedChanged() { if (lock.failed) Qt.callLater(() => input.forceActiveFocus()); } }
                     Connections { target: lock.pam; function onActiveChanged() { if (!lock.pam.active) Qt.callLater(() => input.forceActiveFocus()); } }
@@ -333,6 +389,89 @@ Item {
                         color: Qt.rgba(1, 1, 1, 0.55)
                         font { family: Theme.font; weight: Theme.fontWeight; pixelSize: 14 }
                     }
+                }
+
+                // Password mask. Circles hide every character, Last letter reveals the one you are
+                // typing, Letters shows them all. Every cell is the width of the input's own
+                // password glyph, so the caret sits after the last one.
+                TextMetrics { id: dotMetrics; font: input.font; text: "●" }
+                Row {
+                    id: mask
+                    anchors { left: lockGlyph.right; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                    height: Math.max(18, input.contentHeight)
+                    spacing: 0
+                    visible: content.typedFx
+                    readonly property real cell: dotMetrics.width + input.font.letterSpacing
+                    readonly property int shown: !content.typedFx ? 0
+                        : content.maskStyle === "last" ? Math.max(0, input.text.length - 1)
+                        : input.text.length
+
+                    Repeater {
+                        model: mask.shown
+                        delegate: Item {
+                            width: mask.cell
+                            height: mask.height
+                            readonly property bool letter: content.maskStyle === "letters"
+
+                            Rectangle {
+                                id: dotShape
+                                anchors.centerIn: parent
+                                visible: !parent.letter
+                                width: 7; height: 7; radius: 3.5
+                                color: lock.failed ? content.errColor : Qt.rgba(1, 1, 1, 0.92)
+                                opacity: lock.pam.active ? 0.45 : 1
+                                Component.onCompleted: dotIn.start()
+                                ParallelAnimation {
+                                    id: dotIn
+                                    NumberAnimation { target: dotShape; property: "scale"; from: 0.2; to: 1; duration: 200; easing.type: Easing.OutBack }
+                                    NumberAnimation { target: dotShape; property: "opacity"; from: 0; to: lock.pam.active ? 0.45 : 1; duration: 150 }
+                                }
+                            }
+                            Text {
+                                id: letterShape
+                                anchors.centerIn: parent
+                                visible: parent.letter
+                                text: input.text[index] ?? ""
+                                color: lock.failed ? content.errColor : Qt.rgba(1, 1, 1, 0.92)
+                                opacity: lock.pam.active ? 0.45 : 1
+                                font: input.font
+                                Component.onCompleted: letterIn.start()
+                                ParallelAnimation {
+                                    id: letterIn
+                                    NumberAnimation { target: letterShape; property: "scale"; from: 0.4; to: 1; duration: 200; easing.type: Easing.OutBack }
+                                    NumberAnimation { target: letterShape; property: "opacity"; from: 0; to: lock.pam.active ? 0.45 : 1; duration: 150 }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        id: lastChar
+                        visible: content.maskStyle === "last" && input.text.length > 0
+                        width: mask.cell
+                        height: mask.height
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        text: input.text.slice(-1)
+                        color: lock.failed ? content.errColor : Qt.rgba(1, 1, 1, 0.92)
+                        opacity: lock.pam.active ? 0.45 : 1
+                        font: input.font
+                        Connections {
+                            target: input
+                            function onTextChanged() {
+                                if (lastChar.visible) lastPop.restart();
+                            }
+                        }
+                        ParallelAnimation {
+                            id: lastPop
+                            NumberAnimation { target: lastChar; property: "scale"; from: 0.4; to: 1; duration: 200; easing.type: Easing.OutBack }
+                            NumberAnimation { target: lastChar; property: "opacity"; from: 0; to: lock.pam.active ? 0.45 : 1; duration: 150 }
+                        }
+                    }
+                }
+                Component {
+                    id: caretComp
+                    Rectangle { width: 1.5; height: 18; color: Qt.rgba(1, 1, 1, 0.85) }
                 }
 
                 Item {
