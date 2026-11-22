@@ -32,7 +32,6 @@ const HEAD_H: i32 = 26;
 const FOOT_H: i32 = 34;
 const WINDOW_MARGIN: i32 = 20;
 const MAX_HEADERS: i32 = 4;
-const HOVER_GRACE_MS: u64 = 100;
 const LINGER_MS: u64 = 120_000;
 const OPEN_MS: u64 = 150;
 const CLOSE_MS: u64 = 160;
@@ -159,7 +158,6 @@ struct Spotlight {
     anim_tick: Option<gtk::TickCallbackId>,
     fade_tick: Option<gtk::TickCallbackId>,
     tick_source: Option<gtk::TickCallbackId>,
-    hover_entered: Rc<Cell<bool>>,
     linger: Option<glib::SourceId>,
     rows: Vec<Row>,
     list_rows: Vec<gtk::ListBoxRow>,
@@ -477,48 +475,6 @@ impl Spotlight {
                     });
                 }
 
-                let hover_entered = Rc::new(Cell::new(false));
-                let hover_pending = Rc::new(Cell::new(false));
-                let motion = gtk::EventControllerMotion::new();
-                motion.set_propagation_phase(gtk::PropagationPhase::Capture);
-                let pointer_inside = {
-                    let card = card.clone();
-                    let root = root.clone();
-                    move |x: f64, y: f64| {
-                        card.compute_bounds(&root).is_some_and(|bounds| {
-                            x >= f64::from(bounds.x())
-                                && y >= f64::from(bounds.y())
-                                && x <= f64::from(bounds.x() + bounds.width())
-                                && y <= f64::from(bounds.y() + bounds.height())
-                        })
-                    }
-                };
-                motion.connect_motion({
-                    let weak = weak.clone();
-                    let hover_entered = hover_entered.clone();
-                    let hover_pending = hover_pending.clone();
-                    let pointer_inside = pointer_inside.clone();
-                    move |_, x, y| {
-                        if pointer_inside(x, y) {
-                            hover_entered.set(true);
-                            hover_pending.set(false);
-                        } else if hover_entered.get() {
-                            schedule_hover_close(&weak, &hover_pending);
-                        }
-                    }
-                });
-                motion.connect_leave({
-                    let weak = weak.clone();
-                    let hover_entered = hover_entered.clone();
-                    let hover_pending = hover_pending.clone();
-                    move |_| {
-                        if hover_entered.get() {
-                            schedule_hover_close(&weak, &hover_pending);
-                        }
-                    }
-                });
-                root.add_controller(motion);
-
                 let click = gtk::GestureClick::new();
                 click.connect_pressed({
                     let weak = weak.clone();
@@ -573,7 +529,6 @@ impl Spotlight {
                     anim_tick: None,
                     fade_tick: None,
                     tick_source: None,
-                    hover_entered: hover_entered.clone(),
                     linger: None,
                     rows: Vec::new(),
                     list_rows: Vec::new(),
@@ -709,7 +664,6 @@ impl Spotlight {
             menu.popdown();
         }
         self.closing = false;
-        self.hover_entered.set(false);
         if !self.entry.text().is_empty() {
             self.entry.set_text("");
         }
@@ -2307,34 +2261,6 @@ fn icon_image(name: &str, fallback: &str) -> gtk::Image {
         }
     });
     gtk::Image::from_icon_name(icon)
-}
-
-fn schedule_hover_close(weak: &Weak<RefCell<Spotlight>>, pending: &Rc<Cell<bool>>) {
-    let Some(spot) = weak.upgrade() else {
-        return;
-    };
-    {
-        let Ok(state) = spot.try_borrow() else {
-            return;
-        };
-        if !state.grown || state.ctx_menu.is_some() {
-            return;
-        }
-    }
-    pending.set(true);
-    let weak = weak.clone();
-    let pending = pending.clone();
-    glib::timeout_add_local_once(Duration::from_millis(HOVER_GRACE_MS), move || {
-        if !pending.get() {
-            return;
-        }
-        if let Some(spot) = weak.upgrade() {
-            let mut state = spot.borrow_mut();
-            if state.grown && !state.closing && state.ctx_menu.is_none() {
-                state.close();
-            }
-        }
-    });
 }
 
 fn ease_out_cubic(t: f64) -> f64 {
