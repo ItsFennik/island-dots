@@ -9,6 +9,12 @@ for the owner first. Don't strip their preferences to make it more generic.
 Read `README.md` for the user-facing feature list, requirements and IPC list.
 For any visual change, read `DESIGN.md` first: palette roles, type, shape and motion rules.
 
+## Tool calls
+
+Batch every independent tool call into one response. One call per turn is not the default;
+it is only correct when the next call needs this call's output. After a forced dependency,
+send everything that call unblocked together in the next response.
+
 ## Running it
 
 | What | Command |
