@@ -32,11 +32,10 @@ const HEAD_H: i32 = 26;
 const FOOT_H: i32 = 34;
 const WINDOW_MARGIN: i32 = 20;
 const MAX_HEADERS: i32 = 4;
-const OPEN_MS: u64 = 180;
-const CLOSE_MS: u64 = 420;
-const OPEN_OVERSHOOT: f64 = 0.7;
 const HOVER_GRACE_MS: u64 = 100;
-const LINGER_MS: u64 = 8_000;
+const LINGER_MS: u64 = 120_000;
+const OPEN_MS: u64 = 150;
+const CLOSE_MS: u64 = 160;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Style {
@@ -152,6 +151,14 @@ struct Spotlight {
     current_h: i32,
     grown: bool,
     closing: bool,
+    shown: bool,
+    animating: bool,
+    open_gen: u64,
+    hide_source: Option<glib::SourceId>,
+    anim_source: Option<glib::SourceId>,
+    anim_tick: Option<gtk::TickCallbackId>,
+    fade_tick: Option<gtk::TickCallbackId>,
+    tick_source: Option<gtk::TickCallbackId>,
     hover_entered: Rc<Cell<bool>>,
     linger: Option<glib::SourceId>,
     rows: Vec<Row>,
@@ -357,7 +364,9 @@ impl Spotlight {
                         placeholder.set_visible(entry.text().is_empty());
                         if let Some(spot) = weak.upgrade() {
                             let query = entry.text().to_string();
-                            spot.borrow_mut().set_query(query);
+                            if let Ok(mut state) = spot.try_borrow_mut() {
+                                state.set_query(query);
+                            }
                         }
                     }
                 });
@@ -556,6 +565,14 @@ impl Spotlight {
                     current_h: cap_h,
                     grown: !morph,
                     closing: false,
+                    shown: true,
+                    animating: false,
+                    open_gen: 0,
+                    hide_source: None,
+                    anim_source: None,
+                    anim_tick: None,
+                    fade_tick: None,
+                    tick_source: None,
                     hover_entered: hover_entered.clone(),
                     linger: None,
                     rows: Vec::new(),
@@ -649,14 +666,14 @@ impl Spotlight {
         match message {
             "show" => self.show(),
             "close" => {
-                if self.window.is_visible() {
+                if self.shown {
                     self.close();
                 } else {
                     close_window_later(&self.window);
                 }
             }
             "toggle" => {
-                if self.window.is_visible() {
+                if self.shown {
                     self.close();
                 } else {
                     self.show();
@@ -670,7 +687,11 @@ impl Spotlight {
         if let Some(linger) = self.linger.take() {
             linger.remove();
         }
-        let was_hidden = !self.window.is_visible();
+        if let Some(hide) = self.hide_source.take() {
+            hide.remove();
+        }
+        let was_hidden = !self.shown;
+        self.shown = true;
         if was_hidden {
             self.reset();
         }
@@ -696,10 +717,17 @@ impl Spotlight {
     }
 
     fn hide(&mut self) {
+        self.shown = false;
+        self.closing = false;
+        self.animating = false;
+        self.stop_animation();
+        self.stop_tick();
+        self.hide_source = None;
         if let Some(menu) = self.ctx_menu.take() {
             menu.popdown();
         }
         self.window.set_visible(false);
+        self.grown = !self.morph;
         self.reset();
         let weak = self.weak.clone();
         if let Some(linger) = self.linger.take() {
@@ -714,6 +742,24 @@ impl Spotlight {
                 }
             },
         ));
+    }
+
+    fn hide_content(&mut self) {
+        self.search.set_visible(false);
+        self.footer.set_visible(false);
+        self.list.set_visible(false);
+        self.search.set_opacity(0.0);
+        self.footer.set_opacity(0.0);
+        self.list.set_opacity(0.0);
+    }
+
+    fn show_content(&mut self) {
+        self.search.set_visible(true);
+        self.footer.set_visible(true);
+        self.search.set_opacity(1.0);
+        self.footer.set_opacity(1.0);
+        self.list.set_opacity(1.0);
+        self.list.set_visible(!self.rows.is_empty());
     }
 
     fn rebuild(&mut self) {
@@ -1156,9 +1202,6 @@ impl Spotlight {
     }
 
     fn resize_card(&mut self, content_h: i32) {
-        if self.closing {
-            return;
-        }
         let height = FIELD_H
             + 1
             + (if self.rows.is_empty() {
@@ -1169,6 +1212,9 @@ impl Spotlight {
             + 1
             + FOOT_H;
         self.final_h = height;
+        if self.closing || self.animating {
+            return;
+        }
         if self.morph {
             if self.grown {
                 self.current_w = self.width;
@@ -1186,114 +1232,320 @@ impl Spotlight {
         }
     }
 
+    fn stop_animation(&mut self) {
+        if let Some(source) = self.anim_source.take() {
+            source.remove();
+        }
+        if let Some(source) = self.anim_tick.take() {
+            source.remove();
+        }
+        if let Some(source) = self.fade_tick.take() {
+            source.remove();
+        }
+    }
+
+    fn stop_tick(&mut self) {
+        if let Some(source) = self.tick_source.take() {
+            source.remove();
+        }
+    }
+
     fn start_open(&mut self) {
+        let reversing = self.animating;
+        self.stop_animation();
+        self.stop_tick();
+        self.open_gen = self.open_gen.wrapping_add(1);
         self.closing = false;
+        self.shown = true;
+        self.grown = false;
+        self.animating = true;
+        self.card.add_css_class("grown");
+        self.entry.grab_focus();
         if !self.morph {
-            self.card.set_opacity(0.0);
+            self.show_content();
+            if !reversing {
+                self.card.set_opacity(0.0);
+            }
+            self.card.set_size_request(self.width, self.final_h);
+            self.current_w = self.width;
+            self.current_h = self.final_h;
+            let from_opacity = self.card.opacity();
             let weak = self.weak.clone();
             let start = Instant::now();
-            glib::timeout_add_local(Duration::from_millis(16), move || {
+            let source = self.window.add_tick_callback(move |_, _| {
                 let Some(spot) = weak.upgrade() else {
                     return glib::ControlFlow::Break;
                 };
-                let state = spot.borrow_mut();
-                let t = (start.elapsed().as_millis() as f64 / 120.0).clamp(0.0, 1.0);
-                state.card.set_opacity(t);
+                let Ok(mut state) = spot.try_borrow_mut() else {
+                    return glib::ControlFlow::Continue;
+                };
+                if !state.shown || state.closing {
+                    state.animating = false;
+                    state.anim_tick = None;
+                    return glib::ControlFlow::Break;
+                }
+                let t = (start.elapsed().as_millis() as f64 / 110.0).clamp(0.0, 1.0);
+                let opacity = from_opacity + (1.0 - from_opacity) * ease_out_cubic(t);
+                state.card.set_opacity(opacity);
                 if t >= 1.0 {
+                    state.card.set_opacity(1.0);
+                    state.animating = false;
+                    state.anim_tick = None;
                     return glib::ControlFlow::Break;
                 }
                 glib::ControlFlow::Continue
             });
+            self.anim_tick = Some(source);
             return;
         }
-        self.grown = false;
-        self.search.set_visible(false);
-        self.list.set_visible(false);
-        self.footer.set_visible(false);
-        self.search.set_opacity(0.0);
-        self.list.set_opacity(0.0);
-        self.footer.set_opacity(0.0);
-        self.card.set_size_request(self.cap_w, self.cap_h);
-        self.current_w = self.cap_w;
-        self.current_h = self.cap_h;
+        self.hide_content();
+        let to_w = self.current_w.max(1);
+        let to_h = self.current_h.max(1);
+        self.card.set_size_request(to_w, to_h);
+        if reversing {
+            self.begin_open_animation();
+            return;
+        }
+        let generation = self.open_gen;
+        let weak = self.weak.clone();
+        let frames = Cell::new(0_u8);
+        let source = self.window.add_tick_callback(move |window, _| {
+            if !window.is_mapped() {
+                return glib::ControlFlow::Continue;
+            }
+            frames.set(frames.get() + 1);
+            if frames.get() < 2 {
+                return glib::ControlFlow::Continue;
+            }
+            if let Some(spot) = weak.upgrade() {
+                let mut state = spot.try_borrow_mut().ok();
+                if let Some(state) = state.as_mut() {
+                    state.tick_source = None;
+                    if state.open_gen == generation && state.shown && !state.closing {
+                        state.begin_open_animation();
+                    }
+                }
+            }
+            glib::ControlFlow::Break
+        });
+        self.tick_source = Some(source);
+    }
+
+    fn begin_open_animation(&mut self) {
+        let from_w = self.current_w.max(1);
+        let from_h = self.current_h.max(1);
+        if (from_w - self.width).abs() <= 1 && (from_h - self.final_h).abs() <= 1 {
+            self.animating = false;
+            self.grown = true;
+            self.card.set_size_request(self.width, self.final_h);
+            self.current_w = self.width;
+            self.current_h = self.final_h;
+            self.reveal_content();
+            return;
+        }
+        let span_w = (self.width - self.cap_w).abs().max(1) as f64;
+        let span_h = (self.final_h - self.cap_h).abs().max(1) as f64;
+        let ratio = (((self.width - from_w).abs() as f64 / span_w)
+            .max((self.final_h - from_h).abs() as f64 / span_h))
+        .clamp(0.12, 1.0);
+        let duration = (OPEN_MS as f64 * ratio).max(1.0);
         let weak = self.weak.clone();
         let start = Instant::now();
-        glib::timeout_add_local(Duration::from_millis(16), move || {
+        let source = self.window.add_tick_callback(move |_, _| {
             let Some(spot) = weak.upgrade() else {
                 return glib::ControlFlow::Break;
             };
-            let mut state = spot.borrow_mut();
-            let t = (start.elapsed().as_millis() as f64 / OPEN_MS as f64).clamp(0.0, 1.0);
-            let eased = ease_out_back(t, OPEN_OVERSHOOT);
-            let width = state.cap_w as f64 + (state.width - state.cap_w) as f64 * eased;
-            let height = state.cap_h as f64 + (state.final_h - state.cap_h) as f64 * eased;
+            let Ok(mut state) = spot.try_borrow_mut() else {
+                return glib::ControlFlow::Continue;
+            };
+            if !state.shown || state.closing {
+                state.animating = false;
+                state.anim_tick = None;
+                return glib::ControlFlow::Break;
+            }
+            let t = (start.elapsed().as_millis() as f64 / duration).clamp(0.0, 1.0);
+            let eased = ease_in_out_cubic(t);
+            let width = from_w as f64 + (state.width - from_w) as f64 * eased;
+            let height = from_h as f64 + (state.final_h - from_h) as f64 * eased;
             let width = (width.round() as i32).max(1);
             let height = (height.round() as i32).max(1);
             state.card.set_size_request(width, height);
             state.current_w = width;
             state.current_h = height;
-            if t >= 0.45 && !state.search.is_visible() {
-                state.search.set_visible(true);
-                state.footer.set_visible(true);
-            }
-            if t >= 0.8 {
-                state.list.set_visible(!state.rows.is_empty());
-            }
             if t >= 1.0 {
+                state.anim_tick = None;
+                state.animating = false;
                 state.grown = true;
-                state.card.add_css_class("grown");
                 state.card.set_size_request(state.width, state.final_h);
                 state.current_w = state.width;
                 state.current_h = state.final_h;
-                state.search.set_visible(true);
-                state.entry.grab_focus();
-                state.search.set_opacity(1.0);
-                state.list.set_visible(!state.rows.is_empty());
-                state.list.set_opacity(1.0);
-                state.footer.set_visible(true);
-                state.footer.set_opacity(1.0);
+                state.reveal_content();
                 return glib::ControlFlow::Break;
             }
             glib::ControlFlow::Continue
         });
+        self.anim_tick = Some(source);
     }
 
-    fn close(&mut self) {
-        if self.closing {
-            return;
+    fn reveal_content(&mut self) {
+        self.show_content();
+        self.search.set_opacity(0.0);
+        self.footer.set_opacity(0.0);
+        self.list.set_opacity(0.0);
+        self.rebuild();
+        self.entry.grab_focus();
+        self.begin_content_fade();
+    }
+
+    fn begin_content_fade(&mut self) {
+        if let Some(source) = self.fade_tick.take() {
+            source.remove();
         }
-        if !self.morph || !self.grown {
-            let weak = self.weak.clone();
-            glib::idle_add_local_once(move || {
-                if let Some(spot) = weak.upgrade() {
-                    spot.borrow_mut().hide();
-                }
-            });
-            return;
-        }
-        self.closing = true;
-        self.search.set_visible(false);
-        self.list.set_visible(false);
-        self.footer.set_visible(false);
         let weak = self.weak.clone();
         let start = Instant::now();
-        let from_w = self.current_w;
-        let from_h = self.current_h;
-        glib::timeout_add_local(Duration::from_millis(16), move || {
+        let source = self.window.add_tick_callback(move |_, _| {
             let Some(spot) = weak.upgrade() else {
                 return glib::ControlFlow::Break;
             };
-            let state = spot.borrow_mut();
-            let t = (start.elapsed().as_millis() as f64 / CLOSE_MS as f64).clamp(0.0, 1.0);
-            let eased = ease_out_back(t, OPEN_OVERSHOOT);
-            let width = from_w as f64 + (state.cap_w - from_w) as f64 * eased;
-            let height = from_h as f64 + (state.cap_h - from_h) as f64 * eased;
-            state.card.set_size_request(
-                (width.round() as i32).max(1),
-                (height.round() as i32).max(1),
-            );
+            let Ok(mut state) = spot.try_borrow_mut() else {
+                return glib::ControlFlow::Continue;
+            };
+            if !state.shown || state.closing {
+                state.fade_tick = None;
+                return glib::ControlFlow::Break;
+            }
+            let t = (start.elapsed().as_millis() as f64 / 110.0).clamp(0.0, 1.0);
+            let opacity = ease_out_cubic(t);
+            state.search.set_opacity(opacity);
+            state.footer.set_opacity(opacity);
+            state.list.set_opacity(opacity);
             if t >= 1.0 {
-                let weak = weak.clone();
+                state.fade_tick = None;
+                return glib::ControlFlow::Break;
+            }
+            glib::ControlFlow::Continue
+        });
+        self.fade_tick = Some(source);
+    }
+
+    fn close(&mut self) {
+        if self.closing || !self.shown {
+            return;
+        }
+        self.stop_animation();
+        self.stop_tick();
+        self.open_gen = self.open_gen.wrapping_add(1);
+        self.closing = true;
+        self.shown = false;
+        self.grown = false;
+        self.animating = true;
+        self.card.remove_css_class("grown");
+        if let Some(hide) = self.hide_source.take() {
+            hide.remove();
+        }
+        if !self.morph {
+            let weak = self.weak.clone();
+            let start = Instant::now();
+            let source = self.window.add_tick_callback(move |_, _| {
+                let Some(spot) = weak.upgrade() else {
+                    return glib::ControlFlow::Break;
+                };
+                let Ok(mut state) = spot.try_borrow_mut() else {
+                    return glib::ControlFlow::Continue;
+                };
+                if state.shown {
+                    state.anim_tick = None;
+                    return glib::ControlFlow::Break;
+                }
+                let t = (start.elapsed().as_millis() as f64 / 90.0).clamp(0.0, 1.0);
+                state.card.set_opacity(1.0 - ease_in_out_cubic(t));
+                if t >= 1.0 && !state.shown {
+                    state.anim_tick = None;
+                    let weak = Rc::downgrade(&spot);
+                    glib::idle_add_local_once(move || {
+                        if let Some(spot) = weak.upgrade() {
+                            spot.borrow_mut().hide();
+                        }
+                    });
+                    return glib::ControlFlow::Break;
+                }
+                glib::ControlFlow::Continue
+            });
+            self.anim_tick = Some(source);
+            return;
+        }
+        let start_opacity = self.search.opacity();
+        if start_opacity <= 0.01 {
+            self.hide_content();
+            self.begin_close_shrink();
+            return;
+        }
+        let weak = self.weak.clone();
+        let start = Instant::now();
+        let source = self.window.add_tick_callback(move |_, _| {
+            let Some(spot) = weak.upgrade() else {
+                return glib::ControlFlow::Break;
+            };
+            let Ok(mut state) = spot.try_borrow_mut() else {
+                return glib::ControlFlow::Continue;
+            };
+            if state.shown {
+                state.fade_tick = None;
+                return glib::ControlFlow::Break;
+            }
+            let t = (start.elapsed().as_millis() as f64 / 40.0).clamp(0.0, 1.0);
+            let opacity = start_opacity * (1.0 - ease_in_out_cubic(t));
+            state.search.set_opacity(opacity);
+            state.footer.set_opacity(opacity);
+            state.list.set_opacity(opacity);
+            if t >= 1.0 {
+                state.fade_tick = None;
+                state.hide_content();
+                state.begin_close_shrink();
+                return glib::ControlFlow::Break;
+            }
+            glib::ControlFlow::Continue
+        });
+        self.fade_tick = Some(source);
+    }
+
+    fn begin_close_shrink(&mut self) {
+        let from_w = self.current_w.max(1);
+        let from_h = self.current_h.max(1);
+        let span_w = (from_w - self.cap_w).abs().max(1) as f64;
+        let span_h = (from_h - self.cap_h).abs().max(1) as f64;
+        let ratio =
+            (span_w.max(span_h) / (self.width - self.cap_w).abs().max(1) as f64).clamp(0.12, 1.0);
+        let duration = (CLOSE_MS as f64 * ratio).max(1.0);
+        let weak = self.weak.clone();
+        let start = Instant::now();
+        let source = self.window.add_tick_callback(move |_, _| {
+            let Some(spot) = weak.upgrade() else {
+                return glib::ControlFlow::Break;
+            };
+            let Ok(mut state) = spot.try_borrow_mut() else {
+                return glib::ControlFlow::Continue;
+            };
+            if state.shown {
+                state.anim_tick = None;
+                return glib::ControlFlow::Break;
+            }
+            let t = (start.elapsed().as_millis() as f64 / duration).clamp(0.0, 1.0);
+            let eased = 1.0 - ease_in_out_cubic(t);
+            let width = state.cap_w as f64 + (from_w - state.cap_w) as f64 * eased;
+            let height = state.cap_h as f64 + (from_h - state.cap_h) as f64 * eased;
+            let width = (width.round() as i32).max(1);
+            let height = (height.round() as i32).max(1);
+            state.card.set_size_request(width, height);
+            state.current_w = width;
+            state.current_h = height;
+            if t >= 1.0 && !state.shown {
+                state.animating = false;
+                state.anim_tick = None;
+                state.card.set_size_request(state.cap_w, state.cap_h);
+                state.current_w = state.cap_w;
+                state.current_h = state.cap_h;
+                let weak = Rc::downgrade(&spot);
                 glib::idle_add_local_once(move || {
                     if let Some(spot) = weak.upgrade() {
                         spot.borrow_mut().hide();
@@ -1303,6 +1555,7 @@ impl Spotlight {
             }
             glib::ControlFlow::Continue
         });
+        self.anim_tick = Some(source);
     }
 
     fn rebuild_footer(&mut self) {
@@ -1619,7 +1872,9 @@ fn open_context_menu(
         let weak = Rc::downgrade(spot);
         move |_| {
             if let Some(spot) = weak.upgrade() {
-                spot.borrow_mut().ctx_menu = None;
+                if let Ok(mut state) = spot.try_borrow_mut() {
+                    state.ctx_menu = None;
+                }
             }
         }
     });
@@ -2059,7 +2314,9 @@ fn schedule_hover_close(weak: &Weak<RefCell<Spotlight>>, pending: &Rc<Cell<bool>
         return;
     };
     {
-        let state = spot.borrow();
+        let Ok(state) = spot.try_borrow() else {
+            return;
+        };
         if !state.grown || state.ctx_menu.is_some() {
             return;
         }
@@ -2080,15 +2337,21 @@ fn schedule_hover_close(weak: &Weak<RefCell<Spotlight>>, pending: &Rc<Cell<bool>
     });
 }
 
+fn ease_out_cubic(t: f64) -> f64 {
+    1.0 - (1.0 - t).powi(3)
+}
+
+fn ease_in_out_cubic(t: f64) -> f64 {
+    if t < 0.5 {
+        4.0 * t * t * t
+    } else {
+        1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+    }
+}
+
 fn close_window_later(window: &gtk::ApplicationWindow) {
     let window = window.clone();
     glib::idle_add_local_once(move || window.close());
-}
-
-fn ease_out_back(t: f64, overshoot: f64) -> f64 {
-    let c3 = overshoot + 1.0;
-    let u = t - 1.0;
-    1.0 + c3 * u * u * u + overshoot * u * u
 }
 
 fn key_chip(keys: &str, label: &str) -> gtk::Box {
