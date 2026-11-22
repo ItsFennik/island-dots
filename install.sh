@@ -88,7 +88,7 @@ if [ "$deps" = 1 ]; then
   fi
   if [ -n "$missing" ]; then
     say "Missing commands:$missing"
-    say "See docs/installation.md for package names. Installation continues."
+    say "See docs/installation.md for the guide for your distribution. Installation continues."
   else
     say "Core commands found."
   fi

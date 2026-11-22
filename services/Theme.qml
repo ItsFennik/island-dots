@@ -66,7 +66,7 @@ Singleton {
 
     // Light/dark twins for Control Center's Dark Mode toggle ("" when a theme has none).
     readonly property var twins: ({ "catppuccin-mocha": "catppuccin-latte", "catppuccin-macchiato": "catppuccin-latte",
-                                    "catppuccin-latte": "catppuccin-mocha", "monochrome": "monochrome-light", "monochrome-light": "monochrome",
+                                    "catppuccin-latte": "catppuccin-mocha", "e-ink": "e-ink-light", "e-ink-light": "e-ink",
                                     "macos": "macos-light", "macos-light": "macos" })
     function counterpart(id) { return id === "matugen" ? "matugen" : (twins[id] ?? ""); }
     function toggleDark() {

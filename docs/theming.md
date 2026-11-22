@@ -26,7 +26,7 @@ Island's palette lives in `themes/<id>.json`. A theme is a small set of colour r
 - `accent` and `accent_fg` are used for selections, focus rings, active borders and the active tab.
 - `red`, `green`, `yellow`, `blue`, `magenta`, `cyan` are semantic colours for widgets and terminals.
 
-There are 21 themes: `abyss`, `aurora`, `catppuccin-latte`, `catppuccin-macchiato`, `catppuccin-mocha`, `ember`, `everforest`, `gruvbox`, `kanagawa`, `macos`, `macos-light`, `matugen`, `monochrome`, `monochrome-light`, `neon-dusk`, `nord`, `orchid`, `rose-pine`, `sakura`, `space`, `tokyo-night`.
+There are 21 themes: `abyss`, `aurora`, `catppuccin-latte`, `catppuccin-macchiato`, `catppuccin-mocha`, `e-ink`, `e-ink-light`, `ember`, `everforest`, `gruvbox`, `kanagawa`, `macos`, `macos-light`, `matugen`, `neon-dusk`, `nord`, `orchid`, `rose-pine`, `sakura`, `space`, `tokyo-night`.
 
 ## Apply a theme
 

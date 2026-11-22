@@ -36,7 +36,7 @@ Current screenshots are real captures from a MangoWC session. Run `capture.sh` f
 
 The repository has one palette per file in `themes/`. Capture one desktop shot per palette if you want a full gallery. Use the theme id as the file name:
 
-`island-theme-abyss.png`, `island-theme-aurora.png`, `island-theme-catppuccin-latte.png`, `island-theme-catppuccin-macchiato.png`, `island-theme-catppuccin-mocha.png`, `island-theme-ember.png`, `island-theme-everforest.png`, `island-theme-gruvbox.png`, `island-theme-kanagawa.png`, `island-theme-macos.png`, `island-theme-macos-light.png`, `island-theme-matugen.png`, `island-theme-monochrome.png`, `island-theme-monochrome-light.png`, `island-theme-neon-dusk.png`, `island-theme-nord.png`, `island-theme-orchid.png`, `island-theme-rose-pine.png`, `island-theme-sakura.png`, `island-theme-space.png`, `island-theme-tokyo-night.png`.
+`island-theme-abyss.png`, `island-theme-aurora.png`, `island-theme-catppuccin-latte.png`, `island-theme-catppuccin-macchiato.png`, `island-theme-catppuccin-mocha.png`, `island-theme-ember.png`, `island-theme-everforest.png`, `island-theme-gruvbox.png`, `island-theme-kanagawa.png`, `island-theme-macos.png`, `island-theme-macos-light.png`, `island-theme-matugen.png`, `island-theme-e-ink.png`, `island-theme-e-ink-light.png`, `island-theme-neon-dusk.png`, `island-theme-nord.png`, `island-theme-orchid.png`, `island-theme-rose-pine.png`, `island-theme-sakura.png`, `island-theme-space.png`, `island-theme-tokyo-night.png`.
 
 `island-theme-light.png` already covers Catppuccin Latte. Use an empty workspace for every variant and hide desktop icons in Settings > Appearance to keep the gallery consistent.
 

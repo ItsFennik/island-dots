@@ -57,7 +57,7 @@ systemd is not required. The startup script creates the runtime directory, start
 
 ## Documentation
 
-- [Installation](docs/installation.md): packages, deployment, backups, manual install
+- [Install](docs/installation.md): per-distribution guides from packages to a running shell
 - [Theming](docs/theming.md): palettes and what `apply-theme.sh` touches
 - [Components](docs/components/index.md): one page per surface
 - [Keybinds](docs/keybinds.md)

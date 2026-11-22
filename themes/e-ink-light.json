@@ -1,5 +1,5 @@
 {
-  "name": "Monochrome Light", "dark": false,
+  "name": "E-Ink Light", "dark": false,
   "bg": "#f2f2f2", "bg_alt": "#e8e8e8", "surface": "#dcdcdc", "overlay": "#c4c4c4",
   "fg": "#111111", "fg_dim": "#555555", "fg_faint": "#9a9a9a",
   "accent": "#222222", "accent_fg": "#f2f2f2",
