@@ -179,6 +179,8 @@ else
 fi
 
 printf '%s\n' "$img" > "$STATE_FILE"
+# Keyboard RGB follows the wallpaper (also on --restore: OpenRGB's Direct mode doesn't survive a reboot).
+setsid -f "$(dirname "$(readlink -f "$0")")/keyboard-rgb.sh" "$img" >/dev/null 2>&1 || true
 # hyprlock's background (~/.config/hypr/hyprlock.conf): the image, or a video's poster frame.
 [ -f "$still" ] && ln -sfn "$still" "${XDG_CACHE_HOME:-$HOME/.cache}/island/lock-wallpaper"
 

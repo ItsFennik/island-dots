@@ -56,6 +56,9 @@ Singleton {
     // blur, system-blue selection unless an accent colour is picked in Appearance).
     readonly property color menuBg: liquid ? (dark ? Qt.rgba(0.11, 0.11, 0.13, 0.46) : Qt.rgba(1, 1, 1, 0.48))
                                            : (dark ? Qt.rgba(0.165, 0.165, 0.175, 0.80) : Qt.rgba(0.955, 0.955, 0.955, 0.82))
+    // The floating Spotlight card, menu material with a sheen and a macOS shadow.
+    readonly property color menuFloat: liquid ? (dark ? Qt.rgba(0.11, 0.11, 0.13, 0.36) : Qt.rgba(1, 1, 1, 0.38))
+                                              : (dark ? Qt.rgba(0.118, 0.118, 0.129, 0.82) : Qt.rgba(0.976, 0.976, 0.976, 0.85))
     readonly property color menuEdge: liquid ? (dark ? Qt.rgba(0, 0, 0, 0.30) : Qt.rgba(0, 0, 0, 0.10))
                                              : (dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.14))
     readonly property color menuInner: liquid ? (dark ? Qt.rgba(1, 1, 1, 0.24) : Qt.rgba(1, 1, 1, 0.85))

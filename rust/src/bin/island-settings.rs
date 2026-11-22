@@ -607,6 +607,30 @@ fn layout_options() -> &'static [(&'static str, &'static str)] {
     }
 }
 
+fn monitor_options() -> Vec<(String, String)> {
+    let mut options = vec![
+        ("auto".to_string(), "Auto (pointer)".to_string()),
+        ("focused".to_string(), "Focused".to_string()),
+        ("main".to_string(), "Main display".to_string()),
+    ];
+    if let Some(display) = gdk::Display::default() {
+        let monitors = display.monitors();
+        for i in 0..monitors.n_items() {
+            let Some(monitor) = monitors
+                .item(i)
+                .and_then(|item| item.downcast::<gdk::Monitor>().ok())
+            else {
+                continue;
+            };
+            if let Some(name) = monitor.connector() {
+                let name = name.to_string();
+                options.push((name.clone(), name));
+            }
+        }
+    }
+    options
+}
+
 fn pages() -> Vec<Page> {
     vec![
         Page {
@@ -701,10 +725,11 @@ fn pages() -> Vec<Page> {
         Page {
             id: "spotlight", title: "Spotlight", glyph: "\u{f002}", tint: "#0a84ff", section: "Desktop",
             about: "Search apps, files and actions, do maths, run a command, or search the web.",
-            keywords: "spotlight search launcher apps files commands shell web duckduckgo history recent pin width results style",
+            keywords: "spotlight search launcher apps files commands shell web duckduckgo history recent pin width results style monitor display screen",
             groups: vec![
-                Group { title: "Window", footer: "Auto follows the bar: capsule bars grow from the capsule, menu bars drop down, bottom bars rise above them.", rows: vec![
-                    choice("spotlightStyle", "Open as", "Auto fits the current bar", &[("auto", "Auto"), ("attached", "Attached"), ("floating", "Floating"), ("capsule", "Capsule")]),
+                Group { title: "Window", footer: "Auto opens the macOS card at the top. Capsule grows out of the Dynamic Island or Notch; Attached drops from the bar.", rows: vec![
+                    choice("spotlightStyle", "Open as", "macOS card at the top by default", &[("auto", "Auto"), ("attached", "Attached"), ("floating", "Floating"), ("capsule", "Capsule")]),
+                    list("spotlightMonitor", "Monitor", "Auto opens under the pointer", monitor_options()),
                     toggle("spotlightFromCapsule", "Grow from the capsule", "Dynamic Island and Notch only, with Auto"),
                     slider("spotlightWidth", "Width", "", 520.0, 900.0, 20.0, 0, " px"),
                     slider("spotlightRows", "Visible results", "", 5.0, 12.0, 1.0, 0, ""),

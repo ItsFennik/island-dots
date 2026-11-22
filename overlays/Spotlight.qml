@@ -336,8 +336,8 @@ PanelWindow {
         height: win.morph && !win.grown ? win.capH0 : fullH
         Behavior on width { enabled: win.morph; NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 } }
         Behavior on height { enabled: win.morph; NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 } }
-        radius: win.morph ? (win.notch ? 18 : Math.min(height / 2, 26)) : 14
-        color: win.morph ? BarLayout.capsuleFill : Theme.menuBg
+        radius: win.morph ? (win.notch ? 18 : Math.min(height / 2, 26)) : win.floating ? 16 : 14
+        color: win.morph ? BarLayout.capsuleFill : win.floating ? Theme.menuFloat : Theme.menuBg
         border { width: win.morph ? 0 : 1; color: Theme.menuEdge }
         clip: true
         // Notch: square top corners, flush with the screen edge.

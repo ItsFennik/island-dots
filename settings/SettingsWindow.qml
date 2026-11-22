@@ -33,6 +33,8 @@ Scope {
     function goForward() { if (!forward.length) return; navigating = true; back = back.concat([page]); page = forward[0]; forward = forward.slice(1); navigating = false; }
 
     readonly property var transitions: [["fade", "Fade"], ["wipe", "Wipe"], ["wave", "Wave"], ["grow", "Grow"], ["cursor", "Grow from Cursor"], ["any", "Grow from Random Spot"], ["outer", "Outer"], ["simple", "Cut"], ["random", "Random"]]
+    readonly property var spotlightMonitors: [["auto", "Auto (pointer)"], ["focused", "Focused"], ["main", "Main display"]]
+        .concat(Quickshell.screens.map(screen => [screen.name, screen.name]))
 
     // Every pane, as data. section: sidebar group. custom: settings/pages/<name>.qml
     readonly property var pages: [
@@ -88,10 +90,11 @@ Scope {
                 { key: "clockSeconds", type: "switch", label: "Display the time with seconds" } ] } ] },
         { id: "spotlight", section: 2, text: "Spotlight", glyph: "\uf002", tint: "#0a84ff",
           about: "Search apps, files and actions, do maths, run a shell command, or search the web from one field.",
-          keywords: "spotlight search launcher apps files commands shell web duckduckgo history recent pin width results style attached floating capsule",
+          keywords: "spotlight search launcher apps files commands shell web duckduckgo history recent pin width results style attached floating capsule monitor display screen",
           groups: [
-            { title: "Window", footer: "Auto follows the bar: it grows from a capsule, drops from a menu bar, or rises above the bottom bar.", rows: [
-                { key: "spotlightStyle", type: "choice", label: "Open as", sub: "Auto fits the current bar", options: [["auto", "Auto"], ["attached", "Attached"], ["floating", "Floating"], ["capsule", "Capsule"]] },
+            { title: "Window", footer: "Auto opens the macOS card at the top. Capsule grows out of the Dynamic Island or Notch; Attached drops from the bar.", rows: [
+                { key: "spotlightStyle", type: "choice", label: "Open as", sub: "macOS card at the top by default", options: [["auto", "Auto"], ["attached", "Attached"], ["floating", "Floating"], ["capsule", "Capsule"]] },
+                { key: "spotlightMonitor", type: "list", label: "Monitor", sub: "Auto opens under the pointer", options: root.spotlightMonitors },
                 { key: "spotlightFromCapsule", type: "switch", label: "Grow from the capsule", sub: "Only on Dynamic Island and Notch, with Auto style",
                   visible: (Config.values.shellLayout ?? "menubar") === "menubar" && ["island", "notch"].includes(Config.values.barSkin) && (Config.values.spotlightStyle ?? "auto") === "auto" },
                 { key: "spotlightWidth", type: "slider", label: "Width", from: 520, to: 900, step: 20, suffix: " px", minText: "Compact", maxText: "Wide" },

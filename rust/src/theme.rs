@@ -141,6 +141,21 @@ impl Theme {
         }
     }
 
+    // The floating Spotlight card: menu material with a sheen and a macOS shadow.
+    pub fn menu_float(&self) -> String {
+        if self.liquid {
+            if self.dark {
+                "rgba(28, 28, 33, 0.36)".into()
+            } else {
+                "rgba(255, 255, 255, 0.38)".into()
+            }
+        } else if self.dark {
+            "rgba(30, 30, 33, 0.82)".into()
+        } else {
+            "rgba(249, 249, 249, 0.85)".into()
+        }
+    }
+
     pub fn menu_edge(&self) -> String {
         if self.liquid {
             if self.dark {
@@ -191,6 +206,7 @@ impl Theme {
         let hover = rgba(&self.fg, 0.06);
         let card = self.card();
         let menu_bg = self.menu_bg();
+        let menu_float = self.menu_float();
         let menu_edge = self.menu_edge();
         let menu_inner = self.menu_inner();
         let capsule_fill = self.capsule_fill();
@@ -240,6 +256,7 @@ window {{
 .spot-menu .ctx-sep {{ background: {hairline}; min-height: 1px; margin: 4px 6px; }}
 .settings-shell {{ background: {bg}; border-radius: 14px; border: 1px solid {hairline}; }}
 .spot-card {{ background: {menu_bg}; border-radius: 14px; border: 1px solid {menu_edge}; box-shadow: inset 0 0 0 1px {menu_inner}; }}
+.spot-card.floating {{ background: {menu_float}; background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 90px); border-radius: 16px; border: 1px solid {menu_edge}; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.26), 0 2px 8px rgba(0, 0, 0, 0.14), inset 0 0 0 1px {menu_inner}; }}
 .spot-card.morph {{ background: {capsule_fill}; border: none; border-radius: 15px; box-shadow: none; }}
 .spot-card.morph.notch {{ border-radius: 0 0 18px 18px; }}
 .spot-card.morph.grown {{ border-radius: 26px; }}

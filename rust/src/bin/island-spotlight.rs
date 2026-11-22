@@ -19,8 +19,10 @@ use island_rust::singleton::Instance;
 use island_rust::system;
 use island_rust::theme::Theme;
 use island_rust::ui;
+use serde_json::Value;
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
+use std::process::Command;
 use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
@@ -55,19 +57,24 @@ impl Style {
             "capsule" => {
                 if capsule {
                     Self::Capsule
-                } else if bottom_layout {
+                } else {
+                    Self::Floating
+                }
+            }
+            "attached" => {
+                if bottom_layout {
                     Self::Bottom
                 } else {
                     Self::Attached
                 }
             }
+            // auto (and floating): the macOS card at the top on every bar. Dynamic Island and
+            // Notch can still grow out of the capsule when that is switched on.
             _ => {
-                if capsule && cfg.bool("spotlightFromCapsule", true) {
+                if capsule && cfg.bool("spotlightFromCapsule", false) {
                     Self::Capsule
-                } else if bottom_layout {
-                    Self::Bottom
                 } else {
-                    Self::Attached
+                    Self::Floating
                 }
             }
         }
@@ -76,6 +83,93 @@ impl Style {
 
 fn uses_focus_grab() -> bool {
     std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_some()
+}
+
+fn is_hyprland() -> bool {
+    std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_some()
+}
+
+fn is_mango() -> bool {
+    !is_hyprland()
+        && std::env::var("XDG_CURRENT_DESKTOP")
+            .map(|desktop| desktop.to_lowercase().contains("mango"))
+            .unwrap_or(false)
+}
+
+fn command_output(program: &str, args: &[&str]) -> Option<String> {
+    let output = Command::new(program).args(args).output().ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn pointer_monitor() -> Option<String> {
+    if is_hyprland() {
+        let text = command_output("hyprctl", &["cursorpos"])?;
+        let (x, y) = text.trim().split_once(',')?;
+        return monitor_at(x.trim().parse().ok()?, y.trim().parse().ok()?);
+    }
+    if is_mango() {
+        let text = command_output("mmsg", &["get", "cursorpos"])?;
+        let value: Value = serde_json::from_str(&text).ok()?;
+        return value.get("monitor")?.as_str().map(str::to_string);
+    }
+    None
+}
+
+fn focused_monitor() -> Option<String> {
+    if is_hyprland() {
+        let text = command_output("hyprctl", &["monitors", "-j"])?;
+        let value: Value = serde_json::from_str(&text).ok()?;
+        let monitor = value
+            .as_array()?
+            .iter()
+            .find(|monitor| monitor.get("focused").and_then(Value::as_bool) == Some(true))?;
+        return monitor.get("name")?.as_str().map(str::to_string);
+    }
+    if is_mango() {
+        let text = command_output("mmsg", &["get", "all-monitors"])?;
+        let value: Value = serde_json::from_str(&text).ok()?;
+        let monitor = value
+            .get("monitors")?
+            .as_array()?
+            .iter()
+            .find(|monitor| monitor.get("active").and_then(Value::as_bool) == Some(true))?;
+        return monitor.get("name")?.as_str().map(str::to_string);
+    }
+    if std::env::var_os("SWAYSOCK").is_some() {
+        let text = command_output("swaymsg", &["-t", "get_outputs"])?;
+        let value: Value = serde_json::from_str(&text).ok()?;
+        let output = value
+            .as_array()?
+            .iter()
+            .find(|output| output.get("focused").and_then(Value::as_bool) == Some(true))?;
+        return output.get("name")?.as_str().map(str::to_string);
+    }
+    None
+}
+
+fn monitor_at(x: i32, y: i32) -> Option<String> {
+    let display = gdk::Display::default()?;
+    let monitors = display.monitors();
+    for i in 0..monitors.n_items() {
+        let Some(monitor) = monitors
+            .item(i)
+            .and_then(|item| item.downcast::<gdk::Monitor>().ok())
+        else {
+            continue;
+        };
+        let area = monitor.geometry();
+        if x >= area.x()
+            && x < area.x() + area.width()
+            && y >= area.y()
+            && y < area.y() + area.height()
+        {
+            return monitor.connector().map(|name| name.to_string());
+        }
+    }
+    None
 }
 
 #[derive(Clone)]
@@ -134,15 +228,21 @@ struct Spotlight {
     cfg: Config,
     apps: AppIndex,
     history: History,
+    app: gtk::Application,
     window: gtk::ApplicationWindow,
     root: gtk::Box,
+    scroller: gtk::ScrolledWindow,
     card: gtk::Box,
     search: gtk::Box,
     entry: gtk::Entry,
     list: gtk::ListBox,
     footer: gtk::Box,
     width: i32,
+    style: Style,
     morph: bool,
+    fullscreen: bool,
+    hint: Option<String>,
+    monitor_name: Option<String>,
     cap_w: i32,
     cap_h: i32,
     final_h: i32,
@@ -151,6 +251,8 @@ struct Spotlight {
     grown: bool,
     closing: bool,
     shown: bool,
+    stale: bool,
+    hold: Option<gtk::gio::ApplicationHoldGuard>,
     animating: bool,
     open_gen: u64,
     hide_source: Option<glib::SourceId>,
@@ -194,7 +296,6 @@ impl Spotlight {
         let skin = cfg.string("barSkin", "classic");
         let cap_w = if skin == "notch" { 190 } else { 104 };
         let cap_h = cfg.i64("barHeight", 30) as i32;
-        let cap_y = if skin == "notch" { 0 } else { 6 };
         let fullscreen = !uses_focus_grab();
 
         let window = gtk::ApplicationWindow::builder()
@@ -204,46 +305,10 @@ impl Spotlight {
         window.set_decorated(false);
         window.add_css_class("spotlight-window");
         window.init_layer_shell();
-        window.set_namespace(Some(if morph {
-            "island-capsule-spotlight"
-        } else {
-            "island-spotlight"
-        }));
+        window.set_namespace(Some("island-spotlight"));
         window.set_layer(Layer::Overlay);
         window.set_keyboard_mode(KeyboardMode::Exclusive);
         window.set_exclusive_zone(-1);
-        let monitor = ui::monitor_for(monitor_name);
-        if let Some(monitor) = &monitor {
-            window.set_monitor(Some(monitor));
-        }
-        let screen = monitor.as_ref().map(gtk::prelude::MonitorExt::geometry);
-        let screen_width = screen.map_or(1920, |geometry| geometry.width());
-        let screen_height = screen.map_or(1080, |geometry| geometry.height());
-
-        let bar_height = cfg.i64("barHeight", 30) + i64::from(skin == "pills") * 6;
-        let taskbar_height = cfg.i64("taskbarHeight", 54) + 8;
-        let top_gap = (f64::from(screen_height) * 0.2).round() as i32;
-        let (edge, margin, card_top) = match style {
-            Style::Capsule => (Edge::Top, 0, cap_y),
-            Style::Bottom => (Edge::Bottom, (taskbar_height + 8) as i32, 0),
-            Style::Attached => (Edge::Top, (bar_height + 8) as i32, 0),
-            Style::Floating => (Edge::Top, top_gap, 10),
-        };
-        if fullscreen {
-            for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
-                window.set_anchor(edge, true);
-            }
-            window.set_default_size(screen_width, screen_height);
-        } else {
-            window.set_anchor(edge, true);
-            window.set_margin(edge, margin);
-            let window_height = FIELD_H
-                + rows_limit as i32 * ROW_H
-                + MAX_HEADERS * HEAD_H
-                + FOOT_H
-                + WINDOW_MARGIN * 2;
-            window.set_default_size(width + WINDOW_MARGIN * 2, window_height);
-        }
         window.set_resizable(false);
 
         let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -258,6 +323,8 @@ impl Spotlight {
             if skin == "notch" {
                 card.add_css_class("notch");
             }
+        } else if style == Style::Floating {
+            card.add_css_class("floating");
         }
         card.set_size_request(width, FIELD_H);
         card.set_halign(gtk::Align::Fill);
@@ -271,24 +338,6 @@ impl Spotlight {
         scroller.set_valign(match style {
             Style::Bottom => gtk::Align::End,
             _ => gtk::Align::Start,
-        });
-        scroller.set_margin_top(if fullscreen {
-            match style {
-                Style::Capsule => cap_y,
-                Style::Bottom => 0,
-                Style::Attached => (bar_height + 8) as i32,
-                Style::Floating => top_gap + 10,
-            }
-        } else {
-            card_top
-        });
-        scroller.set_margin_bottom(if fullscreen {
-            match style {
-                Style::Bottom => (taskbar_height + 8) as i32,
-                _ => 0,
-            }
-        } else {
-            0
         });
         scroller.set_child(Some(&card));
         root.append(&scroller);
@@ -369,6 +418,18 @@ impl Spotlight {
                     }
                 });
 
+                // Enter arrives here even though the entry consumes Return before the key
+                // controller sees it.
+                entry.connect_activate({
+                    let weak = weak.clone();
+                    move |_| {
+                        if let Some(spot) = weak.upgrade() {
+                            let index = spot.borrow().selected;
+                            activate(&spot, index);
+                        }
+                    }
+                });
+
                 list.connect_row_activated({
                     let weak = weak.clone();
                     move |_, row| {
@@ -386,6 +447,8 @@ impl Spotlight {
                 });
 
                 let key = gtk::EventControllerKey::new();
+                // Capture: Enter is otherwise eaten by the entry before this controller sees it.
+                key.set_propagation_phase(gtk::PropagationPhase::Capture);
                 key.connect_key_pressed({
                     let weak = weak.clone();
                     move |_, keyval, _, modifiers| {
@@ -429,11 +492,6 @@ impl Spotlight {
                                 toggle_dock_selected(&spot);
                                 return glib::Propagation::Stop;
                             }
-                        }
-                        if keyval == gdk::Key::Return || keyval == gdk::Key::KP_Enter {
-                            let idx = spot.borrow().selected;
-                            activate(&spot, idx);
-                            return glib::Propagation::Stop;
                         }
                         if keyval == gdk::Key::Menu || (shift && keyval == gdk::Key::F10) {
                             let index = spot.borrow().selected;
@@ -500,15 +558,21 @@ impl Spotlight {
                     cfg,
                     apps,
                     history,
+                    app: app.clone(),
                     window: window.clone(),
                     root: root.clone(),
+                    scroller: scroller.clone(),
                     card: card.clone(),
                     search: search.clone(),
                     entry: entry.clone(),
                     list,
                     footer: footer.clone(),
                     width,
+                    style,
                     morph,
+                    fullscreen,
+                    hint: monitor_name.map(str::to_string),
+                    monitor_name: None,
                     cap_w,
                     cap_h,
                     final_h: FIELD_H
@@ -522,6 +586,8 @@ impl Spotlight {
                     grown: !morph,
                     closing: false,
                     shown: true,
+                    stale: false,
+                    hold: None,
                     animating: false,
                     open_gen: 0,
                     hide_source: None,
@@ -547,6 +613,10 @@ impl Spotlight {
                     weak: weak.clone(),
                 })
             });
+
+        let target = spot.borrow().target_monitor();
+        let target = target.or_else(|| spot.borrow().hint.clone());
+        spot.borrow_mut().place(target.as_deref());
 
         spot.borrow_mut().rebuild();
         window.present_with_time(gdk::CURRENT_TIME);
@@ -574,6 +644,98 @@ impl Spotlight {
 
         spot
     }
+
+    // Which monitor this open should use: the setting is read fresh, so a lingering window
+    // still moves when the choice changes. "auto" follows the pointer where the compositor
+    // can answer (Mango, Hyprland); everything else falls back to the focused output.
+    fn target_monitor(&self) -> Option<String> {
+        let cfg = Config::load();
+        match cfg.string("spotlightMonitor", "auto").as_str() {
+            "focused" => focused_monitor(),
+            "main" => {
+                let name = cfg.string("mainScreen", "");
+                if name.is_empty() {
+                    ui::monitor_for(None)
+                        .and_then(|monitor| monitor.connector())
+                        .map(|name| name.to_string())
+                } else {
+                    Some(name)
+                }
+            }
+            "auto" => pointer_monitor().or_else(focused_monitor),
+            other => Some(other.to_string()),
+        }
+    }
+
+    // Resolve the monitor and geometry before every present: the window is reused for two
+    // minutes, so it may have to move after a pointer change or a new setting.
+    fn place(&mut self, monitor_name: Option<&str>) {
+        let monitor = ui::monitor_for(monitor_name);
+        let connector = monitor
+            .as_ref()
+            .and_then(gtk::prelude::MonitorExt::connector)
+            .map(|name| name.to_string());
+        if connector != self.monitor_name {
+            if let Some(monitor) = &monitor {
+                self.window.set_monitor(Some(monitor));
+            }
+            self.monitor_name = connector;
+        }
+        let geometry = monitor.as_ref().map(gtk::prelude::MonitorExt::geometry);
+        let screen_width = geometry.as_ref().map_or(1920, |area| area.width());
+        let screen_height = geometry.as_ref().map_or(1080, |area| area.height());
+        let skin = self.cfg.string("barSkin", "classic");
+        let cap_y = if skin == "notch" { 0 } else { 6 };
+        let bar_height = self.cfg.i64("barHeight", 30) + i64::from(skin == "pills") * 6;
+        let taskbar_height = self.cfg.i64("taskbarHeight", 54) + 8;
+        let top_gap = (f64::from(screen_height) * 0.2).round() as i32;
+        let (edge, margin, card_top) = match self.style {
+            Style::Capsule => (Edge::Top, 0, cap_y),
+            Style::Bottom => (Edge::Bottom, (taskbar_height + 8) as i32, 0),
+            Style::Attached => (Edge::Top, (bar_height + 8) as i32, 0),
+            Style::Floating => (Edge::Top, top_gap, 10),
+        };
+        if self.fullscreen {
+            for side in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
+                self.window.set_anchor(side, true);
+            }
+            self.window.set_default_size(screen_width, screen_height);
+        } else {
+            for side in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
+                self.window.set_anchor(side, false);
+            }
+            self.window.set_anchor(edge, true);
+            self.window.set_margin(Edge::Top, 0);
+            self.window.set_margin(Edge::Bottom, 0);
+            self.window.set_margin(edge, margin);
+            let window_height = FIELD_H
+                + self.rows_limit as i32 * ROW_H
+                + MAX_HEADERS * HEAD_H
+                + FOOT_H
+                + WINDOW_MARGIN * 2;
+            self.window
+                .set_default_size(self.width + WINDOW_MARGIN * 2, window_height);
+        }
+        self.scroller.set_margin_top(if self.fullscreen {
+            match self.style {
+                Style::Capsule => cap_y,
+                Style::Bottom => 0,
+                Style::Attached => (bar_height + 8) as i32,
+                Style::Floating => top_gap + 10,
+            }
+        } else {
+            card_top
+        });
+        self.scroller.set_margin_bottom(if self.fullscreen {
+            match self.style {
+                Style::Bottom => (taskbar_height + 8) as i32,
+                _ => 0,
+            }
+        } else {
+            0
+        });
+    }
+
     fn set_query(&mut self, query: String) {
         self.query = query;
         self.confirm_key.clear();
@@ -639,6 +801,8 @@ impl Spotlight {
     }
 
     fn show(&mut self) {
+        self.stale = false;
+        self.hold = None;
         if let Some(linger) = self.linger.take() {
             linger.remove();
         }
@@ -650,6 +814,8 @@ impl Spotlight {
         if was_hidden {
             self.reset();
         }
+        let target = self.target_monitor().or_else(|| self.hint.clone());
+        self.place(target.as_deref());
         self.window.present_with_time(gdk::CURRENT_TIME);
         self.window.set_keyboard_mode(KeyboardMode::Exclusive);
         gtk::prelude::GtkWindowExt::set_focus(&self.window, Some(&self.entry));
@@ -691,11 +857,24 @@ impl Spotlight {
             Duration::from_millis(LINGER_MS),
             move || {
                 if let Some(spot) = weak.upgrade() {
-                    let window = spot.borrow().window.clone();
+                    let window = {
+                        let mut state = spot.borrow_mut();
+                        state.hold = None;
+                        state.window.clone()
+                    };
                     close_window_later(&window);
                 }
             },
         ));
+        // GTK would otherwise end the run loop as soon as the last window hides.
+        if self.hold.is_none() {
+            self.hold = Some(self.app.hold());
+        }
+        // A settings write landed while this window was open: the next open should be
+        // built from the new config instead of reusing this one.
+        if self.stale {
+            self.app.quit();
+        }
     }
 
     fn hide_content(&mut self) {
@@ -2280,6 +2459,53 @@ fn close_window_later(window: &gtk::ApplicationWindow) {
     glib::idle_add_local_once(move || window.close());
 }
 
+// Style, skin and size are read when the process starts. The window lingers for two
+// minutes after closing, and every reopen postpones that, so a changed setting would
+// stay stale indefinitely. A settings write marks an open window stale; a hidden one
+// quits at once, so the next open is built from the new config.
+fn install_settings_watch(
+    app: &gtk::Application,
+    state: &Rc<RefCell<Option<Rc<RefCell<Spotlight>>>>>,
+) -> Option<gtk::gio::FileMonitor> {
+    let path = paths::settings_file();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let file = gtk::gio::File::for_path(&path);
+    let monitor = file
+        .monitor_file(
+            gtk::gio::FileMonitorFlags::empty(),
+            None::<&gtk::gio::Cancellable>,
+        )
+        .ok()?;
+    let app = app.clone();
+    let state = state.clone();
+    monitor.connect_changed(move |_, _, _, event| {
+        // Content changes only: attribute updates (atime from reading the file) must not
+        // quit the window the moment it loads its own settings.
+        if !matches!(
+            event,
+            gtk::gio::FileMonitorEvent::Changed
+                | gtk::gio::FileMonitorEvent::ChangesDoneHint
+                | gtk::gio::FileMonitorEvent::Created
+                | gtk::gio::FileMonitorEvent::Deleted
+        ) {
+            return;
+        }
+        let Some(spot) = state.borrow().as_ref().cloned() else {
+            return;
+        };
+        if spot.borrow().shown {
+            // Do not pull the window out from under the user; quit once it closes so the
+            // next open starts with the new style.
+            spot.borrow_mut().stale = true;
+        } else {
+            app.quit();
+        }
+    });
+    Some(monitor)
+}
+
 fn key_chip(keys: &str, label: &str) -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     row.set_valign(gtk::Align::Center);
@@ -2336,6 +2562,7 @@ fn main() {
         .application_id("org.island.SpotlightRust")
         .build();
     let state: Rc<RefCell<Option<Rc<RefCell<Spotlight>>>>> = Rc::new(RefCell::new(None));
+    let _settings_watch = install_settings_watch(&app, &state);
     {
         let state = state.clone();
         let monitor = monitor.clone();
