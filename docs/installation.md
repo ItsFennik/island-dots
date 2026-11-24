@@ -17,7 +17,7 @@ Every guide installs Island at `~/.config/quickshell/island`; the NixOS flake li
 
 If your distribution is not listed, follow the closest package-manager guide and check the [Quickshell build instructions](https://github.com/quickshell-mirror/quickshell/blob/master/BUILD.md) for the minimum version.
 
-Only the Fedora + MangoWC path has been exercised end to end. Package names for the other distributions were checked against their current indexes; the source-build and less common init paths are best effort.
+Only the Fedora/Gentoo + MangoWC path has been exercised end to end. Package names for the other distributions were checked against their current indexes; the source-build and less common init paths are best effort.
 
 ## After the first login
 
